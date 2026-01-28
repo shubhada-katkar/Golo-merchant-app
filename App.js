@@ -1,20 +1,42 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import React from "react";
+import { NavigationContainer } from "@react-navigation/native";
+import { createStackNavigator, CardStyleInterpolators } from "@react-navigation/stack";
+import HomePage from './screens/HomePage';
+import ProfilePage from "./screens/ProfilePage";
+import PostsPage from "./screens/PostsPage";
+import ProfileSettingsPage from "./screens/ProfileSettingsPage";
+import SettingsPage from "./screens/SettingsPage";
+import NewProductPage from "./screens/NewProductPage";
+import ProductListPage from "./screens/ProductListPage";
+import LoyaltyPage from "./screens/LoyaltyPage";
+import { ThemeProvider } from "./theme/ThemeContext";
+
+const Stack = createStackNavigator();
 
 export default function App() {
   return (
-    <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+     <ThemeProvider>
+    <NavigationContainer>
+      <Stack.Navigator
+        initialRouteName="HomePage"
+        screenOptions={{
+          headerShown: false,
+          gestureEnabled: true,
+          cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
+        }}
+      >
+
+    <Stack.Screen name="HomePage" component={HomePage} />
+    <Stack.Screen name="ProfilePage" component={ProfilePage} />  
+    <Stack.Screen name="PostsPage" component={PostsPage}/>
+    <Stack.Screen name="ProfileSettingsPage" component={ProfileSettingsPage}/>
+    <Stack.Screen name="SettingsPage" component={SettingsPage}/>
+    <Stack.Screen name="NewProductPage" component={NewProductPage}/>
+    <Stack.Screen name="ProductListPage" component={ProductListPage}/>
+    <Stack.Screen name="LoyaltyPage" component={LoyaltyPage}/>
+    
+      </Stack.Navigator>
+    </NavigationContainer>
+    </ThemeProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
