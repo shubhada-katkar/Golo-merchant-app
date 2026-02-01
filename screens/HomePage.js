@@ -9,38 +9,39 @@ import Customers from "../components/Customers";
 import { useContext } from "react";
 import { ThemeContext } from "../theme/ThemeContext";
 
+
 export default function HomePage() {
     const [activeTab, setactiveTab] = useState("Overview");
     const { colors } = useContext(ThemeContext);
 
     return (
-        <SafeAreaView style={{flex:1,backgroundColor: colors.background}}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
             <Topbar />
 
             <View style={styles.first}>
                 <TouchableOpacity onPress={() => setactiveTab("Overview")}>
-                    <Text style={[styles.text1,{color:colors.text}]}>Overview</Text>
+                    <Text style={[styles.text1, { color: colors.text }]}>Overview</Text>
                     {activeTab == "Overview" && <View style={styles.ActiveTab} />}
                 </TouchableOpacity>
 
                 <TouchableOpacity onPress={() => setactiveTab("Orders")}>
-                    <Text style={[styles.text1,{color:colors.text}]}>Orders</Text>
+                    <Text style={[styles.text1, { color: colors.text }]}>Orders</Text>
                     {activeTab == "Orders" && <View style={styles.ActiveTab} />}
                 </TouchableOpacity>
 
                 <TouchableOpacity onPress={() => setactiveTab("Customers")}>
-                    <Text style={[styles.text1,{color:colors.text}]}>Customers</Text>
+                    <Text style={[styles.text1, { color: colors.text }]}>Customers</Text>
                     {activeTab == "Customers" && <View style={styles.ActiveTab} />}
                 </TouchableOpacity>
             </View>
 
-            <View style={{ flexDirection: "row", backgroundColor:colors.divider, height: 1 }} />
+            <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1 }} />
 
             {activeTab == "Overview" && <Overview />}
             {activeTab == "Orders" && <Orders />}
             {activeTab == "Customers" && <Customers />}
 
-                <Bottombar />
+            <Bottombar />
         </SafeAreaView>
     );
 }

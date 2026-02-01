@@ -1,32 +1,48 @@
-import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Image } from "react-native";
+import React, { useState, useContext, useCallback } from "react";
+import { View, TouchableOpacity, Text, StyleSheet, Image } from "react-native";
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons, MaterialIcons, Feather, AntDesign } from "@expo/vector-icons";
-import { useContext } from "react";
 import { ThemeContext } from "../theme/ThemeContext";
-import { BackHandler, Alert } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
-import { useCallback } from "react";
 
 export default function ProfilePage({ navigation }) {
     const { colors } = useContext(ThemeContext);
+    const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
+
+    const [shopName, setShopName] = useState("Shop Name");
+    const [profileImage, setProfileImage] = useState(require("../assets/profile.png"));
+
+    // Fetch profile whenever the page comes into focus
     useFocusEffect(
         useCallback(() => {
+            const fetchProfile = async () => {
+                try {
+                    const token = await AsyncStorage.getItem("merchantToken");
+                    if (!token) return;
 
-            const onBackPress = () => {
-                BackHandler.exitApp(); // CLOSE APP
-                return true; // Prevent default behavior
+                    const res = await fetch(`${BASE_URL}/api/merchant/profile`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+
+                    const data = await res.json();
+
+                    if (data.merchant) {
+                        setShopName(data.merchant.shopName || "Shop Name");
+                        if (data.merchant.image) {
+                            setProfileImage({ uri: data.merchant.image });
+                        } else {
+                            setProfileImage(require("../assets/profile.png"));
+                        }
+                    }
+                } catch (error) {
+                    console.log("Error fetching profile:", error);
+                }
             };
 
-            const subscription = BackHandler.addEventListener(
-                "hardwareBackPress",
-                onBackPress
-            );
-
-            return () => subscription.remove();
-
+            fetchProfile();
         }, [])
     );
 
@@ -44,14 +60,8 @@ export default function ProfilePage({ navigation }) {
             <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1, color: colors.divider }} />
 
             <View style={styles.row2}>
-                <TouchableOpacity >
-                    <Image source={require("../assets/profile.png")} style={styles.image} />
-                </TouchableOpacity>
-
-                <Text style={{ fontSize: 26, paddingHorizontal: 16, color: colors.text }}>Moon Cafe</Text>
-                <TouchableOpacity>
-                    <MaterialIcons name="edit" size={22} color={colors.text}/>
-                </TouchableOpacity>
+                <Image source={profileImage} style={styles.image} />
+                <Text style={{ fontSize: 26, paddingHorizontal: 16, color: colors.text }}>{shopName}</Text>
             </View>
 
             <View style={{ paddingHorizontal: 40, paddingVertical: 6 }}>
@@ -85,20 +95,18 @@ export default function ProfilePage({ navigation }) {
                 </TouchableOpacity>
             </View>
 
-            <SafeAreaView edges={["bottom"]}
-                style={{ width: "100%", bottom: 0, position: "absolute" }}>
+            <SafeAreaView edges={["bottom"]} style={{ width: "100%", bottom: 0, position: "absolute" }}>
                 <Bottombar />
             </SafeAreaView>
-
         </SafeAreaView>
-
     );
 }
 
 const styles = StyleSheet.create({
     image: {
         width: 90,
-        height: 90
+        height: 90,
+        borderRadius: 45
     },
     row1: {
         alignItems: "center",
@@ -130,4 +138,4 @@ const styles = StyleSheet.create({
         fontSize: 20,
         paddingHorizontal: 8,
     },
-})
+});

@@ -1,20 +1,73 @@
-import React, { useState } from "react";
+import React, { useState, useContext, useCallback } from "react";
 import { View, Text, Image, StyleSheet, ScrollView } from "react-native";
 import { Entypo, FontAwesome5, Octicons, AntDesign } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { useContext } from "react";
 import { ThemeContext } from "../theme/ThemeContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
 
 export default function Overview() {
+
     const { colors } = useContext(ThemeContext);
+    const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
+
+    const [shopName, setShopName] = useState("Shop Name");
+    const [profileImage, setProfileImage] = useState(require("../assets/profile.png"));
+
+    // ✅ Fetch profile from DB every time screen opens
+    useFocusEffect(
+        useCallback(() => {
+            const fetchProfile = async () => {
+                try {
+                    const token = await AsyncStorage.getItem("merchantToken");
+                    if (!token) return;
+
+                    const res = await fetch(`${BASE_URL}/api/merchant/profile`, {
+                        headers: {
+                            Authorization: `Bearer ${token}`
+                        }
+                    });
+
+                    const data = await res.json();
+
+                    if (data.merchant) {
+                        setShopName(data.merchant.shopName || "Shop Name");
+
+                        if (data.merchant.image) {
+                            setProfileImage({ uri: data.merchant.image });
+                        } else {
+                            setProfileImage(require("../assets/profile.png"));
+                        }
+                    }
+
+                } catch (error) {
+                    console.log("Overview profile fetch error:", error);
+                }
+            };
+
+            fetchProfile();
+        }, [])
+    );
+
     return (
         <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
+
+            {/* ===== PROFILE HEADER ===== */}
             <View style={{ flexDirection: "row", paddingHorizontal: 18, paddingVertical: 8, alignItems: "center" }}>
-                <Image source={require("../assets/profile.png")} style={{ height: 90, width: 90 }} />
+                <Image source={profileImage} style={{ height: 90, width: 90, borderRadius: 45 }} />
+
                 <View style={{ flexDirection: "column", paddingHorizontal: 10 }}>
-                    <Text style={{ fontSize: 20, color: colors.text }}>Moon Cafe</Text>
-                    <Text style={{ fontSize: 20, fontWeight: 600, color: colors.text }}>350</Text>
-                    <Text style={{ fontSize: 14, color: "#727272" }}>Total Customers</Text>
+                    <Text style={{ fontSize: 20, color: colors.text }}>
+                        {shopName}
+                    </Text>
+
+                    <Text style={{ fontSize: 20, fontWeight: "600", color: colors.text }}>
+                        350
+                    </Text>
+
+                    <Text style={{ fontSize: 14, color: "#969494" }}>
+                        Total Customers
+                    </Text>
                 </View>
             </View>
 

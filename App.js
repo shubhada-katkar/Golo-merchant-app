@@ -10,6 +10,9 @@ import NewProductPage from "./screens/NewProductPage";
 import ProductListPage from "./screens/ProductListPage";
 import LoyaltyPage from "./screens/LoyaltyPage";
 import { ThemeProvider } from "./theme/ThemeContext";
+import Registration from "./screens/Registration";
+import Login from "./screens/Login";
+import AddOfferPage from "./screens/AddOfferPage";
 
 const Stack = createStackNavigator();
 
@@ -21,7 +24,6 @@ export default function App() {
         initialRouteName="HomePage"
         screenOptions={{
           headerShown: false,
-          gestureEnabled: true,
           cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
         }}
       >
@@ -34,6 +36,9 @@ export default function App() {
     <Stack.Screen name="NewProductPage" component={NewProductPage}/>
     <Stack.Screen name="ProductListPage" component={ProductListPage}/>
     <Stack.Screen name="LoyaltyPage" component={LoyaltyPage}/>
+    <Stack.Screen name="Registration" component={Registration}/>
+    <Stack.Screen name="Login" component={Login}/>
+    <Stack.Screen name="AddOfferPage" component={AddOfferPage}/>
     
       </Stack.Navigator>
     </NavigationContainer>

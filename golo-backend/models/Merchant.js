@@ -2,35 +2,42 @@ const mongoose = require("mongoose");
 
 const merchantSchema = new mongoose.Schema({
 
-  name: {
-    type: String,
-    required: true,
-    trim: true
-  },
+    username: {
+        type: String,
+        required: true,
+    },
 
-  phone: {
-    type: String,
-    required: true,
-    unique: true
-  },
+    shopName: {
+        type: String,
+        required: true,
+    },
 
-  email: {
-    type: String,
-    required: true,
-    unique: true,
-    lowercase: true
-  },
+    email: {
+        type: String,
+        required: true,
+        unique: true,
+    },
 
-  profileImage: {
-    type: String,
-    default: ""
-  },
+    phone: {
+        type: String,
+        required: true,
+    },
 
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
+    password: {
+        type: String,
+        required: true,
+    },
 
-});
+    image: {
+        type: String,
+    },
 
-module.exports = mongoose.model("Merchant", merchantSchema);
+    status: {
+        type: String,
+        enum: ["pending", "approved", "blocked"],
+        default: "pending"
+    }
+
+}, { timestamps: true });
+
+module.exports = mongoose.model("Merchant",merchantSchema);

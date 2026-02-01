@@ -9,33 +9,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons, } from "@expo/vector-icons";
 import { useContext } from "react";
 import { ThemeContext } from "../theme/ThemeContext";
-import { BackHandler, Alert } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
-import { useCallback } from "react";
 
 
 export default function ProfilePage({ navigation }) {
     const [activeTab, setactiveTab] = useState("Recent");
     const { colors } = useContext(ThemeContext);
-
-    useFocusEffect(
-        useCallback(() => {
-
-            const onBackPress = () => {
-                BackHandler.exitApp(); // CLOSE APP
-                return true; // Prevent default behavior
-            };
-
-            const subscription = BackHandler.addEventListener(
-                "hardwareBackPress",
-                onBackPress
-            );
-
-            return () => subscription.remove();
-
-        }, [])
-    );
-
 
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>

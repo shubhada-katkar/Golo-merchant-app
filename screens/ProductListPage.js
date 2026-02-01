@@ -9,31 +9,11 @@ import { ThemeContext } from "../theme/ThemeContext";
 import Total from "../productlistcomponents/Total";
 import Draft from "../productlistcomponents/Draft";
 import Publish from "../productlistcomponents/Publish";
-import { BackHandler, Alert } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
-import { useCallback } from "react";
 
 export default function ProductListPage({navigation}) {
     const {colors} = useContext(ThemeContext);
     const [activeTab, setactiveTab] = useState("Total Products");
 
-        useFocusEffect(
-            useCallback(() => {
-    
-                const onBackPress = () => {
-                    BackHandler.exitApp(); // CLOSE APP
-                    return true; // Prevent default behavior
-                };
-    
-                const subscription = BackHandler.addEventListener(
-                    "hardwareBackPress",
-                    onBackPress
-                );
-    
-                return () => subscription.remove();
-    
-            }, [])
-        );
     return (
         <SafeAreaView style={{flex:1, backgroundColor:colors.background}}>
             <Topbar />

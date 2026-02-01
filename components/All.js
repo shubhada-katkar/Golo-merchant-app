@@ -4,7 +4,6 @@ import { useContext } from "react";
 import { ThemeContext } from "../theme/ThemeContext";
 import { Entypo, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
 
-
 export default function All() {
     const { colors } = useContext(ThemeContext);
     return (

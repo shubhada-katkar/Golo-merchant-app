@@ -23,10 +23,6 @@ export default function Topbar() {
             </View>
 
             <View style={styles.rowcontainer}>
-                <TouchableOpacity onPress={() => navigation.navigate("NewProductPage")}>
-                    <FontAwesome name="plus-square-o" size={30}
-                        color={currentRoute === "NewProductPage" ? "#157a4f" : colors.text} />
-                </TouchableOpacity>
                 <TouchableOpacity>
                     <FontAwesome name="bell-o" size={28} color={colors.text} />
                 </TouchableOpacity>
