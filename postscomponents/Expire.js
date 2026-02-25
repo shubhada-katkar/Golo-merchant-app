@@ -1,133 +1,158 @@
-import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
-import { useContext } from "react";
+import React, { useContext, useEffect, useState, useCallback } from "react";
+import {
+    View,
+    Text,
+    TouchableOpacity,
+    StyleSheet,
+    FlatList,
+    Image
+} from "react-native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { ThemeContext } from "../theme/ThemeContext";
 import { AntDesign } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function Expire() {
+
     const { colors } = useContext(ThemeContext);
+    const [offers, setOffers] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
+    const navigation = useNavigation();
+    const [token, setToken] = useState(null);
+
+    // Load merchant token
+    useEffect(() => {
+        AsyncStorage.getItem("merchantToken").then(setToken);
+    }, []);
+
+    // Fetch expired offers
+    const fetchExpiredOffers = useCallback(async () => {
+        if (!token) return;
+
+        setLoading(true);
+        try {
+            const response = await fetch(`${BASE_URL}/api/offers/expired`, {
+                headers: {
+                    Authorization: `Bearer ${token}` // must send token
+                }
+            });
+            const result = await response.json();
+            setOffers(Array.isArray(result) ? result : []);
+        } catch (error) {
+            console.log("Fetch Expired Offers Error:", error);
+        } finally {
+            setLoading(false);
+        }
+    }, [token]);
+
+    // Auto-refresh whenever screen is focused
+    useFocusEffect(
+        useCallback(() => {
+            fetchExpiredOffers();
+        }, [fetchExpiredOffers])
+    );
+
+    // Render card
+const renderItem = ({ item }) => {
+    const productImage = item.products?.[0]?.image?.url;
+    const isActive = item.status === "active";
+
     return (
-        <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={{ paddingBottom: 80 }}>
-            <View style={{ padding: 14, gap: 18 }}>
-                {/*Card number 1*/}
-                <View style={styles.card2}>
-                    <View style={{ flexDirection: "row" }}>
-                        <View style={styles.image}></View>
+        <View style={styles.card2}>
+            <View style={{ flexDirection: "row" }}>
+                {productImage ? (
+                    <Image source={{ uri: productImage }} style={styles.image} />
+                ) : (
+                    <View style={styles.image} />
+                )}
 
-                        <View style={{ flex:1,justifyContent: "space-between", paddingHorizontal: 10}}>
-                            <View style={{flexDirection:'row',justifyContent:"space-between",alignItems:"center"}}>
-                                <Text style={{ fontSize: 24 }}>Noodles</Text>
-                                <TouchableOpacity style={{padding:10}}>
-                                 <AntDesign name="edit" size={20}/>
+                <View style={{ flex: 1, paddingHorizontal: 10 }}>
+                    <View style={styles.rowBetween}>
+                        <Text style={{ fontSize: 18, fontWeight: "bold" }}>
+                            {item.title}
+                        </Text>
+
+                        <View style={{ flexDirection: "row", alignItems: "center" }}>
+                            {/* STATUS */}
+                            <Text
+                                style={{
+                                    color: isActive ? "green" : "red",
+                                    marginRight: 10
+                                }}
+                            >
+                                {item.status}
+                            </Text>
+
+                            {/* EDIT ICON (disabled for expired) */}
+                            {isActive && (
+                                <TouchableOpacity
+                                    onPress={() =>
+                                        navigation.navigate("AddOfferPage", {
+                                            offerData: item
+                                        })
+                                    }
+                                >
+                                    <AntDesign name="edit" size={18} color="black" />
                                 </TouchableOpacity>
-                            </View>
-
-                            <View>
-                                <Text style={{ fontSize: 14 }}>Category 234</Text>
-                                <Text style={{ fontSize: 14 }}>Supporting line text</Text>
-                            </View>
-
+                            )}
                         </View>
-
                     </View>
+
+                    <Text style={{ marginTop: 5 }}>
+                        Discount: {item.discountPercentage}%
+                    </Text>
+
+                    <Text style={{ fontSize: 12, marginTop: 3 }}>
+                        Expired On: {new Date(item.validTo).toDateString()}
+                    </Text>
                 </View>
-
-                {/*Card number 2*/}
-                <View style={styles.card2}>
-                    <View style={{ flexDirection: "row" }}>
-                        <View style={styles.image}></View>
-
-                        <View style={{ flex:1,justifyContent: "space-between", paddingHorizontal: 10}}>
-                            <View style={{flexDirection:'row',justifyContent:"space-between",alignItems:"center"}}>
-                                <Text style={{ fontSize: 24 }}>Noodles</Text>
-                                <TouchableOpacity style={{padding:10}}>
-                                 <AntDesign name="edit" size={20}/>
-                                </TouchableOpacity>
-                            </View>
-
-                            <View>
-                                <Text style={{ fontSize: 14 }}>Category 235</Text>
-                                <Text style={{ fontSize: 14 }}>Supporting line text</Text>
-                            </View>
-
-                        </View>
-
-                    </View>
-                </View>
-
-                {/*Card number 3*/}
-                <View style={styles.card2}>
-                    <View style={{ flexDirection: "row" }}>
-                        <View style={styles.image}></View>
-
-                        <View style={{ flex:1,justifyContent: "space-between", paddingHorizontal: 10}}>
-                            <View style={{flexDirection:'row',justifyContent:"space-between",alignItems:"center"}}>
-                                <Text style={{ fontSize: 24 }}>Noodles</Text>
-                                <TouchableOpacity style={{padding:10}}>
-                                 <AntDesign name="edit" size={20}/>
-                                </TouchableOpacity>
-                            </View>
-
-                            <View>
-                                <Text style={{ fontSize: 14 }}>Category 236</Text>
-                                <Text style={{ fontSize: 14 }}>Supporting line text</Text>
-                            </View>
-
-                        </View>
-
-                    </View>
-                </View>
-
-                {/*Card number 4*/}
-                <View style={styles.card2}>
-                    <View style={{ flexDirection: "row" }}>
-                        <View style={styles.image}></View>
-
-                        <View style={{ flex:1,justifyContent: "space-between", paddingHorizontal: 10}}>
-                            <View style={{flexDirection:'row',justifyContent:"space-between",alignItems:"center"}}>
-                                <Text style={{ fontSize: 24 }}>Noodles</Text>
-                                <TouchableOpacity style={{padding:10}}>
-                                 <AntDesign name="edit" size={20}/>
-                                </TouchableOpacity>
-                            </View>
-
-                            <View>
-                                <Text style={{ fontSize: 14 }}>Category 237</Text>
-                                <Text style={{ fontSize: 14 }}>Supporting line text</Text>
-                            </View>
-
-                        </View>
-
-                    </View>
-                </View>
-
             </View>
-        </ScrollView>
+        </View>
+    );
+};
+
+    return (
+        <FlatList
+            style={{ flex: 1, backgroundColor: colors.background }}
+            contentContainerStyle={{ padding: 14, paddingBottom: 80 }}
+            data={offers}
+            keyExtractor={(item) => item._id}
+            renderItem={renderItem}
+            showsVerticalScrollIndicator={false}
+            refreshing={loading}
+            onRefresh={fetchExpiredOffers}
+            ListEmptyComponent={
+                !loading && (
+                    <Text style={{ textAlign: "center", marginTop: 40 }}>
+                        No expired offers yet
+                    </Text>
+                )
+            }
+        />
     );
 }
 
-const styles = StyleSheet.create(
-    {
-        card2: {
-            borderRadius: 10,
-            borderColor: "black",
-            minHeight: 120,
-            shadowOffset: { height: 4, width: 3 },
-            borderWidth: 1,
-            shadowColor: "#413f4f",
-            shadowOpacity: 0.25,
-            shadowRadius: 5,
-            shadowOffset: { width: 2, height: 4 },
-            elevation: 10,
-            backgroundColor: "white",
-            justifyContent: "center",
-            paddingHorizontal: 10
-        },
-        image: {
-            width: 100,
-            height: 100,
-            backgroundColor: "#b8b8b8",
-            borderRadius: 14
-        }
+const styles = StyleSheet.create({
+    card2: {
+        borderRadius: 10,
+        minHeight: 120,
+        borderWidth: 1,
+        elevation: 5,
+        backgroundColor: "white",
+        justifyContent: "center",
+        paddingHorizontal: 10,
+        marginBottom: 18
+    },
+    image: {
+        width: 100,
+        height: 100,
+        backgroundColor: "#b8b8b8",
+        borderRadius: 14
+    },
+    rowBetween: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center"
     }
-)
+});

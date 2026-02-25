@@ -29,7 +29,12 @@ const merchantSchema = new mongoose.Schema({
     },
 
     image: {
-        type: String,
+        url: {
+            type: String,
+        },
+        public_id: {
+            type: String,
+        },
     },
 
     status: {
@@ -40,4 +45,4 @@ const merchantSchema = new mongoose.Schema({
 
 }, { timestamps: true });
 
-module.exports = mongoose.model("Merchant",merchantSchema);
+module.exports = mongoose.model("Merchant", merchantSchema);

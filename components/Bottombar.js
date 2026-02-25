@@ -28,9 +28,9 @@ export default function Bottombar(){
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.bar} >
-                <FontAwesome name="plus-square-o" size={24} onPress={()=>navigation.navigate("AddOfferPage")}
-                color= {currentRoute === "AddOfferPage" ? "#157a4f" : "black"}/>
-                <Text style={{textAlign:"auto",fontSize:12,color:currentRoute === "AddOfferPage" ? "#157a4f" : "black"}}>Add Offer</Text>
+                <FontAwesome name="plus-square-o" size={24} onPress={()=>navigation.navigate("TemplatePage")}
+                color= {currentRoute === "TemplatePage" ? "#157a4f" : "black"}/>
+                <Text style={{textAlign:"auto",fontSize:12,color:currentRoute === "TemplatePage" ? "#157a4f" : "black"}}>Add Offer</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.bar} onPress={()=>navigation.navigate("ProductListPage")}>

@@ -2,24 +2,53 @@ const express = require("express");
 const router = express.Router();
 const productController = require("../controllers/productController");
 const verifyMerchant = require("../middleware/authMiddleware");
+const upload = require("../middleware/upload");
+const mongoose = require("mongoose");
 
+const validateObjectId = (req, res, next) => {
+  if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    return res.status(400).json({ message: "Invalid product ID" });
+  }
+  next();
+};
 
-// Add product (PROTECTED)
-router.post("/add", verifyMerchant, productController.createProduct);
+// ================= ADD PRODUCT =================
+router.post(
+  "/add",
+  verifyMerchant,
+  upload.single("image"),
+  productController.createProduct
+);
 
-// Get products (merchant wise)
+// ================= GET PRODUCTS =================
 router.get("/", verifyMerchant, productController.getAllProducts);
 
-// Published products
+// ================= PUBLISHED PRODUCTS =================
 router.get("/published", verifyMerchant, productController.getPublishedProducts);
 
-// Draft products
+// ================= DRAFT PRODUCTS =================
 router.get("/draft", verifyMerchant, productController.getDraftProducts);
 
-// Update product
-router.put("/:id", verifyMerchant, productController.updateProduct);
+// ================= UPDATE PRODUCT =================
+router.put(
+  "/:id",
+  verifyMerchant,
+  validateObjectId,
+  upload.single("image"),
+  productController.updateProduct
+);
 
-// Publish a draft
-router.patch("/:id/publish", verifyMerchant, productController.publishProduct);
+// ================= PUBLISH PRODUCT =================
+router.patch(
+  "/:id/publish",
+  verifyMerchant,
+  validateObjectId,
+  productController.publishProduct
+);
+
+// ================= GET PRODUCTS BY IDS =================
+router.post("/by-ids", verifyMerchant, productController.getProductsByIds);
+
+router.delete("/:id", verifyMerchant, validateObjectId, productController.deleteProduct);
 
 module.exports = router;

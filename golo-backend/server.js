@@ -23,6 +23,16 @@ app.use("/api/products",productRoutes);
 const authRoutes = require("./routes/authRoutes");
 app.use("/api/auth", authRoutes);
 
+{/*Offers*/}
+const offerRoutes = require("./routes/offerRoutes");
+app.use("/api/offers", offerRoutes);
+
+const customerAuthRoutes = require("./routes/customerAuthRoutes");
+app.use("/api/customer",customerAuthRoutes);
+
+const customerRoutes = require("./routes/customerRoutes");
+app.use("/api/customer", customerRoutes);
+
 app.get("/", (req, res) => {
   res.send("GOLO Backend Running Successfully");
 });

@@ -17,9 +17,9 @@ exports.sendOtp = async (req, res) => {
 
   try {
 
-    const { email } = req.body;
+    const { email, role } = req.body;
 
-    if (!email) {
+    if (!email || !role) {
       return res.status(400).json({ message: "Email required" });
     }
 
@@ -28,7 +28,7 @@ exports.sendOtp = async (req, res) => {
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
     await Otp.findOneAndUpdate(
-      { email },
+      { email, role },
       {
         otp,
         expiresAt,
@@ -64,9 +64,9 @@ exports.verifyOtp = async (req, res) => {
 
   try {
 
-    const { email, otp } = req.body;
+    const { email, otp, role } = req.body;
 
-    const record = await Otp.findOne({ email });
+    const record = await Otp.findOne({ email, role });
 
     if (!record) {
       return res.status(400).json({ message: "OTP not found" });
@@ -85,7 +85,7 @@ exports.verifyOtp = async (req, res) => {
     }
 
     // Delete OTP after success (more secure)
-    await Otp.deleteOne({ email });
+    await Otp.deleteOne({ email, role });
 
     res.json({ message: "Email verified successfully" });
 

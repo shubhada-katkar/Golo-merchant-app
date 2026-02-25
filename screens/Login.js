@@ -76,14 +76,6 @@ export default function Login({ navigation }) {
         Alert.alert("Error", "Invalid server response");
         return;
       }
-
-
-
-      console.log("Merchant ID:", data.merchant._id);
-
-
-
-
       
       // Save securely
       await AsyncStorage.multiSet([
@@ -124,7 +116,7 @@ export default function Login({ navigation }) {
       const res = await fetch(`${BASE_URL}/api/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email,role:"merchant" })
       });
 
       const data = await res.json();
@@ -174,7 +166,7 @@ export default function Login({ navigation }) {
       const res = await fetch(`${BASE_URL}/api/auth/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, otp })
+        body: JSON.stringify({ email, otp, role:"merchant" })
       });
 
       const data = await res.json();

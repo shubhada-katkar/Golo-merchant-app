@@ -1,141 +1,148 @@
 import React, { useEffect, useState, useContext } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, FlatList, Image, Alert } from "react-native";
+import {
+  View, Text, TouchableOpacity, StyleSheet, FlatList,
+  Image, Alert,
+} from "react-native";
 import { ThemeContext } from "../theme/ThemeContext";
-import { AntDesign } from "@expo/vector-icons";
+import { AntDesign, MaterialIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-export default function Draft() {
+export default function Draft({ products, setProducts, searchText, }) {
 
   const { colors } = useContext(ThemeContext);
-  const [drafts, setDrafts] = useState([]);
-  const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
+  const [deletingId, setDeletingId] = useState(null);
   const navigation = useNavigation();
+  const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 
-  // Fetch Drafts
-  const fetchDrafts = async () => {
-    try {
-
-      const token = await AsyncStorage.getItem("merchantToken");
-
-      if (!token) {
-        Alert.alert("Login Required", "Please login again");
-        return;
-      }
-
-      const res = await fetch(`${BASE_URL}/api/products/draft`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-
-      const data = await res.json();
-
-      if (res.ok) {
-        setDrafts(data);
-      } else {
-        Alert.alert("Error", data.message || "Failed to load drafts");
-      }
-
-    } catch (error) {
-      console.error(error);
-      Alert.alert("Error", "Server error");
-    }
-  };
-
-  useEffect(() => {
-    fetchDrafts();
-  }, []);
-
-  // Publish Draft
+  // ================= PUBLISH =================
   const publishNow = async (productId) => {
     try {
-
       const token = await AsyncStorage.getItem("merchantToken");
 
       const res = await fetch(
         `${BASE_URL}/api/products/${productId}/publish`,
         {
           method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 
-      const data = await res.json();
-
-      if (res.ok) {
-        Alert.alert("Success", "Product published!");
-        fetchDrafts();
-      } else {
-        Alert.alert("Error", data.message || "Publish failed");
+      if (!res.ok) {
+        Alert.alert("Error", "Publish failed");
+        return;
       }
 
-    } catch (error) {
-      console.error(error);
+      // 🔥 move product from draft → published
+      setProducts(prev =>
+        prev.map(p =>
+          p._id === productId
+            ? { ...p, status: "published" }
+            : p
+        )
+      );
+
+      Alert.alert("Success", "Product published!");
+    } catch (err) {
+      console.error(err);
       Alert.alert("Error", "Server error");
     }
   };
 
-  // Render Card
-  const renderItem = ({ item }) => {
+  // ================= DELETE =================
+  const deleteDraft = async (productId) => {
+    try {
+      setDeletingId(productId);
+      const token = await AsyncStorage.getItem("merchantToken");
 
-    const shortDescription =
-      item.description?.length > 25
-        ? item.description.substring(0, 25) + "..."
-        : item.description;
+      const res = await fetch(`${BASE_URL}/api/products/${productId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-    return (
-      <View style={styles.card2}>
+      if (!res.ok) {
+        Alert.alert("Error", "Delete failed");
+        return;
+      }
 
-        <View style={{ flexDirection: "row" }}>
+      // 🔥 remove globally
+      setProducts(prev => prev.filter(p => p._id !== productId));
 
-          {item.image ? (
-            <Image source={{ uri: item.image }} style={styles.image} />
-          ) : (
-            <View style={styles.image} />
-          )}
+      Alert.alert("Success", "Draft deleted");
+    } catch (err) {
+      console.error(err);
+      Alert.alert("Error", "Server error");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
-          <View style={{ flex: 1, paddingHorizontal: 10 }}>
+  // ================= UI =================
+  const filteredProducts = products.filter(
+    (item) =>
+      item.productname?.toLowerCase().includes(searchText?.toLowerCase() || "") ||
+      item.category?.toLowerCase().includes(searchText?.toLowerCase() || "")
+  );
 
-            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-              <Text style={{ fontSize: 20 }}>{item.productname}</Text>
+  const renderItem = ({ item }) => (
+    <View style={styles.card}>
+      <View style={{ flexDirection: "row" }}>
+        {item.image?.url ? (
+          <Image source={{ uri: item.image.url }} style={styles.image} />
+        ) : (
+          <View style={styles.image} />
+        )}
+
+        <View style={{ flex: 1, paddingHorizontal: 10 }}>
+          <View style={styles.row}>
+            <Text style={{ fontSize: 18 }}>{item.productname}</Text>
+
+            <View style={{ flexDirection: "row", gap: 12 }}>
+              <TouchableOpacity
+                disabled={deletingId === item._id}
+                onPress={() => deleteDraft(item._id)}
+              >
+                <MaterialIcons
+                  name={
+                    deletingId === item._id
+                      ? "hourglass-empty"
+                      : "delete-outline"
+                  }
+                  size={24}
+                  color="red"
+                />
+              </TouchableOpacity>
 
               <TouchableOpacity
                 onPress={() =>
                   navigation.navigate("NewProductPage", { product: item })
-                }>
+                }
+              >
                 <AntDesign name="edit" size={22} />
               </TouchableOpacity>
             </View>
-
-            <Text>{item.category}</Text>
-            <Text>{shortDescription}</Text>
-
-            <TouchableOpacity
-              style={styles.publish}
-              onPress={() => publishNow(item._id)}>
-
-              <Text>+ Publish Now</Text>
-
-            </TouchableOpacity>
-
           </View>
-        </View>
 
+          <Text>{item.category}</Text>
+          <Text numberOfLines={1}>{item.description}</Text>
+
+          <TouchableOpacity
+            style={styles.publish}
+            onPress={() => publishNow(item._id)}
+          >
+            <Text>+ Publish Now</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    );
-  };
+    </View>
+  );
 
   return (
-
     <View style={{ flex: 1 }}>
-
       <FlatList
         style={{ backgroundColor: colors.background }}
         contentContainerStyle={{ padding: 14, paddingBottom: 80 }}
-        data={drafts}
+        data={filteredProducts}
         keyExtractor={(item) => item._id}
         renderItem={renderItem}
         ListEmptyComponent={
@@ -144,45 +151,41 @@ export default function Draft() {
           </Text>
         }
       />
-
       <TouchableOpacity
         style={styles.addbuttton}
-        onPress={() => navigation.navigate("NewProductPage")}>
-
+        onPress={() => navigation.navigate("NewProductPage")}
+      >
         <AntDesign name="plus" size={24} color="#fff" />
-
       </TouchableOpacity>
-
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-
-  card2: {
+  card: {
+    backgroundColor: "#fff",
     borderRadius: 10,
-    borderWidth: 1,
     padding: 10,
-    backgroundColor: "white",
-    marginBottom: 15,
-    elevation: 5
+    marginBottom: 14,
+    elevation: 4,
   },
-
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
   image: {
     width: 90,
     height: 90,
-    borderRadius: 12,
-    backgroundColor: "#ccc"
+    borderRadius: 10,
+    backgroundColor: "#ccc",
   },
-
   publish: {
     backgroundColor: "#f5b849",
     padding: 6,
     borderRadius: 6,
     marginTop: 6,
-    alignSelf: "flex-start"
+    alignSelf: "flex-start",
   },
-
   addbuttton: {
     position: "absolute",
     bottom: 70,
@@ -192,7 +195,6 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     backgroundColor: "#157a4f",
     justifyContent: "center",
-    alignItems: "center"
-  }
-
+    alignItems: "center",
+  },
 });

@@ -31,8 +31,8 @@ export default function ProfilePage({ navigation }) {
 
                     if (data.merchant) {
                         setShopName(data.merchant.shopName || "Shop Name");
-                        if (data.merchant.image) {
-                            setProfileImage({ uri: data.merchant.image });
+                        if (data.merchant.image?.url) {
+                            setProfileImage({ uri: data.merchant.image.url });
                         } else {
                             setProfileImage(require("../assets/profile.png"));
                         }

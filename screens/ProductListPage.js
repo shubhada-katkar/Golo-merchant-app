@@ -1,112 +1,195 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity,TextInput } from "react-native";
+import React, { useState, useEffect, useContext } from "react";
+import { View, Text, StyleSheet, TouchableOpacity, TextInput } from "react-native";
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
-import { useContext } from "react";
 import { ThemeContext } from "../theme/ThemeContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 import Total from "../productlistcomponents/Total";
 import Draft from "../productlistcomponents/Draft";
 import Publish from "../productlistcomponents/Publish";
 
-export default function ProductListPage({navigation}) {
-    const {colors} = useContext(ThemeContext);
-    const [activeTab, setactiveTab] = useState("Total Products");
+export default function ProductListPage({ navigation }) {
+  const { colors } = useContext(ThemeContext);
 
-    return (
-        <SafeAreaView style={{flex:1, backgroundColor:colors.background}}>
-            <Topbar />
+  const [activeTab, setActiveTab] = useState("Total");
+  const [searchText, setSearchText] = useState("");
+  const [products, setProducts] = useState([]); // ✅ SINGLE SOURCE OF TRUTH
 
-                <View style={styles.row1}>
-                    <TouchableOpacity onPress={() => navigation.navigate("HomePage")}>
-                        <MaterialIcons name="arrow-back-ios" size={28} color={colors.text} style={{padding:10}}/>
-                    </TouchableOpacity>
-                    <Text style={{ fontSize: 22, paddingLeft: 5, color:colors.text }}>Product List</Text>
-                </View>
+  const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 
-                <View style={{ flexDirection: "row", backgroundColor:colors.divider, height: 1, }} />
+  // ================= FETCH ALL PRODUCTS =================
+  const fetchProducts = async () => {
+    try {
+      const token = await AsyncStorage.getItem("merchantToken");
+      if (!token) return;
 
-                <View style={styles.row2}>
-                    <TouchableOpacity onPress={() => setactiveTab("Total Products")}
-                        style={[styles.row2button, activeTab == "Total Products" && styles.ActiveTab]}>
-                        <Text style={styles.row2text}>Total Products</Text>
-                        <Text style={styles.number}>85</Text>
-                    </TouchableOpacity>
+      const res = await fetch(`${BASE_URL}/api/products`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-                    <TouchableOpacity onPress={() => setactiveTab("Publish")}
-                        style={[styles.row2button, activeTab == "Publish" && styles.ActiveTab]}>
-                        <Text style={styles.row2text}>Publish</Text>
-                        <Text style={styles.number}>85</Text>
-                    </TouchableOpacity>
+      const data = await res.json();
+      if (res.ok) {
+        setProducts(data);
+      }
+    } catch (err) {
+      console.log("Fetch products error:", err);
+    }
+  };
 
-                    <TouchableOpacity onPress={() => setactiveTab("Draft")}
-                        style={[styles.row2button, activeTab == "Draft" && styles.ActiveTab]}>
-                        <Text style={styles.row2text}>Draft</Text>
-                        <Text style={styles.number}>85</Text>
-                    </TouchableOpacity>
-                </View>
+  useEffect(() => {
+    fetchProducts();
+  }, []);
 
-                <View style={styles.search}>
-                    <TextInput placeholder="Search product..">
-                    </TextInput>
-                </View>
+  // ================= DERIVED COUNTS (REAL TIME) =================
+  const totalCount = products.length;
 
-            {activeTab == "Total Products" && <Total />}
-            {activeTab == "Publish" && <Publish />}
-            {activeTab == "Draft" && <Draft />} 
+  const publishCount = products.filter(
+    (p) => p.status === "published"
+  ).length;
 
-            <SafeAreaView edges={["bottom"]}
-                style={{ width: "100%", bottom: 0, position: "absolute" }}>
-                <Bottombar />
-            </SafeAreaView>
+  const draftCount = products.filter(
+    (p) => p.status === "draft"
+  ).length;
 
-        </SafeAreaView>
-    );
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <Topbar />
+
+      {/* Header */}
+      <View style={styles.row1}>
+        <TouchableOpacity onPress={() => navigation.navigate("HomePage")}>
+          <MaterialIcons
+            name="arrow-back-ios"
+            size={28}
+            color={colors.text}
+            style={{ padding: 10 }}
+          />
+        </TouchableOpacity>
+        <Text style={{ fontSize: 22, color: colors.text }}>
+          Product List
+        </Text>
+      </View>
+
+      <View style={{ height: 1, backgroundColor: colors.divider }} />
+
+      {/* Tabs */}
+      <View style={styles.row2}>
+        <Tab
+          title="Total"
+          count={totalCount}
+          active={activeTab === "Total"}
+          onPress={() => setActiveTab("Total")}
+        />
+        <Tab
+          title="Publish"
+          count={publishCount}
+          active={activeTab === "Publish"}
+          onPress={() => setActiveTab("Publish")}
+        />
+        <Tab
+          title="Draft"
+          count={draftCount}
+          active={activeTab === "Draft"}
+          onPress={() => setActiveTab("Draft")}
+        />
+      </View>
+
+      {/* Search */}
+      <View style={styles.search}>
+        <TextInput
+          placeholder="Search product..."
+          value={searchText}
+          onChangeText={setSearchText}
+          style={{ fontSize: 16 }}
+        />
+      </View>
+
+      {/* Content */}
+      {activeTab === "Total" && (
+        <Total
+          products={products}
+          setProducts={setProducts}
+          searchText={searchText}
+        />
+      )}
+
+      {activeTab === "Publish" && (
+        <Publish
+          products={products.filter((p) => p.status === "published")}
+          setProducts={setProducts}
+          searchText={searchText}
+        />
+      )}
+
+      {activeTab === "Draft" && (
+        <Draft
+          products={products.filter((p) => p.status === "draft")}
+          setProducts={setProducts}
+          searchText={searchText}
+        />
+      )}
+
+      <SafeAreaView
+        edges={["bottom"]}
+        style={{ position: "absolute", bottom: 0, width: "100%" }}
+      >
+        <Bottombar />
+      </SafeAreaView>
+    </SafeAreaView>
+  );
 }
 
+/* ---------------- UI Helpers ---------------- */
+const Tab = ({ title, count, active, onPress }) => (
+  <TouchableOpacity
+    onPress={onPress}
+    style={[styles.row2button, active && styles.ActiveTab]}
+  >
+    <Text style={styles.row2text}>{title}</Text>
+    <Text style={styles.number}>{count}</Text>
+  </TouchableOpacity>
+);
+
 const styles = StyleSheet.create({
-    row1: {
-        alignItems: "center",
-        flexDirection: "row",
-        paddingVertical: 8,
-        paddingHorizontal: 14
-    },
-    row2: {
-        flexDirection: "row",
-        paddingHorizontal:12,
-        paddingVertical:16,
-        gap:8
-    },
-    row2text: {
-        fontSize: 16,
-        color: "white",
-        fontWeight:600,
-        textAlign: "center"
-    },
-    row2button: {
-        flex:1,
-        borderRadius: 20,
-        backgroundColor: "#b8b5b5",
-        justifyContent: "center",
-        paddingVertical: 16,
-        alignItems:"center"
-    },
-    ActiveTab: {
-        backgroundColor: "#979797",
-        borderWidth: 1,
-        borderColor: "#535353",
-    },
-    number: {
-        color: "#303030",
-        textAlign:"center",
-        fontSize: 20
-    },
-    search: {
-        paddingHorizontal: 10,
-        backgroundColor: "white",
-        borderRadius: 10,
-        borderWidth: 0.5,
-        margin: 10
-    },
-})
+  row1: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 14,
+  },
+  row2: {
+    flexDirection: "row",
+    padding: 12,
+    gap: 8,
+  },
+  row2button: {
+    flex: 1,
+    borderRadius: 20,
+    backgroundColor: "#b8b5b5",
+    paddingVertical: 16,
+    alignItems: "center",
+  },
+  ActiveTab: {
+    backgroundColor: "#979797",
+    borderWidth: 1,
+    borderColor: "#535353",
+  },
+  row2text: {
+    fontSize: 16,
+    color: "white",
+    fontWeight: "600",
+  },
+  number: {
+    fontSize: 20,
+    color: "#303030",
+  },
+  search: {
+    backgroundColor: "white",
+    margin: 10,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    borderWidth: 0.5,
+  },
+});

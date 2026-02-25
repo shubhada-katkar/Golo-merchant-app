@@ -63,7 +63,7 @@ export default function Registration({ navigation }) {
                 const res = await fetch(`${BASE_URL}/api/auth/send-otp`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ email }),
+                    body: JSON.stringify({ email, role:"merchant" }),
                 });
 
                 const data = await res.json();
@@ -85,7 +85,7 @@ export default function Registration({ navigation }) {
                 const res = await fetch(`${BASE_URL}/api/auth/verify-otp`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ email, otp }),
+                    body: JSON.stringify({ email, otp, role:"merchant" }),
                 });
 
                 const data = await res.json();
@@ -126,67 +126,37 @@ export default function Registration({ navigation }) {
     };
 
     // ================= REGISTER =================
-
     const handleRegister = async () => {
-
-        // Prevent double click spam
         if (registerLoading) return;
 
-        const isAnyFieldFilled =
-            username.trim() ||
-            shopName.trim() ||
-            email.trim() ||
-            phone.trim() ||
-            password.trim();
-
-        const areAllFieldsFilled =
-            username.trim() &&
-            shopName.trim() &&
-            email.trim() &&
-            phone.trim() &&
-            password.trim();
-
-        if (!isAnyFieldFilled) {
-            return alert("Please fill all details");
-        }
-
-        if (email.trim() && !emailVerified) {
+        if (!emailVerified) {
             return alert("Please verify your email");
         }
 
-        if (!areAllFieldsFilled) {
-            return alert("Please fill all details");
-        }
-
         try {
-
             setRegisterLoading(true);
 
-            // ⏳ Safety timeout (unlock button if server stuck)
-            const timeout = setTimeout(() => {
-                setRegisterLoading(false);
-                alert("Server taking too long. Try again.");
-            }, 15000); // 15 seconds
+            const formData = new FormData();
+            formData.append("username", username);
+            formData.append("shopName", shopName);
+            formData.append("email", email);
+            formData.append("phone", phone);
+            formData.append("password", password);
+
+            if (profileImage) {
+                formData.append("image", {
+                    uri: profileImage,
+                    name: "profile.jpg",
+                    type: "image/jpeg",
+                });
+            }
 
             const response = await fetch(`${BASE_URL}/api/merchant/register`, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    username,
-                    shopName,
-                    email,
-                    phone,
-                    password,
-                    image: profileImage,
-                }),
+                body: formData, 
             });
 
-            clearTimeout(timeout);
-
-            const raw = await response.text();
-            const data = raw ? JSON.parse(raw) : {};
+            const data = await response.json();
 
             setRegisterLoading(false);
 
@@ -490,5 +460,4 @@ const styles = StyleSheet.create({
         alignItems: "center",
         width: "100%",
     },
-
 });

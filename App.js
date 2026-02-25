@@ -1,6 +1,7 @@
 import React from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator, CardStyleInterpolators } from "@react-navigation/stack";
+import { ThemeProvider } from "./theme/ThemeContext";
 import HomePage from './screens/HomePage';
 import ProfilePage from "./screens/ProfilePage";
 import PostsPage from "./screens/PostsPage";
@@ -9,19 +10,23 @@ import SettingsPage from "./screens/SettingsPage";
 import NewProductPage from "./screens/NewProductPage";
 import ProductListPage from "./screens/ProductListPage";
 import LoyaltyPage from "./screens/LoyaltyPage";
-import { ThemeProvider } from "./theme/ThemeContext";
 import Registration from "./screens/Registration";
 import Login from "./screens/Login";
 import AddOfferPage from "./screens/AddOfferPage";
+import TemplatePage from "./screens/TemplatePage";
+import PreviewPage from "./screens/PreviewPage";
+import NotificationsPage from "./screens/NotificationsPage";
+import ChatsPage from "./screens/ChatsPage";
+import ChatScreen from "./screens/ChatScreen";
 
 const Stack = createStackNavigator();
 
 export default function App() {
-  return (
+  return ( 
      <ThemeProvider>
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="HomePage"
+        initialRouteName="Login"
         screenOptions={{
           headerShown: false,
           cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
@@ -39,6 +44,11 @@ export default function App() {
     <Stack.Screen name="Registration" component={Registration}/>
     <Stack.Screen name="Login" component={Login}/>
     <Stack.Screen name="AddOfferPage" component={AddOfferPage}/>
+    <Stack.Screen name="TemplatePage" component={TemplatePage} />
+    <Stack.Screen name="PreviewPage" component={PreviewPage}/>
+    <Stack.Screen name="NotificationsPage" component={NotificationsPage}/>
+    <Stack.Screen name="ChatsPage" component={ChatsPage}/>
+    <Stack.Screen name="ChatScreen" component={ChatScreen}/>
     
       </Stack.Navigator>
     </NavigationContainer>

@@ -23,11 +23,13 @@ export default function Topbar() {
             </View>
 
             <View style={styles.rowcontainer}>
-                <TouchableOpacity>
-                    <FontAwesome name="bell-o" size={28} color={colors.text} />
+                <TouchableOpacity onPress={()=>navigation.navigate("NotificationsPage")}>
+                    <FontAwesome name="bell-o" size={28} 
+                    color={currentRoute === "NotificationsPage" ? "#157a4f" : "black"} />
                 </TouchableOpacity>
-                <TouchableOpacity>
-                    <MaterialCommunityIcons name="square-rounded-badge-outline" size={30} color={colors.text} />
+                <TouchableOpacity onPress={()=>navigation.navigate("ChatsPage")}>
+                    <MaterialCommunityIcons name="square-rounded-badge-outline" size={30} 
+                    color={currentRoute === "ChatsPage" ? "#157a4f" : "black"}/>
                 </TouchableOpacity>
             </View>
         </View>

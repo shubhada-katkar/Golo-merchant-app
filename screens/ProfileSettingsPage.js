@@ -47,7 +47,6 @@ export default function ProfileSettingsPage({ navigation }) {
     }
 
     try {
-
       const token = await AsyncStorage.getItem("merchantToken");
       if (!token) return alert("Not authenticated");
 
@@ -99,7 +98,7 @@ export default function ProfileSettingsPage({ navigation }) {
           setEmail(data.merchant.email);
           setNumber(data.merchant.phone);
           setShopName(data.merchant.shopName);
-          setProfileImage(data.merchant.image);
+          setProfileImage(data.merchant.image?.url || null);
         }
       } catch (error) {
         console.log("Error fetching profile:", error);
@@ -124,7 +123,9 @@ export default function ProfileSettingsPage({ navigation }) {
     });
 
     if (!result.canceled) {
-      setProfileImage(result.assets[0].uri);
+      const uri = result.assets[0].uri;
+      setProfileImage(uri);
+      await uploadProfileImage(uri); // ✅ pass fresh URI
     }
   };
 
@@ -138,26 +139,60 @@ export default function ProfileSettingsPage({ navigation }) {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           username: name,
           phone: number,
           email,
           shopName,
-          image: profileImage
-        })
+        }),
       });
 
       const data = await res.json();
+
       if (res.ok) {
         alert("Profile updated successfully");
       } else {
         alert(data.message || "Update failed");
       }
     } catch (error) {
-      console.log("Error updating profile:", error);
       alert("Server Error");
+    }
+  };
+
+  const uploadProfileImage = async (imageUri) => {
+    try {
+      const token = await AsyncStorage.getItem("merchantToken");
+      if (!token) return alert("Not authenticated");
+
+      const formData = new FormData();
+      formData.append("image", {
+        uri: imageUri,
+        name: "profile.jpg",
+        type: "image/jpeg",
+      });
+
+      const res = await fetch(`${BASE_URL}/api/merchant/profile/image`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        return alert(data.message || "Image upload failed");
+      }
+
+      setProfileImage(data.image.url); // ✅ Cloudinary URL
+      alert("Profile image updated");
+
+    } catch (error) {
+      console.log(error);
+      alert("Server error");
     }
   };
 
@@ -165,24 +200,21 @@ export default function ProfileSettingsPage({ navigation }) {
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
+        behavior={Platform.OS === "ios" ? "padding" : "height"} >
+
+        <Topbar />
+
+        {/* HEADER */}
+        <View style={styles.row1}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <MaterialIcons name="arrow-back-ios" size={26}
+              color={colors.text} style={{ padding: 10 }}
+            />
+          </TouchableOpacity>
+          <Text style={[styles.title, { color: colors.text }]}>Profile Settings</Text>
+        </View>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 }}
           keyboardShouldPersistTaps="handled">
-
-          <Topbar />
-
-          {/* HEADER */}
-          <View style={styles.row1}>
-            <TouchableOpacity onPress={() => navigation.goBack()}>
-              <MaterialIcons
-                name="arrow-back-ios"
-                size={26}
-                color={colors.text}
-              />
-            </TouchableOpacity>
-            <Text style={[styles.title, { color: colors.text }]}>Profile Settings</Text>
-          </View>
 
           <View style={[styles.divider, { backgroundColor: colors.divider }]} />
 
@@ -213,7 +245,6 @@ export default function ProfileSettingsPage({ navigation }) {
               placeholderTextColor="#555"
             />
           </View>
-
 
           {/* INPUT FIELDS */}
           <View style={{ paddingHorizontal: 14 }}>
@@ -281,9 +312,10 @@ export default function ProfileSettingsPage({ navigation }) {
                   onChangeText={setConfirmPassword}
                 />
 
+                <View style={{flexDirection:"row",marginTop:14,gap:10}}>
                 <TouchableOpacity
                   onPress={handleResetPassword}
-                  style={[styles.button, { marginTop: 20 }]}
+                  style={[styles.button, { flex:1}]}
                 >
 
                   <Text style={{ fontSize: 18 }}>
@@ -293,15 +325,15 @@ export default function ProfileSettingsPage({ navigation }) {
 
                 <TouchableOpacity
                   onPress={() => setpass(false)}
-                  style={[styles.button, { marginTop: 20 }]}
+                  style={[styles.button, { flex:1}]}
                 >
-                  <Text style={{ fontSize: 16 }}>Cancel</Text>
+                  <Text style={{ fontSize: 18 }}>Cancel</Text>
                 </TouchableOpacity>
 
+                </View>
               </View>
             </>
-          )
-          }
+          )}
 
         </ScrollView>
 
@@ -329,7 +361,7 @@ const styles = StyleSheet.create({
   button: {
     backgroundColor: "#f5b849",
     borderRadius: 10,
-    padding: 10,
+    paddingVertical: 8,
     alignItems: "center"
   },
   shopNameInput: {
@@ -350,8 +382,8 @@ const styles = StyleSheet.create({
   cameraIcon: {
     position: "absolute",
     bottom: 4,
-    right: 4,
-    backgroundColor: "#000000",
+    right: 12,
+    backgroundColor: "#949494",
     padding: 5,
     borderRadius: 20,
   }
