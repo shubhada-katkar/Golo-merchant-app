@@ -1,0 +1,103 @@
+/* ============================= */
+/* THEME VARIABLES */
+/* ============================= */
+
+:root {
+  --color-bg: #F8F6F2;
+  --color-surface: #ffffff;
+
+  --color-primary: #F5B849;          /* Yellow */
+  --color-primary-light: #FFF3D6;
+  --color-primary-hover: #e0a631;
+
+  --color-accent: #157A4F;           /* GREEN */
+  --color-accent-hover: #0f5c3a;
+
+  --color-text: #1f2937;
+  --color-text-muted: #6b7280;
+
+  --color-border: #e8e4db;
+}
+
+/* ============================= */
+/* REUSABLE THEME CLASSES */
+/* ============================= */
+
+.theme-section {
+  background: var(--color-bg);
+}
+
+.theme-heading {
+  color: var(--color-text);
+}
+
+.theme-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  transition: all 0.3s ease;
+}
+
+.theme-card:hover {
+  border-color: var(--color-primary);
+  transform: translateY(-6px);
+  box-shadow: 0 15px 25px rgba(0,0,0,0.06);
+}
+
+.theme-icon {
+  background: var(--color-primary-light);
+  color: var(--color-accent);
+}
+
+/* ============================= */
+/* BUTTONS */
+/* ============================= */
+
+/* Yellow buttons (secondary actions) */
+.theme-button-primary {
+  background: var(--color-primary);
+  color: #1f2937;
+  font-weight: 600;
+  transition: 0.3s;
+}
+
+.theme-button-primary:hover {
+  background: var(--color-primary-hover);
+}
+
+/* GREEN buttons (Main CTAs like Chat, View Deal, View More) */
+.theme-button-accent {
+  background: var(--color-accent);
+  color: white;
+  font-weight: 600;
+  transition: 0.3s;
+}
+
+.theme-button-accent:hover {
+  background: var(--color-accent-hover);
+}
+
+/* ============================= */
+/* FOOTER */
+/* ============================= */
+
+.theme-footer {
+  background: var(--color-accent);
+  color: white;
+}
+
+/* ============================= */
+/* CARDS TEXT */
+/* ============================= */
+
+.ad-title {
+  color: var(--color-text);
+}
+
+.ad-price {
+  color: var(--color-accent);  /* Green price */
+}
+
+.ad-status {
+  background: var(--color-primary-light);
+  color: var(--color-accent);
+}
