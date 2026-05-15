@@ -68,4 +68,3 @@ next-env.d.ts
 
 # misc
 golo-backend/.env
-.turbo

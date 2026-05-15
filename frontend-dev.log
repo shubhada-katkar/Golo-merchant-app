@@ -1,0 +1,30 @@
+
+> golo-app@0.1.0 dev
+> next dev
+
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.12:3000
+- Environments: .env.local, .env
+
+✓ Starting...
+Creating turbopack project { dir: 'D:\\GOLO\\GOLO-New\\GOLO_Frontend', testMode: true }
+✓ Ready in 839ms
+○ Compiling / ...
+ GET / 200 in 3.7s (compile: 3.6s, render: 177ms)
+(node:6124) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ GET /nearby-deals 200 in 669ms (compile: 590ms, render: 79ms)
+Failed to proxy http://localhost:3002/banners/promotions/offers/nearby?radiusKm=5&page=1&limit=100 Error: read ECONNRESET
+    at ignore-listed frames {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Error: read ECONNRESET
+    at ignore-listed frames {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+^C^C
