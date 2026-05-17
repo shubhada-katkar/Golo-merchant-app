@@ -12,14 +12,13 @@ import { ThemeContext } from "../theme/ThemeContext";
 import { AntDesign, MaterialIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { BASE_URL } from "../config";
 
 export default function Publish({products, setProducts,searchText,}) {
 
   const { colors } = useContext(ThemeContext);
   const [deletingId, setDeletingId] = useState(null);
   const navigation = useNavigation();
-  const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
-
   // ================= DELETE =================
   const confirmDelete = (productId) => {
     Alert.alert(
@@ -41,10 +40,17 @@ const deleteProduct = async (productId) => {
     setDeletingId(productId);
     const token = await AsyncStorage.getItem("merchantToken");
 
-    const res = await fetch(`${BASE_URL}/api/products/${productId}`, {
+    let res = await fetch(`${BASE_URL}/merchant/products/${productId}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
+
+    if (!res.ok && res.status === 404) {
+      res = await fetch(`${BASE_URL}/products/${productId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    }
 
     if (!res.ok) {
       Alert.alert("Error", "Delete failed");

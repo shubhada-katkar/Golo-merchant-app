@@ -7,11 +7,10 @@ import { MaterialCommunityIcons, MaterialIcons, Feather, AntDesign } from "@expo
 import { ThemeContext } from "../theme/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
+import { BASE_URL } from "../config";
 
 export default function ProfilePage({ navigation }) {
     const { colors } = useContext(ThemeContext);
-    const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
-
     const [shopName, setShopName] = useState("Shop Name");
     const [profileImage, setProfileImage] = useState(require("../assets/profile.png"));
 
@@ -23,9 +22,15 @@ export default function ProfilePage({ navigation }) {
                     const token = await AsyncStorage.getItem("merchantToken");
                     if (!token) return;
 
-                    const res = await fetch(`${BASE_URL}/api/merchant/profile`, {
+                    let res = await fetch(`${BASE_URL}/users/merchant/profile`, {
                         headers: { Authorization: `Bearer ${token}` }
                     });
+
+                    if (!res.ok && res.status === 404) {
+                        res = await fetch(`${BASE_URL}/api/merchant/profile`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                        });
+                    }
 
                     const data = await res.json();
 

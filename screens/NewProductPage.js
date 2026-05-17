@@ -11,13 +11,12 @@ import { MaterialIcons, Feather } from "@expo/vector-icons";
 import { ThemeContext } from "../theme/ThemeContext";
 import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { BASE_URL } from "../config";
 
 export default function NewProductPage({ navigation, route }) {
   const { colors } = useContext(ThemeContext);
   const screenHeight = Dimensions.get("window").height;
   const bottomPadding = screenHeight * 0.10;
-  const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
-
   const editProduct = route?.params?.product;
   const isEdit = !!editProduct;
   const categories = ["Travel", "Food", "Clothing", "Electronics", "Books"];
@@ -89,9 +88,6 @@ export default function NewProductPage({ navigation, route }) {
         return;
       }
 
-      const url = isEdit
-        ? `${BASE_URL}/api/products/${editProduct._id}`
-        : `${BASE_URL}/api/products/add`;
       const method = isEdit ? "PUT" : "POST";
 
       const formData = new FormData();
@@ -109,7 +105,14 @@ export default function NewProductPage({ navigation, route }) {
         });
       }
 
-      const response = await fetch(url, {
+      const primaryUrl = isEdit
+        ? `${BASE_URL}/products/${editProduct._id}`
+        : `${BASE_URL}/products/add`;
+      const fallbackUrl = isEdit
+        ? `${BASE_URL}/api/products/${editProduct._id}`
+        : `${BASE_URL}/api/products/add`;
+
+      let response = await fetch(primaryUrl, {
         method,
         headers: {
           Authorization: `Bearer ${token}`,
@@ -117,7 +120,23 @@ export default function NewProductPage({ navigation, route }) {
         body: formData,
       });
 
+      if (!response.ok && response.status === 404) {
+        response = await fetch(fallbackUrl, {
+          method,
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        });
+      }
+
       const text = await response.text();
+      let data = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        data = { message: text };
+      }
       console.log("Raw server response:", text);
 
       if (response.ok) {

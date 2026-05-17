@@ -1,4 +1,8 @@
 /** @type {import('next').NextConfig} */
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -9,6 +13,7 @@ const nextConfig = {
   // Use standalone output for smaller production image
   output: 'standalone',
   reactCompiler: true,
+  outputFileTracingRoot: __dirname,
   distDir: '.next',
   images: {
     remotePatterns: [

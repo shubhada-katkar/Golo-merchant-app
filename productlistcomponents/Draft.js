@@ -7,26 +7,37 @@ import { ThemeContext } from "../theme/ThemeContext";
 import { AntDesign, MaterialIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { BASE_URL } from "../config";
 
 export default function Draft({ products, setProducts, searchText, }) {
 
   const { colors } = useContext(ThemeContext);
   const [deletingId, setDeletingId] = useState(null);
   const navigation = useNavigation();
-  const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
-
   // ================= PUBLISH =================
   const publishNow = async (productId) => {
     try {
       const token = await AsyncStorage.getItem("merchantToken");
 
-      const res = await fetch(
-        `${BASE_URL}/api/products/${productId}/publish`,
-        {
-          method: "PATCH",
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      let res = await fetch(`${BASE_URL}/merchant/products/${productId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ publicationStatus: "published", status: "published" }),
+      });
+
+      if (!res.ok && res.status === 404) {
+        res = await fetch(`${BASE_URL}/products/${productId}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ status: "published" }),
+        });
+      }
 
       if (!res.ok) {
         Alert.alert("Error", "Publish failed");
@@ -55,10 +66,17 @@ export default function Draft({ products, setProducts, searchText, }) {
       setDeletingId(productId);
       const token = await AsyncStorage.getItem("merchantToken");
 
-      const res = await fetch(`${BASE_URL}/api/products/${productId}`, {
+      let res = await fetch(`${BASE_URL}/merchant/products/${productId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
+
+      if (!res.ok && res.status === 404) {
+        res = await fetch(`${BASE_URL}/products/${productId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      }
 
       if (!res.ok) {
         Alert.alert("Error", "Delete failed");

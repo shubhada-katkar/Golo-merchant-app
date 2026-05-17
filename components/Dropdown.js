@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import DropDownPicker from "react-native-dropdown-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { BASE_URL as CONFIG_BASE_URL } from "../config";
 
 export default function Dropdown({ BASE_URL, token, onChange, value: parentValue = [] }) {
 
@@ -8,10 +9,24 @@ export default function Dropdown({ BASE_URL, token, onChange, value: parentValue
     const [value, setValue] = useState(parentValue); // sync with parent
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [resolvedToken, setResolvedToken] = useState(token || "");
+    const resolvedBaseUrl = (BASE_URL || process.env.EXPO_PUBLIC_API_URL || CONFIG_BASE_URL || "").replace(/\/+$/, "");
 
     useEffect(() => {
-        if (token) loadProducts();
+        const resolveAuth = async () => {
+            if (token) {
+                setResolvedToken(token);
+                return;
+            }
+            const storedToken = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+            setResolvedToken(storedToken || "");
+        };
+        resolveAuth();
     }, [token]);
+
+    useEffect(() => {
+        if (resolvedToken && resolvedBaseUrl) loadProducts();
+    }, [resolvedToken, resolvedBaseUrl]);
 
     // 🔥 sync AFTER items load
     useEffect(() => {
@@ -30,15 +45,28 @@ export default function Dropdown({ BASE_URL, token, onChange, value: parentValue
             const cached = await AsyncStorage.getItem("cachedProducts");
             if (cached) setItems(JSON.parse(cached));
 
-            const res = await fetch(`${BASE_URL}/api/products/published`, {
-                headers: { Authorization: `Bearer ${token}` }
+            let res = await fetch(`${resolvedBaseUrl}/merchant/products`, {
+                headers: { Authorization: `Bearer ${resolvedToken}` }
             });
+
+            if (!res.ok && res.status === 404) {
+                res = await fetch(`${resolvedBaseUrl}/products/merchant`, {
+                    headers: { Authorization: `Bearer ${resolvedToken}` }
+                });
+            }
 
             const data = await res.json();
 
-            const formatted = data.map(p => ({
-                label: p.productname,
-                value: p._id
+            const rawList = Array.isArray(data)
+                ? data
+                : data?.products || data?.data?.products || data?.data || [];
+            const list = rawList.filter((item) => {
+                const status = String(item?.publicationStatus || item?.status || "").toLowerCase();
+                return !status || status === "published";
+            });
+            const formatted = list.map(p => ({
+                label: p.productname || p.name || p.productName || "Product",
+                value: p._id || p.id
             }));
 
             setItems(formatted);

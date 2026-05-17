@@ -1,12 +1,99 @@
-import React, { useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useMemo, useState, useEffect, useCallback } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import { Entypo } from "@expo/vector-icons";
 import All from "../components/All";
 import Completed from "../components/Completed";
 import Pending  from "../components/Pending";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { BASE_URL as CONFIG_BASE_URL } from "../config";
 
 export default function Orders() {
     const [activeTab, setactiveTab] = useState("All");
+    const [orders, setOrders] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const BASE_URL = (process.env.EXPO_PUBLIC_API_URL || CONFIG_BASE_URL || "").replace(/\/+$/, "");
+
+    const fetchOrders = useCallback(async () => {
+        try {
+            setLoading(true);
+            const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+            if (!token || !BASE_URL) {
+                setOrders([]);
+                return;
+            }
+
+            let res = await fetch(`${BASE_URL}/orders/merchant?page=1&limit=100`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            if (!res.ok && res.status === 404) {
+                res = await fetch(`${BASE_URL}/banners/promotions/my?page=1&limit=100`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+            }
+
+            const data = await res.json();
+            const list = Array.isArray(data) ? data : data?.orders || [];
+            setOrders(list);
+        } catch (error) {
+            console.log("Orders fetch error:", error);
+            setOrders([]);
+        } finally {
+            setLoading(false);
+        }
+    }, [BASE_URL]);
+
+    useEffect(() => {
+        fetchOrders();
+    }, [fetchOrders]);
+
+    const totalAmount = useMemo(
+        () => orders.reduce((sum, order) => sum + Number(order?.totalAmount || order?.total || 0), 0),
+        [orders]
+    );
+    const totalCount = orders.length;
+    const pendingOrders = useMemo(
+        () => orders.filter((o) => ["pending", "new"].includes(String(o?.status || "").toLowerCase())),
+        [orders]
+    );
+    const completedOrders = useMemo(
+        () => orders.filter((o) => ["completed", "accepted", "delivered"].includes(String(o?.status || "").toLowerCase())),
+        [orders]
+    );
+
+    const updateOrderStatus = async (orderId, nextStatus) => {
+        try {
+            const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+            if (!token || !BASE_URL) return;
+
+            let res = await fetch(`${BASE_URL}/orders/${orderId}/status`, {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ status: nextStatus }),
+            });
+
+            if (!res.ok && res.status === 404) {
+                res = await fetch(`${BASE_URL}/api/orders/${orderId}/status`, {
+                    method: "PATCH",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({ status: nextStatus }),
+                });
+            }
+
+            if (res.ok) {
+                setOrders((prev) => prev.map((o) => (o._id === orderId ? { ...o, status: nextStatus } : o)));
+            }
+        } catch (error) {
+            console.log("Update order status error:", error);
+        }
+    };
+
     return (
         <View style={{flex:1}}>
 
@@ -17,11 +104,11 @@ export default function Orders() {
                         <Text style={{ fontSize: 22 }}>Today's Orders</Text>
                         <View style={{flexDirection:"row", alignItems:"center", gap:6 }}>
                         <Entypo name="bar-graph" size={26} color="green" />
-                        <Text style={{ fontSize: 22 }}>38739</Text>
+                        <Text style={{ fontSize: 22 }}>{Math.round(totalAmount)}</Text>
                         </View>
                     </View>
 
-                    <View><Text>46 Orders</Text></View>
+                    <View><Text>{totalCount} Orders</Text></View>
                 </View>
             </View>
 
@@ -42,9 +129,17 @@ export default function Orders() {
                 </TouchableOpacity>
             </View>
 
-            {activeTab == "All" && <All />}
-            {activeTab == "Completed" && <Completed />}
-            {activeTab == "Pending" && <Pending />}
+            {loading ? (
+                <View style={{ paddingTop: 30, alignItems: "center" }}>
+                    <ActivityIndicator size="small" color="#157a4f" />
+                </View>
+            ) : (
+                <>
+                    {activeTab == "All" && <All orders={orders} onStatusChange={updateOrderStatus} onRefresh={fetchOrders} />}
+                    {activeTab == "Completed" && <Completed orders={completedOrders} onRefresh={fetchOrders} />}
+                    {activeTab == "Pending" && <Pending orders={pendingOrders} onStatusChange={updateOrderStatus} onRefresh={fetchOrders} />}
+                </>
+            )}
 
         </View>
     );

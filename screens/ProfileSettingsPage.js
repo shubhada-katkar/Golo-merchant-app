@@ -5,19 +5,18 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
-import { TextInput } from "react-native-gesture-handler";
+import { TextInput } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
 import { ThemeContext } from "../theme/ThemeContext";
+import { BASE_URL } from "../config";
 
 export default function ProfileSettingsPage({ navigation }) {
 
   const { colors } = useContext(ThemeContext);
-  const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
-
   const [name, setName] = useState("");
   const [number, setNumber] = useState("");
   const [email, setEmail] = useState("");
@@ -52,7 +51,7 @@ export default function ProfileSettingsPage({ navigation }) {
 
       setLoadingPass(true);
 
-      const res = await fetch(`${BASE_URL}/api/merchant/reset-password`, {
+      let res = await fetch(`${BASE_URL}/users/merchant/reset-password`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -60,6 +59,17 @@ export default function ProfileSettingsPage({ navigation }) {
         },
         body: JSON.stringify({ password: newPassword })
       });
+
+      if (!res.ok && res.status === 404) {
+        res = await fetch(`${BASE_URL}/api/merchant/reset-password`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ password: newPassword })
+      });
+      }
 
       const data = await res.json();
       setLoadingPass(false);
@@ -88,9 +98,15 @@ export default function ProfileSettingsPage({ navigation }) {
         const token = await AsyncStorage.getItem("merchantToken");
         if (!token) return;
 
-        const res = await fetch(`${BASE_URL}/api/merchant/profile`, {
+        let res = await fetch(`${BASE_URL}/users/merchant/profile`, {
           headers: { Authorization: `Bearer ${token}` }
         });
+
+        if (!res.ok && res.status === 404) {
+          res = await fetch(`${BASE_URL}/api/merchant/profile`, {
+          headers: { Authorization: `Bearer ${token}` }
+          });
+        }
 
         const data = await res.json();
         if (data.merchant) {
@@ -135,7 +151,7 @@ export default function ProfileSettingsPage({ navigation }) {
       const token = await AsyncStorage.getItem("merchantToken");
       if (!token) return alert("Not authenticated");
 
-      const res = await fetch(`${BASE_URL}/api/merchant/profile/update`, {
+      let res = await fetch(`${BASE_URL}/users/merchant/profile`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -148,6 +164,22 @@ export default function ProfileSettingsPage({ navigation }) {
           shopName,
         }),
       });
+
+      if (!res.ok && res.status === 404) {
+        res = await fetch(`${BASE_URL}/api/merchant/profile/update`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          username: name,
+          phone: number,
+          email,
+          shopName,
+        }),
+      });
+      }
 
       const data = await res.json();
 
@@ -173,13 +205,23 @@ export default function ProfileSettingsPage({ navigation }) {
         type: "image/jpeg",
       });
 
-      const res = await fetch(`${BASE_URL}/api/merchant/profile/image`, {
+      let res = await fetch(`${BASE_URL}/users/merchant/profile/image`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,
         },
         body: formData,
       });
+
+      if (!res.ok && res.status === 404) {
+        res = await fetch(`${BASE_URL}/api/merchant/profile/image`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+      }
 
       const data = await res.json();
 

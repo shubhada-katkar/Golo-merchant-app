@@ -1,23 +1,20 @@
-﻿{
+{
   "name": "golo-app",
   "version": "1.0.0",
   "private": true,
   "packageManager": "npm@10.8.2",
   "scripts": {
-    "dev": "next dev --webpack",
-    "build": "next build --webpack",
-    "start": "next start",
-    "clean": "node -e \"const fs=require('fs'); for (const d of ['.next','.turbo']) { try { fs.rmSync(d,{recursive:true,force:true}); } catch {} }\"",
-    "lint": "eslint",
-    "expo-start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "clean": "node -e \"const fs=require('fs'); for (const d of ['.expo','.expo-shared']) { try { fs.rmSync(d,{recursive:true,force:true}); } catch {} }\"",
+    "lint": "eslint"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "2.2.0",
-    "@react-native-community/datetimepicker": "^8.4.4",
+    "@react-native-community/datetimepicker": "8.4.4",
     "@react-native-picker/picker": "2.11.1",
     "@react-navigation/native": "^7.1.28",
     "@react-navigation/native-stack": "^7.10.0",
@@ -29,23 +26,20 @@
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",
     "expo": "~54.0.33",
-    "expo-constants": "~18.0.13",
     "expo-image-picker": "~17.0.10",
     "expo-linear-gradient": "~15.0.8",
     "expo-status-bar": "~3.0.9",
     "firebase": "^12.10.0",
-    "framer-motion": "^12.34.0",
     "html5-qrcode": "^2.3.4",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.567.0",
     "mongodb": "^7.0.0",
     "multer": "^2.0.2",
-    "next": "16.1.6",
     "nodemailer": "^7.0.13",
     "postcss": "^8.5.6",
-    "react": "19.2.3",
+    "razorpay": "^2.9.6",
+    "react": "19.1.0",
     "react-day-picker": "^9.13.2",
-    "react-dom": "19.2.3",
     "react-native": "0.81.5",
     "react-native-dropdown-picker": "^5.4.6",
     "react-native-gesture-handler": "~2.28.0",
@@ -55,7 +49,6 @@
     "react-native-screens": "~4.16.0",
     "react-native-vector-icons": "^10.3.0",
     "react-redux": "^9.2.0",
-    "razorpay": "^2.9.6",
     "redux": "^5.0.1",
     "socket.io-client": "^4.8.3",
     "tailwindcss": "^4.1.18"
@@ -63,6 +56,7 @@
   "devDependencies": {
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
-    "eslint-config-next": "16.1.6"
+    "eslint-config-next": "16.1.6",
+    "typescript": "~5.9.2"
   }
 }

@@ -6,10 +6,10 @@ import { ThemeContext } from "../theme/ThemeContext";
 import { Dimensions } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Entypo } from "@expo/vector-icons";
+import { BASE_URL } from "../config";
 
 export default function Login({ navigation }) {
   const { colors } = useContext(ThemeContext);
-  const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -45,23 +45,50 @@ export default function Login({ navigation }) {
     }
 
     try {
+      if (!BASE_URL) {
+        Alert.alert("Configuration Error", "API URL is not configured");
+        return;
+      }
 
       setLoading(true);
 
       const controller = new AbortController();
       setTimeout(() => controller.abort(), 10000); // 10s timeout
 
-      const response = await fetch(`${BASE_URL}/api/merchant/login`, {
+      const payload = {
+        email: email.toLowerCase(),
+        password,
+      };
+
+      const parseResponse = async (response) => {
+        const contentType = response.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          return response.json();
+        }
+        const text = await response.text();
+        return { message: text || "Request failed" };
+      };
+
+      // New backend contract (used by web/customer app)
+      let response = await fetch(`${BASE_URL}/users/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: email.toLowerCase(),
-          password
-        }),
+        body: JSON.stringify({ ...payload, accountType: "merchant" }),
         signal: controller.signal
       });
 
-      const data = await response.json();
+      let data = await parseResponse(response);
+
+      // Legacy fallback route for backward compatibility
+      if (!response.ok && response.status === 404) {
+        response = await fetch(`${BASE_URL}/api/merchant/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          signal: controller.signal
+        });
+        data = await parseResponse(response);
+      }
 
       setLoading(false);
 
@@ -72,16 +99,20 @@ export default function Login({ navigation }) {
       Alert.alert("Login Successful");
 
       // Token validation
-      if (!data.token || !data.merchant || !data.merchant._id) {
+      const token = data?.data?.accessToken || data?.token;
+      const merchant = data?.data?.user || data?.merchant;
+      const merchantId = merchant?.id || merchant?._id;
+
+      if (!token || !merchant || !merchantId) {
         Alert.alert("Error", "Invalid server response");
         return;
       }
       
       // Save securely
       await AsyncStorage.multiSet([
-        ["merchantToken", data.token],
-        ["merchantData", JSON.stringify(data.merchant)],
-        ["merchantId", data.merchant._id]
+        ["merchantToken", token],
+        ["merchantData", JSON.stringify(merchant)],
+        ["merchantId", String(merchantId)]
       ]);
 
       navigation.reset({
@@ -110,40 +141,11 @@ export default function Login({ navigation }) {
     }
 
     try {
-
       setOtpLoading(true);
-
-      const res = await fetch(`${BASE_URL}/api/auth/send-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email,role:"merchant" })
-      });
-
-      const data = await res.json();
-
+      // OTP endpoints not available in current backend
+      // Disabled for now - backend doesn't support send-otp
+      Alert.alert("Notice", "OTP feature temporarily unavailable");
       setOtpLoading(false);
-
-      if (!res.ok) {
-        return Alert.alert("Error", data.message);
-      }
-
-      Alert.alert("Success", "OTP sent to email");
-
-      setOtpSent(true);
-
-      // ✅ START 2 MINUTE TIMER (120 seconds)
-      setOtpCooldown(120);
-
-      const timer = setInterval(() => {
-        setOtpCooldown(prev => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-
     } catch (err) {
       setOtpLoading(false);
       Alert.alert("Server error");
@@ -160,27 +162,11 @@ export default function Login({ navigation }) {
     if (verifyLoading) return; // extra safety
 
     try {
-
       setVerifyLoading(true);
-
-      const res = await fetch(`${BASE_URL}/api/auth/verify-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, otp, role:"merchant" })
-      });
-
-      const data = await res.json();
-
+      // OTP endpoints not available in current backend
+      // Disabled for now
+      Alert.alert("Notice", "OTP verification temporarily unavailable");
       setVerifyLoading(false);
-
-      if (!res.ok) {
-        return Alert.alert("Error", data.message);
-      }
-
-      Alert.alert("Success", "OTP Verified");
-
-      navigation.replace("HomePage");
-
     } catch (err) {
       setVerifyLoading(false);
       Alert.alert("Server error");

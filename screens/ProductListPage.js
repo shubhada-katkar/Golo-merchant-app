@@ -6,6 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { ThemeContext } from "../theme/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { BASE_URL } from "../config";
 
 import Total from "../productlistcomponents/Total";
 import Draft from "../productlistcomponents/Draft";
@@ -18,7 +19,16 @@ export default function ProductListPage({ navigation }) {
   const [searchText, setSearchText] = useState("");
   const [products, setProducts] = useState([]); // ✅ SINGLE SOURCE OF TRUTH
 
-  const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
+  const normalizeProduct = (item) => ({
+    _id: item?._id || item?.id,
+    productname: item?.productname || item?.name || item?.productName || "",
+    category: item?.category || "",
+    description: item?.description || "",
+    price: Number(item?.price || item?.regularPrice || 0),
+    status: item?.status || item?.publicationStatus || "draft",
+    image: item?.image || (item?.images?.[0] ? { url: item.images[0] } : null),
+    images: Array.isArray(item?.images) ? item.images : [],
+  });
 
   // ================= FETCH ALL PRODUCTS =================
   const fetchProducts = async () => {
@@ -26,13 +36,22 @@ export default function ProductListPage({ navigation }) {
       const token = await AsyncStorage.getItem("merchantToken");
       if (!token) return;
 
-      const res = await fetch(`${BASE_URL}/api/products`, {
+      let res = await fetch(`${BASE_URL}/merchant/products`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
+      if (!res.ok && res.status === 404) {
+        res = await fetch(`${BASE_URL}/products/merchant`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
+
       const data = await res.json();
       if (res.ok) {
-        setProducts(data);
+        const list = Array.isArray(data)
+          ? data
+          : data?.products || data?.data?.products || data?.data || [];
+        setProducts(list.map(normalizeProduct));
       }
     } catch (err) {
       console.log("Fetch products error:", err);

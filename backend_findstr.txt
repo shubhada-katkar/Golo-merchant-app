@@ -1,0 +1,323 @@
+89:            storeCategory: 'Food & Dining',
+90:            storeSubCategory: 'Pizzas',
+100:            storeCategory: 'Fashion',
+101:            storeSubCategory: 'Clothing',
+111:            storeCategory: 'Electronics',
+112:            storeSubCategory: 'Accessories',
+122:            storeCategory: 'Food & Dining',
+123:            storeSubCategory: 'Cafes',
+133:            storeCategory: 'Beauty',
+134:            storeSubCategory: 'Salons',
+150:            bannerCategory: 'Special',
+203:            bannerCategory: 'Festival',
+254:            bannerCategory: 'BOGO',
+296:            bannerCategory: 'Cashback',
+348:            bannerCategory: 'Combo',
+64:    async getAllAds(page = '1', limit = '10', category, sortBy, sortOrder) {
+67:        const cacheKey = this.adsService.getCacheKey('ads:homepage', pageNum, limitNum, category || 'all');
+75:            if (category) {
+76:                result = await this.adsService.getAdsByCategory(category, pageNum, limitNum, sortBy || 'createdAt', sortOrder || 'desc');
+105:    async searchAds(query = '', category, location, minPrice, maxPrice, sortBy, sortOrder, lat, lng, page = '1', limit = '10') {
+113:                category,
+141:    async getNearbyAds(latitude, longitude, distance = '10000', category, page = '1', limit = '10') {
+149:            const result = await this.adsService.getNearbyAds(lat, lng, maxDistance, category, pageNum, limitNum);
+172:    async getAdsByCategory(category, page = '1', limit = '10', sortBy, sortOrder) {
+175:        const cacheKey = this.adsService.getCacheKey('ads:category', category, pageNum, limitNum);
+180:        this.logger.log(`REST: Getting ads by category: ${category}`);
+182:            const result = await this.adsService.getAdsByCategory(category, pageNum, limitNum, sortBy || 'createdAt', sortOrder || 'desc');
+198:            this.logger.error(`REST: Error getting ads by category: ${error.message}`);
+201:                message: 'Failed to get ads by category',
+246:            const categoryStats = await Promise.all(categories.map(async (category) => {
+247:                const result = await this.adsService.getAdsByCategory(category, 1, 1);
+249:                    category,
+259:                    categoryDistribution: categoryStats
+274:    async getCategoryManagementStats(limit = '12') {
+275:        this.logger.log('REST: Getting category management stats');
+277:            const data = await this.adsService.getCategoryManagementPublic(parseInt(limit, 10));
+285:            this.logger.error(`REST: Error getting category management stats: ${error.message}`);
+288:                message: 'Failed to get category management stats',
+302:    async createAd(createAdDto, user) {
+316:            createAdDto.userId = user.id;
+317:            createAdDto.userType = user.role === 'admin' ? 'Admin' : 'Customer';
+318:            const ad = await this.adsService.createAd(createAdDto);
+338:    async createAdAsync(createAdDto, user) {
+340:        createAdDto.userId = user.id;
+341:        createAdDto.userType = user.role === 'admin' ? 'Admin' : 'Customer';
+351:            await this.kafkaService.send(kafka_topics_1.KAFKA_TOPICS.AD_CREATE, createAdDto, correlationId);
+732:    async debugCreateAd(createAdDto, user) {
+735:        console.log('DTO before:', JSON.stringify(createAdDto));
+736:        createAdDto.userId = user.id;
+737:        createAdDto.userType = user.role === 'admin' ? 'Admin' : 'Customer';
+738:        console.log('DTO after:', JSON.stringify(createAdDto));
+740:            const ad = await this.adsService.createAd(createAdDto);
+1031:    __param(2, (0, common_1.Query)('category')),
+1041:    __param(1, (0, common_1.Query)('category')),
+1060:    __param(3, (0, common_1.Query)('category')),
+1068:    (0, common_1.Get)('category/:category'),
+1069:    __param(0, (0, common_1.Param)('category')),
+1077:], AdsController.prototype, "getAdsByCategory", null);
+1093:    (0, common_1.Get)('stats/category-management'),
+1098:], AdsController.prototype, "getCategoryManagementStats", null);
+1113:    __metadata("design:paramtypes", [create_ad_dto_1.CreateAdDto, Object]),
+1115:], AdsController.prototype, "createAd", null);
+1123:    __metadata("design:paramtypes", [create_ad_dto_1.CreateAdDto, Object]),
+1125:], AdsController.prototype, "createAdAsync", null);
+1278:    __metadata("design:paramtypes", [create_ad_dto_1.CreateAdDto, Object]),
+1280:], AdsController.prototype, "debugCreateAd", null);
+32:            const result = await this.adsService.createAd(value);
+87:    async handleAdGetByCategory(message, context) {
+89:        const { category, page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = value;
+92:            const result = await this.adsService.getAdsByCategory(category, page, limit, sortBy, sortOrder);
+151:        const { query, category, location, minPrice, maxPrice, page = 1, limit = 10, } = value;
+155:                category,
+188:        const { latitude, longitude, maxDistance = 10000, category, page = 1, limit = 10, } = value;
+191:            const result = await this.adsService.getNearbyAds(latitude, longitude, maxDistance, category, page, limit);
+288:    (0, microservices_1.MessagePattern)(kafka_topics_1.KAFKA_TOPICS.AD_GET_BY_CATEGORY),
+294:], AdsKafkaController.prototype, "handleAdGetByCategory", null);
+16:const ad_schema_1 = require("./schemas/category-schemas/ad.schema");
+21:const ad_schema_1 = require("./schemas/category-schemas/ad.schema");
+157:                        'ad.category': 1,
+158:                        'ad.subCategory': 1,
+360:        await this.redisService.deleteByPattern('golo:ads:category:*');
+364:    async createAd(createAdDto) {
+365:        this.logger.log(`Creating new ad for user: ${createAdDto.userId}`);
+366:        const userExists = await this.verifyUser(createAdDto.userId);
+368:            throw new common_1.BadRequestException(`User with ID ${createAdDto.userId} not found.`);
+370:        let categorySpecificData = {};
+371:        const payload = createAdDto;
+372:        switch (createAdDto.category) {
+374:                categorySpecificData = payload.vehicleData || {};
+377:                categorySpecificData = payload.propertyData || {};
+380:                categorySpecificData = payload.serviceData || {};
+383:                categorySpecificData = payload.mobileData || {};
+387:                categorySpecificData = payload.electronicsData || {};
+390:                categorySpecificData = payload.furnitureData || {};
+393:                categorySpecificData = payload.educationData || {};
+396:                categorySpecificData = payload.petsData || {};
+399:                categorySpecificData = payload.matrimonialData || {};
+402:                categorySpecificData = payload.businessData || {};
+405:                categorySpecificData = payload.travelData || {};
+408:                categorySpecificData = payload.astrologyData || {};
+411:                categorySpecificData = payload.employmentData || {};
+414:                categorySpecificData = payload.lostFoundData || payload.lostAndFoundData || {};
+417:                categorySpecificData = payload.personalData || {};
+420:                categorySpecificData = payload.publicNoticeData || {};
+423:                categorySpecificData = payload.greetingsData || payload.otherData || {};
+426:                categorySpecificData = payload.otherData || {};
+429:        if (!categorySpecificData || Object.keys(categorySpecificData).length === 0) {
+430:            categorySpecificData = payload.categorySpecificData || {};
+432:        this.validateCategoryData(createAdDto.category, categorySpecificData);
+434:            if (createAdDto.selectedDates && createAdDto.selectedDates.length > 0) {
+435:                const lastDate = new Date(Math.max(...createAdDto.selectedDates.map((d) => new Date(d).getTime())));
+439:            return (createAdDto.expiryDate ||
+443:            ...createAdDto,
+444:            categorySpecificData,
+466:                details: { title: ad.title, category: ad.category }
+519:    async getAdsByCategory(category, page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc') {
+525:                .find({ category, status: 'active' })
+531:                category,
+540:        if (filters?.category)
+541:            mongoQuery.category = filters.category;
+585:    async getNearbyAds(lat, lng, maxDistance = 10000, category, page = 1, limit = 10) {
+588:        if (category)
+589:            geoQuery.category = category;
+741:            .select('adId title description category subCategory status views viewHistory contactClicks isPromoted promotedUntil createdAt updatedAt price images videos city state pincode location locationCoordinates contactInfo primaryContact cities language selectedDates templateId tags expiryDate metadata categorySpecificData reportCount isUnderReview autoDisabled disabledAt disabledReason negotiable')
+769:            category: ad.category,
+770:            subCategory: ad.subCategory,
+805:            categorySpecificData: ad.categorySpecificData || null,
+901:            category: ad.category,
+1110:                        'ad.category': 1,
+1111:                        'ad.subCategory': 1,
+1438:    async getCategoryManagementPublic(limit = 12) {
+1440:        const [categoryValues, activeCategoryValues, subcategoryValues, treeAgg, listAgg, totalRowsAgg,] = await Promise.all([
+1441:            this.adModel.distinct('category').exec(),
+1442:            this.adModel.distinct('category', { status: 'active' }).exec(),
+1443:            this.adModel.distinct('subCategory').exec(),
+1447:                        _id: '$category',
+1449:                        products: { $addToSet: '$subCategory' },
+1466:                            category: '$category',
+1467:                            subCategory: '$subCategory',
+1483:                        name: '$_id.subCategory',
+1484:                        parent: '$_id.category',
+1499:                            category: '$category',
+1500:                            subCategory: '$subCategory',
+1507:        const totalCategories = (categoryValues || []).filter(Boolean).length;
+1508:        const activeCategories = (activeCategoryValues || []).filter(Boolean).length;
+1509:        const subcategories = (subcategoryValues || []).filter(Boolean).length;
+1524:    validateCategoryData(category, data) {
+12:exports.CreateAdDto = void 0;
+17:class CreateAdDto {
+19:exports.CreateAdDto = CreateAdDto;
+24:], CreateAdDto.prototype, "title", void 0);
+29:], CreateAdDto.prototype, "description", void 0);
+38:], CreateAdDto.prototype, "category", void 0);
+43:], CreateAdDto.prototype, "subCategory", void 0);
+49:], CreateAdDto.prototype, "userId", void 0);
+53:], CreateAdDto.prototype, "userType", void 0);
+58:], CreateAdDto.prototype, "images", void 0);
+64:], CreateAdDto.prototype, "videos", void 0);
+70:], CreateAdDto.prototype, "price", void 0);
+75:], CreateAdDto.prototype, "negotiable", void 0);
+80:], CreateAdDto.prototype, "location", void 0);
+85:], CreateAdDto.prototype, "city", void 0);
+90:], CreateAdDto.prototype, "state", void 0);
+95:], CreateAdDto.prototype, "pincode", void 0);
+101:], CreateAdDto.prototype, "latitude", void 0);
+107:], CreateAdDto.prototype, "longitude", void 0);
+112:], CreateAdDto.prototype, "contactInfo", void 0);
+117:], CreateAdDto.prototype, "language", void 0);
+122:], CreateAdDto.prototype, "primaryContact", void 0);
+128:], CreateAdDto.prototype, "cities", void 0);
+134:], CreateAdDto.prototype, "selectedDates", void 0);
+139:], CreateAdDto.prototype, "templateId", void 0);
+144:], CreateAdDto.prototype, "propertyData", void 0);
+149:], CreateAdDto.prototype, "vehicleData", void 0);
+154:], CreateAdDto.prototype, "serviceData", void 0);
+159:], CreateAdDto.prototype, "mobileData", void 0);
+164:], CreateAdDto.prototype, "electronicsData", void 0);
+169:], CreateAdDto.prototype, "furnitureData", void 0);
+174:], CreateAdDto.prototype, "educationData", void 0);
+179:], CreateAdDto.prototype, "petsData", void 0);
+184:], CreateAdDto.prototype, "matrimonialData", void 0);
+189:], CreateAdDto.prototype, "businessData", void 0);
+194:], CreateAdDto.prototype, "travelData", void 0);
+199:], CreateAdDto.prototype, "astrologyData", void 0);
+204:], CreateAdDto.prototype, "employmentData", void 0);
+209:], CreateAdDto.prototype, "lostFoundData", void 0);
+214:], CreateAdDto.prototype, "personalData", void 0);
+219:], CreateAdDto.prototype, "publicNoticeData", void 0);
+224:], CreateAdDto.prototype, "greetingsData", void 0);
+229:], CreateAdDto.prototype, "otherData", void 0);
+234:], CreateAdDto.prototype, "categorySpecificData", void 0);
+240:], CreateAdDto.prototype, "tags", void 0);
+245:], CreateAdDto.prototype, "expiryDate", void 0);
+250:], CreateAdDto.prototype, "isPromoted", void 0);
+255:], CreateAdDto.prototype, "promotedUntil", void 0);
+260:], CreateAdDto.prototype, "promotionPackage", void 0);
+266:], CreateAdDto.prototype, "metadata", void 0);
+20:        message: 'Reason must be one of: spam, inappropriate, fraud, duplicate, other',
+16:class UpdateAdDto extends (0, mapped_types_1.PartialType)(create_ad_dto_1.CreateAdDto) {
+20:        message: 'Status must be one of: pending, reviewed, action_taken',
+30:], LostFoundDto.prototype, "category", void 0);
+53:], BannerPromotion.prototype, "bannerCategory", void 0);
+40:], Ad.prototype, "category", void 0);
+44:], Ad.prototype, "subCategory", void 0);
+113:], Ad.prototype, "categorySpecificData", void 0);
+256:exports.AdSchema.index({ category: 1, status: 1, createdAt: -1 });
+257:exports.AdSchema.index({ location: 1, category: 1 });
+259:exports.AdSchema.index({ city: 1, category: 1 });
+20:], Service.prototype, "serviceCategory", void 0);
+15:const ad_schema_1 = require("../ads/schemas/category-schemas/ad.schema");
+19:const ad_schema_1 = require("../ads/schemas/category-schemas/ad.schema");
+119:    async getNearbyOffers(lat, lng, radiusKm, location, q, category, sort, maxPrice, page, limit) {
+126:            category,
+271:    __param(5, (0, common_1.Query)('category')),
+36:        this.legacyOfferCategorySet = new Set([
+66:        const category = String(row?.bannerCategory || '').trim().toLowerCase();
+67:        if (this.legacyOfferCategorySet.has(category)) {
+233:            bannerCategory: payload.bannerCategory?.trim(),
+263:                bannerCategory: request.bannerCategory,
+374:        if (payload.bannerCategory !== undefined) {
+375:            request.bannerCategory = payload.bannerCategory.trim();
+584:        const categoryNeedle = String(params.category || '').trim().toLowerCase();
+616:            .select('userId storeName storeCategory storeSubCategory storeLocation storeLocationLatitude storeLocationLongitude profilePhoto shopPhoto')
+654:                category: row.bannerCategory,
+669:                    category: merchant?.storeCategory || '',
+670:                    subCategory: merchant?.storeSubCategory || '',
+697:                    row.category,
+707:        if (categoryNeedle) {
+708:            normalized = normalized.filter((row) => String(row.category || '').toLowerCase() === categoryNeedle);
+762:            .select('storeName storeCategory storeSubCategory storeLocation storeLocationLatitude storeLocationLongitude profilePhoto shopPhoto')
+769:            category: offer.bannerCategory,
+788:                category: merchant?.storeCategory || '',
+789:                subCategory: merchant?.storeSubCategory || '',
+65:], SubmitBannerPromotionDto.prototype, "bannerCategory", void 0);
+63:], UpdateBannerPromotionDto.prototype, "bannerCategory", void 0);
+58:], BannerPromotion.prototype, "bannerCategory", void 0);
+20:const ad_schema_1 = require("../ads/schemas/category-schemas/ad.schema");
+22:const ad_schema_1 = require("../ads/schemas/category-schemas/ad.schema");
+4:exports.isValidCategory = isValidCategory;
+24:const LEGACY_CATEGORY_ALIASES = {
+29:function toCanonicalCategory(category) {
+30:    if (typeof category !== 'string')
+32:    const trimmed = category.trim();
+33:    return LEGACY_CATEGORY_ALIASES[trimmed] || trimmed;
+35:function isValidCategory(category) {
+36:    const canonical = toCanonicalCategory(category);
+46:        errors.push('At least 1 category must be selected');
+53:        const canonical = toCanonicalCategory(cat);
+55:            errors.push(`Category must be string, got ${typeof cat}`);
+57:        else if (!isValidCategory(canonical)) {
+58:            errors.push(`Invalid category: "${cat}"`);
+61:            errors.push(`Duplicate category: "${cat}"`);
+71:    const canonical = categories.map((cat) => toCanonicalCategory(cat));
+72:    return [...new Set(canonical.filter((cat) => isValidCategory(cat)))];
+9:    AD_GET_BY_CATEGORY: 'ad.get.by.category',
+32:            const result = await this.adsService.createAd(value);
+87:    async handleAdGetByCategory(message, context) {
+89:        const { category, page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = value;
+92:            const result = await this.adsService.getAdsByCategory(category, page, limit, sortBy, sortOrder);
+151:        const { query, category, location, minPrice, maxPrice, page = 1, limit = 10 } = value;
+155:                category,
+188:        const { latitude, longitude, maxDistance = 10000, category, page = 1, limit = 10 } = value;
+191:            const result = await this.adsService.getNearbyAds(latitude, longitude, maxDistance, category, page, limit);
+288:    (0, microservices_1.MessagePattern)(kafka_topics_1.KAFKA_TOPICS.AD_GET_BY_CATEGORY),
+294:], KafkaController.prototype, "handleAdGetByCategory", null);
+86:                kafka_topics_1.KAFKA_TOPICS.AD_GET_BY_CATEGORY,
+12:const ad_schema_1 = require("../ads/schemas/category-schemas/ad.schema");
+19:const ad_schema_1 = require("../ads/schemas/category-schemas/ad.schema");
+57:            category: dto.category.trim(),
+72:                category: product.category,
+95:            filter.$or = [{ name: searchRegex }, { category: searchRegex }];
+184:        if (typeof dto.category === 'string') {
+185:            product.category = dto.category.trim();
+224:                category: product.category,
+240:            category: product.category,
+27:], CreateMerchantProductDto.prototype, "category", void 0);
+28:], UpdateMerchantProductDto.prototype, "category", void 0);
+28:], MerchantProduct.prototype, "category", void 0);
+154:            if (updateData.storeCategory)
+155:                allowedUpdates.storeCategory = updateData.storeCategory;
+156:            if (updateData.storeSubCategory)
+157:                allowedUpdates.storeSubCategory = updateData.storeSubCategory;
+41:], UpdateMerchantProfileDto.prototype, "storeCategory", void 0);
+46:], UpdateMerchantProfileDto.prototype, "storeSubCategory", void 0);
+70:], SubmitOfferPromotionDto.prototype, "bannerCategory", void 0);
+75:], SubmitOfferPromotionDto.prototype, "category", void 0);
+68:], UpdateOfferPromotionDto.prototype, "bannerCategory", void 0);
+73:], UpdateOfferPromotionDto.prototype, "category", void 0);
+44:], OfferLikeHistory.prototype, "offerCategory", void 0);
+57:], OfferPromotion.prototype, "category", void 0);
+61:], OfferPromotion.prototype, "businessCategory", void 0);
+65:], OfferPromotion.prototype, "businessSubCategory", void 0);
+106:    async getProductsByCategory(category) {
+108:            const products = await this.productsService.getProductsByCategory(category);
+116:            this.logger.error(`Error fetching by category: ${error.message}`);
+208:    (0, common_1.Get)('category/:category'),
+209:    __param(0, (0, common_1.Param)('category')),
+213:], ProductsController.prototype, "getProductsByCategory", null);
+91:                { category: { $regex: query, $options: 'i' } },
+103:    async getProductsByCategory(category, merchantId) {
+105:            category: { $regex: category, $options: 'i' },
+25:], CreateProductDto.prototype, "category", void 0);
+89:], UpdateProductDto.prototype, "category", void 0);
+32:], Product.prototype, "category", void 0);
+110:exports.ProductSchema.index({ category: 1 });
+155:                storeCategory: registerDto.storeCategory?.trim() || undefined,
+156:                storeSubCategory: registerDto.storeSubCategory?.trim() || undefined,
+969:        const category = String(payload?.category || '').trim();
+972:        if (!category) {
+973:            throw new common_1.BadRequestException('Category is required');
+987:                    category,
+24:        message: 'Reason must be one of: harassment, abuse, fraud, scam, fake_account, spam, other',
+44:        message: 'Status must be one of: pending, under_investigation, resolved, dismissed',
+66:], RegisterDto.prototype, "storeCategory", void 0);
+71:], RegisterDto.prototype, "storeSubCategory", void 0);
+40:], Merchant.prototype, "storeCategory", void 0);
+44:], Merchant.prototype, "storeSubCategory", void 0);
+92:            category: String,
+51:        this.legacyOfferCategorySet = new Set([
+112:        const category = String(offer?.bannerCategory || '').trim().toLowerCase();
+113:        if (this.legacyOfferCategorySet.has(category)) {
+181:                discount: offer.bannerCategory || 'Special Offer',
+729:                    discount: offer.bannerCategory,

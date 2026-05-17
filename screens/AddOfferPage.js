@@ -2,95 +2,232 @@ import React, { useContext, useState, useEffect } from "react";
 import {
     View, StyleSheet, Text, Switch, TouchableOpacity,
     TextInput, ScrollView, TouchableWithoutFeedback, KeyboardAvoidingView,
-    Keyboard, Platform
+    Keyboard, Platform, FlatList, Modal, ActivityIndicator, Image
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { SafeAreaView } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
 import OfferScroll from "../components/OfferScroll";
 import { ThemeContext } from "../theme/ThemeContext";
 import Dropdown from "../components/Dropdown";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { MaterialIcons, Ionicons } from "@expo/vector-icons";
+import { fetchMerchantProducts } from "../services/merchantProducts";
+import { MaterialIcons, Ionicons, Feather } from "@expo/vector-icons";
 import { Alert } from "react-native";
+import * as ImagePicker from "expo-image-picker";
+import { uploadImageToCloudinary } from "../services/cloudinaryService";
+import { BASE_URL } from "../config";
+
+const parseResponseSafely = async (response) => {
+    const responseText = await response.text();
+
+    if (!responseText) {
+        return {};
+    }
+
+    try {
+        return JSON.parse(responseText);
+    } catch (error) {
+        return { message: responseText };
+    }
+};
+
+const formatDateOnly = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+};
+
+const buildSelectedDates = (fromDate, toDate) => {
+    if (!fromDate || !toDate) return [];
+
+    const dates = [];
+    const current = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate());
+    const end = new Date(toDate.getFullYear(), toDate.getMonth(), toDate.getDate());
+
+    while (current <= end) {
+        dates.push(formatDateOnly(current));
+        current.setDate(current.getDate() + 1);
+    }
+
+    return dates;
+};
+
+const calculateOfferPrice = (price, offerType) => {
+    const numericPrice = Number(price || 0);
+    if (!Number.isFinite(numericPrice) || numericPrice <= 0) {
+        return 0;
+    }
+
+    switch (offerType) {
+        case "50%off":
+        case "b1g1":
+        case "b2g2":
+            return Number((numericPrice * 0.5).toFixed(2));
+        case "70%off":
+            return Number((numericPrice * 0.3).toFixed(2));
+        default:
+            return numericPrice;
+    }
+};
+
+const normalizeSelectedProduct = (product, offerType = "") => {
+    const originalPrice = Number(product?.price ?? product?.originalPrice ?? 0);
+
+    return {
+        productId: product?._id || product?.id || product?.productId || "",
+        productName: product?.name || product?.productname || product?.productName || "Product",
+        imageUrl: product?.image?.url || product?.images?.[0] || product?.imageUrl || "",
+        originalPrice,
+        offerPrice: Number(product?.offerPrice ?? calculateOfferPrice(originalPrice, offerType)),
+        stockQuantity: Number(product?.stockQuantity || 0),
+    };
+};
 
 export default function AddOfferPage({ navigation, route }) {
-    const {template, offerData} = route.params || {};
+    const { template, offerData } = route.params || {};
 
     const { colors } = useContext(ThemeContext);
-    const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 
     const [showOffers, setShowOffers] = useState(false);
-    const [discount, setDiscount] = useState("");
-    const [token, setToken] = useState(null);
+    const [offerType, setOfferType] = useState("");
+    const [offerTypeModalOpen, setOfferTypeModalOpen] = useState(false);
+    const [authToken, setAuthToken] = useState("");
     const [isDarkMode, setIsDarkMode] = useState(false);
     const [fromDate, setFromDate] = useState(null);
     const [toDate, setToDate] = useState(null);
     const [showPicker, setShowPicker] = useState(false);
     const [activeField, setActiveField] = useState(null);
+    const [offerTypeOpen, setOfferTypeOpen] = useState(false);
 
     const [title, setTitle] = useState("");
     const [stars, setStars] = useState("");
     const [terms, setTerms] = useState("");
     const [isSaving, setIsSaving] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [bannerImage, setBannerImage] = useState(null); // local URI
+    const [isBannerUploading, setIsBannerUploading] = useState(false);
 
     const [selectedIds, setSelectedIds] = useState([]);
     const [selectedProducts, setSelectedProducts] = useState([]);
+    const [merchantProducts, setMerchantProducts] = useState([]);
+    const [loadingProducts, setLoadingProducts] = useState(false);
 
-    // Load merchant token
-    useEffect(() => {
-        const loadToken = async () => {
-            const savedToken = await AsyncStorage.getItem("merchantToken");
-            setToken(savedToken);
-        };
-        loadToken();
-    }, []);
+    const offerTypeOptions = [
+        { label: "B1G1 (Buy 1 Get 1)", value: "b1g1" },
+        { label: "B2G2 (Buy 2 Get 2)", value: "b2g2" },
+        { label: "50% Off", value: "50%off" },
+        { label: "70% Off", value: "70%off" },
+        { label: "Custom Offer", value: "custom" },
+    ];
 
     // Prefill form if editing
     useEffect(() => {
         if (offerData) {
-            setTitle(offerData.title || "");
-            setDiscount(offerData.discountPercentage?.toString() || "");
-            setFromDate(offerData.validFrom ? new Date(offerData.validFrom) : null);
-            setToDate(offerData.validTo ? new Date(offerData.validTo) : null);
-            setIsDarkMode(offerData.loyaltyEnabled || false);
-            setStars(offerData.stars?.toString() || "");
+            setTitle(offerData.title || offerData.bannerTitle || "");
+            setOfferType(offerData.offerType || offerData.bannerCategory || "");
+            setFromDate(offerData.validFrom ? new Date(offerData.validFrom) : offerData.startDate ? new Date(offerData.startDate) : null);
+            setToDate(offerData.validTo ? new Date(offerData.validTo) : offerData.endDate ? new Date(offerData.endDate) : null);
+            setIsDarkMode(Boolean(offerData.loyaltyEnabled || offerData.loyaltyRewardEnabled));
+            setStars((offerData.stars ?? offerData.loyaltyStarsToOffer ?? offerData.loyaltyPointsPerPurchase ?? offerData.loyaltyScorePerStar)?.toString() || "");
             setTerms(offerData.termsAndConditions || "");
-            setSelectedIds(offerData.products?.map(p => p._id) || []);
+            setSelectedIds(
+                offerData.products?.map(p => p._id || p.id) ||
+                offerData.selectedProducts?.map(p => p.productId) ||
+                []
+            );
+            setSelectedProducts(
+                Array.isArray(offerData.selectedProducts)
+                    ? offerData.selectedProducts.map((product) => ({
+                        _id: product?.productId || "",
+                        id: product?.productId || "",
+                        name: product?.productName || "Product",
+                        productname: product?.productName || "Product",
+                        price: Number(product?.originalPrice || 0),
+                        stockQuantity: Number(product?.stockQuantity || 0),
+                        image: { url: product?.imageUrl || "" },
+                        images: product?.imageUrl ? [product.imageUrl] : [],
+                        offerPrice: Number(product?.offerPrice || 0),
+                    }))
+                    : []
+            );
+            setBannerImage(offerData.bannerUrl || offerData.imageUrl || null);
         }
     }, [offerData]);
 
-    // Fetch selected products whenever IDs or token change
+    // Fetch all merchant products on page load
     useEffect(() => {
-        const fetchSelectedProducts = async () => {
+        const loadMerchantProducts = async () => {
             try {
-                const res = await fetch(`${BASE_URL}/api/products/by-ids`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ ids: selectedIds })
-                });
-                const data = await res.json();
-                setSelectedProducts(data);
+                setLoadingProducts(true);
+                const accessToken = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+                if (!accessToken) {
+                    navigation.navigate("Login");
+                    return;
+                }
+                setAuthToken(accessToken);
+
+                const response = await fetchMerchantProducts({ token: accessToken });
+                setMerchantProducts(response.products || []);
             } catch (error) {
-                console.log("Offer products fetch error:", error);
+                console.error("Failed to load merchant products:", error);
+            } finally {
+                setLoadingProducts(false);
             }
         };
 
-        if (selectedIds.length > 0 && token) {
-            fetchSelectedProducts();
-        } else {
+        loadMerchantProducts();
+    }, [navigation]);
+
+    // Build selected products with real data from merchant products
+    useEffect(() => {
+        if (selectedIds.length === 0) {
             setSelectedProducts([]);
+            return;
         }
-    }, [selectedIds, token]);
+
+        // Map selectedIds to actual product objects from merchantProducts
+        const fallbackProducts = Array.isArray(offerData?.selectedProducts)
+            ? offerData.selectedProducts
+            : [];
+
+        const selectedProds = selectedIds
+            .map((id) => {
+                const merchantProduct = merchantProducts.find(p => p._id === id || p.id === id);
+                if (merchantProduct) {
+                    return merchantProduct;
+                }
+
+                const fallbackProduct = fallbackProducts.find(
+                    (product) => product?.productId === id || product?._id === id || product?.id === id
+                );
+
+                if (!fallbackProduct) {
+                    return null;
+                }
+
+                return {
+                    _id: fallbackProduct?.productId || fallbackProduct?._id || fallbackProduct?.id || "",
+                    id: fallbackProduct?.productId || fallbackProduct?._id || fallbackProduct?.id || "",
+                    name: fallbackProduct?.productName || fallbackProduct?.name || "Product",
+                    productname: fallbackProduct?.productName || fallbackProduct?.name || "Product",
+                    price: Number(fallbackProduct?.originalPrice || fallbackProduct?.price || 0),
+                    stockQuantity: Number(fallbackProduct?.stockQuantity || 0),
+                    image: { url: fallbackProduct?.imageUrl || fallbackProduct?.image?.url || "" },
+                    images: fallbackProduct?.imageUrl ? [fallbackProduct.imageUrl] : [],
+                    offerPrice: Number(fallbackProduct?.offerPrice || 0),
+                };
+            })
+            .filter(Boolean);
+
+        setSelectedProducts(selectedProds);
+    }, [selectedIds, merchantProducts, offerData]);
 
     const clearAllFields = () => {
         setTitle("");
-        setDiscount("");
+        setOfferType("");
         setFromDate(null);
         setToDate(null);
         setIsDarkMode(false);
@@ -98,6 +235,31 @@ export default function AddOfferPage({ navigation, route }) {
         setTerms("");
         setSelectedIds([]);
         setSelectedProducts([]);
+        setBannerImage(null);
+    };
+
+    const pickBannerImage = async () => {
+        try {
+            const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (!permissionResult.granted) {
+                Alert.alert("Permission Required", "Please allow access to your photo library to upload a banner.");
+                return;
+            }
+
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [16, 9],
+                quality: 0.8,
+            });
+
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+                setBannerImage(result.assets[0].uri);
+            }
+        } catch (err) {
+            console.error("Image picker error:", err);
+            Alert.alert("Error", "Failed to open image picker.");
+        }
     };
 
     const handleDelete = () => {
@@ -117,25 +279,32 @@ export default function AddOfferPage({ navigation, route }) {
         try {
             setIsDeleting(true);
 
-            const url = `${BASE_URL}/api/offers/${offerData._id}`;
-            const res = await fetch(url, {
+            const accessToken = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+            if (!accessToken) {
+                navigation.navigate("Login");
+                return;
+            }
+
+            const requestId = offerData?.requestId || offerData?._id || offerData?.offerId;
+            const response = await fetch(`${BASE_URL}/banners/promotions/${requestId}?type=offer`, {
                 method: "DELETE",
                 headers: {
+                    "Authorization": `Bearer ${accessToken}`,
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
                 },
             });
 
-            const data = await res.json();
-            if (res.ok && data.success) {
-                alert("Offer deleted successfully!");
-                navigation.goBack();
-            } else {
-                alert(data.message || "Something went wrong");
+            const responseData = await parseResponseSafely(response);
+            if (!response.ok) {
+                const errorMessage = responseData?.message || responseData?.error || `HTTP ${response.status}`;
+                alert("Delete failed: " + errorMessage);
+                return;
             }
+
+            alert("Offer deleted successfully");
+            navigation.goBack();
         } catch (err) {
-            console.log("Delete error:", err);
-            alert("Network error");
+            alert("Delete failed: " + err.message);
         } finally {
             setIsDeleting(false);
         }
@@ -157,56 +326,121 @@ export default function AddOfferPage({ navigation, route }) {
 
     const handleSubmit = async () => {
         if (isSaving || isDeleting) return;
-        if (!title || !discount || selectedIds.length === 0 || !fromDate || !toDate) {
+        if (!title || !offerType || selectedIds.length === 0 || !fromDate || !toDate) {
             alert("Please fill all required fields");
             return;
         }
         if (isDarkMode && !stars) {
-            alert("Please enter loyalty stars");
+            alert("Please enter loyalty points");
+            return;
+        }
+        if (isDarkMode && (!Number.isFinite(Number(stars)) || Number(stars) < 1 || Number(stars) > 50)) {
+            alert("Loyalty points must be between 1 and 50");
             return;
         }
 
         try {
             setIsSaving(true);
 
-            const offerImage = selectedProducts[0]?.image?.url || "";
+            const accessToken = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+            if (!accessToken) {
+                navigation.navigate("Login");
+                return;
+            }
+
+            // Upload banner image to Cloudinary if one was selected
+            let bannerUrl = null;
+            if (bannerImage) {
+                if (/^https?:\/\//i.test(bannerImage)) {
+                    bannerUrl = bannerImage;
+                } else {
+                    setIsBannerUploading(true);
+                    const uploadResult = await uploadImageToCloudinary(bannerImage, "golo/offer-banners");
+                    setIsBannerUploading(false);
+                    if (!uploadResult.success) {
+                        Alert.alert("Upload Failed", "Could not upload banner image. Please try again.");
+                        setIsSaving(false);
+                        return;
+                    }
+                    bannerUrl = uploadResult.url;
+                }
+            }
+
+            // Prepare offer payload
+            const selectedDates = buildSelectedDates(fromDate, toDate);
+            const selectedProductPayload = (
+                selectedProducts.length > 0
+                    ? selectedProducts
+                    : Array.isArray(offerData?.selectedProducts)
+                        ? offerData.selectedProducts
+                        : []
+            ).map((product) => normalizeSelectedProduct(product, offerType));
+
             const payload = {
-                title,
-                discountPercentage: Number(discount),
-                products: selectedIds,
-                offerImage,
-                loyaltyEnabled: isDarkMode,
-                stars: Number(stars),
-                termsAndConditions: terms,
-                validFrom: fromDate.toISOString(),
-                validTo: toDate.toISOString()
+                bannerTitle: title.trim(),
+                bannerCategory: offerType,
+                imageUrl: bannerUrl || offerData?.imageUrl || offerData?.bannerUrl || "",
+                selectedDates,
+                loyaltyRewardEnabled: isDarkMode,
+                loyaltyStarsToOffer: isDarkMode ? 1 : 0,
+                loyaltyStarsPerPurchase: isDarkMode ? 1 : 0,
+                loyaltyScorePerStar: isDarkMode ? Number(stars) : 0,
+                loyaltyPointsPerPurchase: isDarkMode ? Number(stars) : 0,
+                selectedProducts: selectedProductPayload,
             };
 
-            const url = offerData
-                ? `${BASE_URL}/api/offers/${offerData._id}`
-                : `${BASE_URL}/api/offers/create`;
-            const method = offerData ? "PUT" : "POST";
+            if (!offerData) {
+                payload.promotionType = "offer";
+                payload.totalPrice = 0;
+            }
 
-            const res = await fetch(url, {
-                method,
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify(payload)
+            if (terms?.trim()) {
+                payload.termsAndConditions = terms.trim();
+            }
+
+            if (!payload.imageUrl) {
+                Alert.alert("Banner Required", "Please upload a banner image before saving this offer.");
+                setIsSaving(false);
+                return;
+            }
+
+            // Determine endpoint and method
+            const method = offerData ? "PUT" : "POST";
+            const requestId = offerData?.requestId || offerData?._id || offerData?.offerId;
+            const endpoint = offerData
+                ? `/banners/promotions/${requestId}?type=offer`
+                : "/banners/promotions/request";
+            const fullUrl = `${BASE_URL}${endpoint}`;
+
+            console.log("Offer API Request:", {
+                url: fullUrl,
+                method: method,
+                hasToken: !!accessToken,
+                payload: payload,
             });
 
-            const data = await res.json();
+            const response = await fetch(fullUrl, {
+                method: method,
+                headers: {
+                    "Authorization": `Bearer ${accessToken}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(payload),
+            });
 
-            if (res.ok) {
-                alert(offerData ? "Offer updated!" : "Offer created!");
-                navigation.goBack();
-            } else {
-                alert(data.message || "Something went wrong");
+            const responseData = await parseResponseSafely(response);
+
+            if (!response.ok) {
+                const errorMessage = responseData?.message || responseData?.error || `HTTP ${response.status}`;
+                alert("Error: " + errorMessage);
+                return;
             }
+
+            alert(offerData ? "Offer updated successfully" : "Offer created successfully");
+            navigation.goBack();
         } catch (err) {
-            console.log("Offer save error:", err);
-            alert("Network error");
+            console.error("Save offer error:", err);
+            alert("Unable to save offer: " + err.message);
         } finally {
             setIsSaving(false);
         }
@@ -221,7 +455,7 @@ export default function AddOfferPage({ navigation, route }) {
                 >
                     <Topbar />
                     <View style={styles.row1}>
-                        <TouchableOpacity onPress={() => navigation.navigate("TemplatePage")}>
+                        <TouchableOpacity onPress={() => navigation.goBack()}>
                             <MaterialIcons name="arrow-back-ios" size={28} color={colors.text} style={{ padding: 10 }} />
                         </TouchableOpacity>
                         <Text style={{ fontSize: 22, paddingLeft: 5, color: colors.text }}>
@@ -230,14 +464,21 @@ export default function AddOfferPage({ navigation, route }) {
                     </View>
                     <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1 }} />
 
-                    {token && (
+                    {!!authToken && (
                         <View style={{ paddingHorizontal: 12, paddingTop: 10 }}>
-                            <Dropdown
-                                BASE_URL={BASE_URL}
-                                token={token}
-                                onChange={setSelectedIds}
-                                value={selectedIds}
-                            />
+                            {loadingProducts ? (
+                                <View style={{ padding: 20, justifyContent: "center", alignItems: "center" }}>
+                                    <ActivityIndicator size="small" color="#157a4f" />
+                                    <Text style={{ color: colors.text, marginTop: 8 }}>Loading products...</Text>
+                                </View>
+                            ) : (
+                                <Dropdown
+                                    BASE_URL={BASE_URL}
+                                    token={authToken}
+                                    onChange={setSelectedIds}
+                                    value={selectedIds}
+                                />
+                            )}
                         </View>
                     )}
 
@@ -262,7 +503,7 @@ export default function AddOfferPage({ navigation, route }) {
 
                     {showOffers && (
                         <View style={{ marginTop: 10 }}>
-                            <OfferScroll products={selectedProducts} discount={discount} />
+                            <OfferScroll products={selectedProducts} offerType={offerType} />
                         </View>
                     )}
 
@@ -275,17 +516,86 @@ export default function AddOfferPage({ navigation, route }) {
                             onChangeText={setTitle}
                         />
 
-                        <Text style={[styles.text, { color: colors.text }]}>Discount Percentage</Text>
-                        <TextInput
-                            placeholder="Enter discount (1-100)"
-                            keyboardType="numeric"
-                            style={styles.input}
-                            value={discount}
-                            onChangeText={(value) => {
-                                const num = value.replace(/[^0-9]/g, "");
-                                if (num === "" || (Number(num) >= 1 && Number(num) <= 100)) setDiscount(num);
-                            }}
-                        />
+
+                        <Text style={[styles.text, { color: colors.text }]}>Offer Banner</Text>
+
+                        <TouchableOpacity
+                            style={styles.card1}
+                            onPress={pickBannerImage}
+                            disabled={isBannerUploading}
+                            activeOpacity={0.75}
+                        >
+                            {bannerImage ? (
+                                <>
+                                    <Image
+                                        source={{ uri: bannerImage }}
+                                        style={{ width: "100%", height: 180, borderRadius: 10 }}
+                                        resizeMode="cover"
+                                    />
+                                    <View style={styles.bannerOverlay}>
+                                        <Feather name="edit-2" size={18} color="#fff" />
+                                        <Text style={{ color: "#fff", fontSize: 13, marginLeft: 6 }}>Tap to change</Text>
+                                    </View>
+                                </>
+                            ) : (
+                                <>
+                                    <Feather name="upload" size={30} color="#157a4f" />
+                                    <Text style={{ color: "#157a4f", fontWeight: "600", marginTop: 8 }}>Upload Banner Image</Text>
+                                    <Text style={{ color: "#999", fontSize: 12, marginTop: 4 }}>Recommended: 16:9 ratio</Text>
+                                </>
+                            )}
+                        </TouchableOpacity>
+
+                        <Text style={[styles.text, { color: colors.text }]}>Offer Type</Text>
+                        <TouchableOpacity
+                            style={[styles.input, { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingRight: 15 }]}
+                            onPress={() => setOfferTypeModalOpen(true)}
+                        >
+                            <Text style={{ fontSize: 16, color: offerType ? "#000" : "#999" }}>
+                                {offerType ? offerTypeOptions.find(opt => opt.value === offerType)?.label : "Select offer type"}
+                            </Text>
+                            <Ionicons name="chevron-down" size={20} color="#333" />
+                        </TouchableOpacity>
+
+                        <Modal
+                            visible={offerTypeModalOpen}
+                            transparent
+                            animationType="fade"
+                            onRequestClose={() => setOfferTypeModalOpen(false)}
+                        >
+                            <TouchableWithoutFeedback onPress={() => setOfferTypeModalOpen(false)}>
+                                <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center" }}>
+                                    <View style={{ backgroundColor: "#fff", borderRadius: 15, width: "85%", maxHeight: "40%", paddingVertical: 20 }}>
+                                        <Text style={{ fontSize: 18, fontWeight: "bold", marginBottom: 15, paddingHorizontal: 20, color: colors.text }}>
+                                            Select Offer Type
+                                        </Text>
+                                        <FlatList
+                                            data={offerTypeOptions}
+                                            keyExtractor={(item) => item.value}
+                                            renderItem={({ item }) => (
+                                                <TouchableOpacity
+                                                    style={{
+                                                        paddingVertical: 15,
+                                                        paddingHorizontal: 20,
+                                                        borderBottomWidth: 1,
+                                                        borderBottomColor: "#eee",
+                                                        backgroundColor: offerType === item.value ? "#ecfdf5" : "#fff",
+                                                    }}
+                                                    onPress={() => {
+                                                        setOfferType(item.value);
+                                                        setOfferTypeModalOpen(false);
+                                                    }}
+                                                >
+                                                    <Text style={{ fontSize: 16, color: offerType === item.value ? "#157a4f" : colors.text, fontWeight: offerType === item.value ? "bold" : "normal" }}>
+                                                        {item.label}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            )}
+                                        />
+                                    </View>
+                                </View>
+                            </TouchableWithoutFeedback>
+                        </Modal>
 
                         <Text style={[styles.text, { color: colors.text }]}>Offer Validity</Text>
                         <View style={{ flexDirection: "row", gap: 10 }}>
@@ -327,7 +637,12 @@ export default function AddOfferPage({ navigation, route }) {
                             <Text style={{ fontSize: 18, color: colors.text }}>Loyalty Reward</Text>
                             <Switch
                                 value={isDarkMode}
-                                onValueChange={setIsDarkMode}
+                                onValueChange={(value) => {
+                                    setIsDarkMode(value);
+                                    if (!value) {
+                                        setStars("");
+                                    }
+                                }}
                                 thumbColor={isDarkMode ? "#157a4f" : "#f4f3f4"}
                                 trackColor={{ false: "#ccc", true: "#141414" }}
                                 ios_backgroundColor="#ccc"
@@ -335,17 +650,21 @@ export default function AddOfferPage({ navigation, route }) {
                             />
                         </View>
 
-                        <Text style={[styles.text, { color: colors.text }]}>Number of Stars</Text>
-                        <TextInput
-                            placeholder="Enter Number Of Stars"
-                            keyboardType="numeric"
-                            value={stars}
-                            onChangeText={(value) => {
-                                const num = value.replace(/[^0-9]/g, "");
-                                if (num === "" || Number(num) <= 100) setStars(num);
-                            }}
-                            style={styles.input}
-                        />
+                        {isDarkMode && (
+                            <>
+                                <Text style={[styles.text, { color: colors.text }]}>Loyalty Points (1-50)</Text>
+                                <TextInput
+                                    placeholder="Enter loyalty points"
+                                    keyboardType="numeric"
+                                    value={stars}
+                                    onChangeText={(value) => {
+                                        const num = value.replace(/[^0-9]/g, "");
+                                        if (num === "" || Number(num) <= 50) setStars(num);
+                                    }}
+                                    style={styles.input}
+                                />
+                            </>
+                        )}
 
                         <Text style={[styles.text, { color: colors.text }]}>Terms and Conditions</Text>
                         <TextInput
@@ -358,15 +677,15 @@ export default function AddOfferPage({ navigation, route }) {
                             onChangeText={setTerms}
                         />
 
-                        {/* Buttons Row */}                        
-                        <View style={{ flexDirection: "row", marginTop: 20,justifyContent:"space-between" }}>
+                        {/* Buttons Row */}
+                        <View style={{ flexDirection: "row", marginTop: 20, justifyContent: "space-between" }}>
                             <TouchableOpacity
-                                style={[styles.rowButton, isSaving && { opacity: 0.6 }]}
+                                style={[styles.rowButton, (isSaving || isBannerUploading) && { opacity: 0.6 }]}
                                 onPress={handleSubmit}
-                                disabled={isSaving || isDeleting}
+                                disabled={isSaving || isDeleting || isBannerUploading}
                             >
-                                <Text style={{ color: "#fff", fontSize:16 }}>
-                                    {isSaving ? (offerData ? "Updating..." : "Saving...") : offerData ? "Update Offer" : "Add Offer"}
+                                <Text style={{ color: "#fff", fontSize: 16 }}>
+                                    {isBannerUploading ? "Uploading banner..." : isSaving ? (offerData ? "Updating..." : "Saving...") : offerData ? "Update Offer" : "Add Offer"}
                                 </Text>
                             </TouchableOpacity>
 
@@ -376,17 +695,12 @@ export default function AddOfferPage({ navigation, route }) {
                                     onPress={handleDelete}
                                     disabled={isSaving || isDeleting}
                                 >
-                                    <Text style={{ color: "#fff", fontSize:16 }}>
+                                    <Text style={{ color: "#fff", fontSize: 16 }}>
                                         {isDeleting ? "Deleting..." : "Delete Offer"}
                                     </Text>
                                 </TouchableOpacity>
                             )}
 
-                            <TouchableOpacity
-                                style={styles.rowButton}
-                                onPress={()=>navigation.navigate("PreviewPage",{template})} >
-                                <Text style={{ color: "#fff", fontSize:16 }}>See Preview</Text>
-                            </TouchableOpacity>
                         </View>
 
                         <TouchableOpacity onPress={clearAllFields} style={{ marginTop: 12, alignItems: "center" }}>
@@ -420,5 +734,27 @@ const styles = StyleSheet.create({
         marginHorizontal: 5,
         borderColor: "#b9b9b9",
         borderWidth: 1,
+    },
+    card1: {
+        backgroundColor: "#f3f1ec",
+        borderWidth: 1,
+        borderColor: "#c8c8c8",
+        borderRadius: 10,
+        minHeight: 180,
+        width: "100%",
+        alignItems: "center",
+        justifyContent: "center",
+        overflow: "hidden",
+    },
+    bannerOverlay: {
+        position: "absolute",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: "rgba(0,0,0,0.45)",
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: 8,
     },
 });

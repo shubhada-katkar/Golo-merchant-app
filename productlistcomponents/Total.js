@@ -12,6 +12,7 @@ import { ThemeContext } from "../theme/ThemeContext";
 import { AntDesign, MaterialIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { BASE_URL } from "../config";
 
 export default function Total({ products, setProducts, searchText,}) {
 
@@ -19,22 +20,40 @@ export default function Total({ products, setProducts, searchText,}) {
 
   const [deletingId, setDeletingId] = useState(null);
   const navigation = useNavigation();
-  const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 
+  const normalizeProduct = (item) => ({
+    _id: item?._id || item?.id,
+    productname: item?.productname || item?.name || item?.productName || "",
+    category: item?.category || "",
+    description: item?.description || "",
+    price: Number(item?.price || item?.regularPrice || 0),
+    status: item?.status || item?.publicationStatus || "draft",
+    image: item?.image || (item?.images?.[0] ? { url: item.images[0] } : null),
+    images: Array.isArray(item?.images) ? item.images : [],
+  });
   // ================= FETCH ALL PRODUCTS =================
   const fetchProducts = async () => {
     try {
       const token = await AsyncStorage.getItem("merchantToken");
       if (!token) return;
 
-      const res = await fetch(`${BASE_URL}/api/products`, {
+      let res = await fetch(`${BASE_URL}/merchant/products`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+
+      if (!res.ok && res.status === 404) {
+        res = await fetch(`${BASE_URL}/products/merchant`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
 
       const data = await res.json();
 
       if (res.ok) {
-        setProducts(data.reverse());
+        const productsList = Array.isArray(data)
+          ? data
+          : data?.products || data?.data?.products || data?.data || [];
+        setProducts(productsList.map(normalizeProduct).reverse());
       }
     } catch (err) {
       console.error(err);
@@ -53,10 +72,17 @@ export default function Total({ products, setProducts, searchText,}) {
     const token = await AsyncStorage.getItem("merchantToken");
     if (!token) return;
 
-    const res = await fetch(`${BASE_URL}/api/products/${productId}`, {
+    let res = await fetch(`${BASE_URL}/merchant/products/${productId}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
+
+    if (!res.ok && res.status === 404) {
+      res = await fetch(`${BASE_URL}/products/${productId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    }
 
     if (!res.ok) {
       Alert.alert("Error", "Delete failed");

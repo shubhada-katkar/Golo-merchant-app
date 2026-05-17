@@ -17,6 +17,9 @@
     },
     "android": {
       "edgeToEdgeEnabled": true
-    }
+    },
+    "plugins": [
+      "@react-native-community/datetimepicker"
+    ]
   }
 }

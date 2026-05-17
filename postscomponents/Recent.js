@@ -11,13 +11,13 @@ import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { ThemeContext } from "../theme/ThemeContext";
 import { AntDesign } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { BASE_URL } from "../config";
 
 export default function Recent() {
 
     const { colors } = useContext(ThemeContext);
     const [offers, setOffers] = useState([]);
     const [loading, setLoading] = useState(true);
-    const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
     const navigation = useNavigation();
     const [token, setToken] = useState(null);
 
@@ -31,11 +31,21 @@ export default function Recent() {
 
         setLoading(true);
         try {
-            const response = await fetch(`${BASE_URL}/api/offers/all`, {
+            let response = await fetch(`${BASE_URL}/offers/merchant`, {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
             });
+
+            if (!response.ok && response.status === 404) {
+                response = await fetch(`${BASE_URL}/banners/promotions/my`, {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json"
+                    },
+                    method: "GET"
+                });
+            }
 
             const result = await response.json();
             setOffers(Array.isArray(result) ? result : []);
