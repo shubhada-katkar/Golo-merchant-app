@@ -64,9 +64,20 @@ export default function Recent() {
         }, [token])
     );
 
+    // FILTER: Only show non-expired offers
+    const activeOffers = offers.filter((item) => {
+        const validTo = new Date(item.validTo);
+        const now = new Date();
+        return validTo > now; // Only future dates
+    });
+
     // RENDER CARD
     const renderItem = ({ item }) => {
-        const productImage = item.products?.[0]?.image?.url;
+        let productImage = item.products?.[0]?.image?.url;
+        // Normalize image URL if relative
+        if (productImage && typeof productImage === 'string' && !/^https?:\/\//i.test(productImage)) {
+            productImage = `${BASE_URL.replace(/\/$/, '')}/${productImage.replace(/^\//, '')}`;
+        }
 
         return (
             <View style={styles.card2}>
@@ -121,13 +132,18 @@ export default function Recent() {
     return (
         <View style={{ flex: 1, backgroundColor: colors.background }}>
             <FlatList
-                data={offers}
+                data={activeOffers}
                 keyExtractor={(item) => item._id}
                 renderItem={renderItem}
                 contentContainerStyle={{ padding: 14, paddingBottom: 80 }}
                 showsVerticalScrollIndicator={false}
                 refreshing={loading}
                 onRefresh={fetchOffers}
+                ListEmptyComponent={
+                    <Text style={{ textAlign: 'center', marginTop: 20, color: colors.text }}>
+                        No active offers
+                    </Text>
+                }
             />
         </View>
     );

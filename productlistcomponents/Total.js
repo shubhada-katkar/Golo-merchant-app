@@ -28,8 +28,17 @@ export default function Total({ products, setProducts, searchText,}) {
     description: item?.description || "",
     price: Number(item?.price || item?.regularPrice || 0),
     status: item?.status || item?.publicationStatus || "draft",
-    image: item?.image || (item?.images?.[0] ? { url: item.images[0] } : null),
-    images: Array.isArray(item?.images) ? item.images : [],
+    image: (() => {
+      const img = item?.image || (item?.images?.[0] ? { url: item.images[0] } : null);
+      if (!img) return null;
+      const url = img.url || img.path || img;
+      if (!url) return null;
+      if (typeof url === "string" && !/^https?:\/\//i.test(url)) {
+        return { url: `${BASE_URL.replace(/\/$/, "")}/${url.replace(/^\//, "")}` };
+      }
+      return { url };
+    })(),
+    images: Array.isArray(item?.images) ? item.images.map((u) => (typeof u === 'string' && !/^https?:\/\//i.test(u) ? `${BASE_URL.replace(/\/$/,"")}/${u.replace(/^\//,"")}` : u)) : [],
   });
   // ================= FETCH ALL PRODUCTS =================
   const fetchProducts = async () => {

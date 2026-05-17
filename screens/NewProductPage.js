@@ -89,13 +89,19 @@ export default function NewProductPage({ navigation, route }) {
       }
 
       const method = isEdit ? "PUT" : "POST";
+      const normalizedStatus = isPublished ? "active" : "inactive";
 
       const formData = new FormData();
       formData.append("productname", form.productname);
+      formData.append("productName", form.productname);
+      formData.append("name", form.productname);
       formData.append("category", form.category);
       formData.append("description", form.description);
       formData.append("price", form.price);
-      formData.append("status", status);
+      formData.append("regularPrice", form.price);
+      formData.append("stockQuantity", "1");
+      formData.append("publicationStatus", status);
+      formData.append("status", normalizedStatus);
 
       if (image && !image.startsWith("http")) {
         formData.append("image", {
@@ -105,32 +111,57 @@ export default function NewProductPage({ navigation, route }) {
         });
       }
 
-      const primaryUrl = isEdit
-        ? `${BASE_URL}/products/${editProduct._id}`
-        : `${BASE_URL}/products/add`;
-      const fallbackUrl = isEdit
-        ? `${BASE_URL}/api/products/${editProduct._id}`
-        : `${BASE_URL}/api/products/add`;
+      const editIdentifier = editProduct?.productId || editProduct?._id || editProduct?.id;
+      const urlCandidates = isEdit
+        ? [
+            `${BASE_URL}/products/${editIdentifier}`,
+            `${BASE_URL}/merchant/products/${editIdentifier}`,
+            `${BASE_URL}/api/products/${editIdentifier}`,
+          ]
+        : [
+            `${BASE_URL}/products`,
+            `${BASE_URL}/merchant/products`,
+            `${BASE_URL}/products/add`,
+            `${BASE_URL}/api/products/add`,
+          ];
 
-      let response = await fetch(primaryUrl, {
-        method,
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
+      const jsonPayload = {
+        productName: form.productname,
+        category: form.category,
+        description: form.description,
+        regularPrice: Number(form.price),
+        stockQuantity: 1,
+        status: normalizedStatus,
+        publicationStatus: status,
+      };
 
-      if (!response.ok && response.status === 404) {
-        response = await fetch(fallbackUrl, {
+      let response = null;
+      for (const url of urlCandidates) {
+        response = await fetch(url, {
           method,
           headers: {
             Authorization: `Bearer ${token}`,
           },
           body: formData,
         });
+
+        if (response.ok) break;
+
+        const shouldRetryWithJson = response.status === 400 || response.status === 404 || response.status === 415;
+        if (shouldRetryWithJson) {
+          response = await fetch(url, {
+            method,
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(jsonPayload),
+          });
+          if (response.ok) break;
+        }
       }
 
-      const text = await response.text();
+      const text = await response?.text();
       let data = {};
       try {
         data = text ? JSON.parse(text) : {};
@@ -139,7 +170,7 @@ export default function NewProductPage({ navigation, route }) {
       }
       console.log("Raw server response:", text);
 
-      if (response.ok) {
+      if (response?.ok) {
         alert(isEdit ? "Product Updated Successfully!" : "Product Added Successfully!");
         navigation.goBack();
       } else {
@@ -274,7 +305,7 @@ export default function NewProductPage({ navigation, route }) {
                         }}
                         style={{ paddingVertical: 12, paddingHorizontal: 12 }}
                       >
-                        <Text style={{ fontSize: 18, color: colors.text }}>{cat}</Text>
+                        <Text style={{ fontSize: 18, color:"#000000" }}>{cat}</Text>
                       </TouchableOpacity>
                     ))}
                   </ScrollView>

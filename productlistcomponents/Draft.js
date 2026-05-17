@@ -25,7 +25,7 @@ export default function Draft({ products, setProducts, searchText, }) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ publicationStatus: "published", status: "published" }),
+        body: JSON.stringify({ publicationStatus: "published", status: "active" }),
       });
 
       if (!res.ok && res.status === 404) {
@@ -35,7 +35,7 @@ export default function Draft({ products, setProducts, searchText, }) {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ status: "published" }),
+          body: JSON.stringify({ status: "active", publicationStatus: "published" }),
         });
       }
 
@@ -48,7 +48,7 @@ export default function Draft({ products, setProducts, searchText, }) {
       setProducts(prev =>
         prev.map(p =>
           p._id === productId
-            ? { ...p, status: "published" }
+            ? { ...p, status: "published", rawStatus: "active", publicationStatus: "published" }
             : p
         )
       );

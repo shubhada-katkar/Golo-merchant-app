@@ -1,13 +1,14 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useCallback } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  Image, ScrollView, KeyboardAvoidingView, Platform,
+  Image, ScrollView, KeyboardAvoidingView, Platform, Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { TextInput } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
 
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
@@ -27,6 +28,88 @@ export default function ProfileSettingsPage({ navigation }) {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loadingPass, setLoadingPass] = useState(false);
+  const [loadingLogout, setLoadingLogout] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(false);
+
+  const normalizeImageUrl = (value) => {
+    if (!value || typeof value !== "string") return null;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    if (trimmed.startsWith("//")) return `https:${trimmed}`;
+    return encodeURI(trimmed);
+  };
+
+  const loadProfile = useCallback(async () => {
+    try {
+      setLoadingProfile(true);
+      const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+      if (!token) return;
+
+      const headers = { Authorization: `Bearer ${token}` };
+
+      let userRes = await fetch(`${BASE_URL}/users/profile`, { headers });
+      if (!userRes.ok && userRes.status === 404) {
+        userRes = await fetch(`${BASE_URL}/api/user/profile`, { headers });
+      }
+
+      let merchantRes = await fetch(`${BASE_URL}/users/merchant/profile`, { headers });
+      if (!merchantRes.ok && merchantRes.status === 404) {
+        merchantRes = await fetch(`${BASE_URL}/api/merchant/profile`, { headers });
+      }
+
+      const userJson = userRes.ok ? await userRes.json() : null;
+      const merchantJson = merchantRes.ok ? await merchantRes.json() : null;
+
+      const userData = userJson?.data || userJson?.user || userJson || null;
+      const merchantData =
+        merchantJson?.data?.merchant ||
+        merchantJson?.merchant ||
+        merchantJson?.data ||
+        merchantJson ||
+        null;
+
+      const mergedName =
+        userData?.name ||
+        userData?.username ||
+        merchantData?.name ||
+        merchantData?.username ||
+        "";
+      const mergedEmail =
+        userData?.email ||
+        merchantData?.storeEmail ||
+        merchantData?.email ||
+        "";
+      const mergedNumber =
+        merchantData?.contactNumber ||
+        userData?.profile?.phone ||
+        userData?.phone ||
+        merchantData?.phone ||
+        "";
+      const mergedShop =
+        merchantData?.storeName ||
+        merchantData?.shopName ||
+        merchantData?.businessName ||
+        "";
+      const mergedImage =
+        merchantData?.profilePhoto ||
+        userData?.profile?.avatar ||
+        userData?.avatar ||
+        merchantData?.image?.url ||
+        merchantData?.profilePic?.url ||
+        merchantData?.profilePic ||
+        null;
+
+      setName(mergedName);
+      setEmail(mergedEmail);
+      setNumber(mergedNumber);
+      setShopName(mergedShop);
+      setProfileImage((prev) => normalizeImageUrl(mergedImage) || prev);
+    } catch (error) {
+      console.log("Error fetching profile:", error);
+    } finally {
+      setLoadingProfile(false);
+    }
+  }, []);
 
   const handleResetPassword = async () => {
 
@@ -93,36 +176,14 @@ export default function ProfileSettingsPage({ navigation }) {
 
   // ================= LOAD MERCHANT PROFILE =================
   useEffect(() => {
-    const loadProfile = async () => {
-      try {
-        const token = await AsyncStorage.getItem("merchantToken");
-        if (!token) return;
-
-        let res = await fetch(`${BASE_URL}/users/merchant/profile`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-
-        if (!res.ok && res.status === 404) {
-          res = await fetch(`${BASE_URL}/api/merchant/profile`, {
-          headers: { Authorization: `Bearer ${token}` }
-          });
-        }
-
-        const data = await res.json();
-        if (data.merchant) {
-          setName(data.merchant.username);
-          setEmail(data.merchant.email);
-          setNumber(data.merchant.phone);
-          setShopName(data.merchant.shopName);
-          setProfileImage(data.merchant.image?.url || null);
-        }
-      } catch (error) {
-        console.log("Error fetching profile:", error);
-      }
-    };
-
     loadProfile();
-  }, []);
+  }, [loadProfile]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadProfile();
+    }, [loadProfile])
+  );
 
   // ================= IMAGE PICKER =================
   const pickProfileImage = async () => {
@@ -184,6 +245,7 @@ export default function ProfileSettingsPage({ navigation }) {
       const data = await res.json();
 
       if (res.ok) {
+        await loadProfile();
         alert("Profile updated successfully");
       } else {
         alert(data.message || "Update failed");
@@ -229,13 +291,78 @@ export default function ProfileSettingsPage({ navigation }) {
         return alert(data.message || "Image upload failed");
       }
 
-      setProfileImage(data.image.url); // ✅ Cloudinary URL
+      const uploadedImageUrl =
+        data?.image?.url ||
+        data?.data?.image?.url ||
+        data?.profilePhoto ||
+        data?.data?.profilePhoto ||
+        null;
+      setProfileImage((prev) => normalizeImageUrl(uploadedImageUrl) || prev);
+      await loadProfile();
       alert("Profile image updated");
 
     } catch (error) {
       console.log(error);
       alert("Server error");
     }
+  };
+
+  // ================= LOGOUT =================
+  const handleLogout = async () => {
+    Alert.alert("Confirm Logout", "Are you sure you want to logout?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Logout",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            setLoadingLogout(true);
+
+            const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+
+            if (token) {
+              // Try primary modern endpoint
+              let res = await fetch(`${BASE_URL}/users/logout`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ refreshToken: null }),
+              });
+
+              // Legacy fallback
+              if (!res.ok && res.status === 404) {
+                await fetch(`${BASE_URL}/api/merchant/logout`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                  },
+                  body: JSON.stringify({ refreshToken: null }),
+                });
+              }
+            }
+
+            // Clear local storage keys used by this app
+            await AsyncStorage.multiRemove([
+              "merchantToken",
+              "merchantData",
+              "merchantId",
+              "accessToken",
+              "user",
+              "refreshToken",
+            ]);
+
+            navigation.reset({ index: 0, routes: [{ name: "Login" }] });
+          } catch (err) {
+            Alert.alert("Logout failed", "Please try again");
+          } finally {
+            setLoadingLogout(false);
+          }
+        },
+      },
+    ]);
   };
 
   return (
@@ -255,7 +382,7 @@ export default function ProfileSettingsPage({ navigation }) {
           </TouchableOpacity>
           <Text style={[styles.title, { color: colors.text }]}>Profile Settings</Text>
         </View>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 }}
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }}
           keyboardShouldPersistTaps="handled">
 
           <View style={[styles.divider, { backgroundColor: colors.divider }]} />
@@ -318,6 +445,9 @@ export default function ProfileSettingsPage({ navigation }) {
               placeholderTextColor="#555"
               onChangeText={setEmail}
             />
+            {loadingProfile ? (
+              <Text style={{ marginTop: 8, color: colors.text }}>Refreshing profile...</Text>
+            ) : null}
           </View>
 
           {/* BUTTONS */}
@@ -376,6 +506,18 @@ export default function ProfileSettingsPage({ navigation }) {
               </View>
             </>
           )}
+
+            <View style={{ paddingHorizontal: 20, gap: 12, top:18 }}>
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: '#ff6b6b' }]}
+              onPress={handleLogout}
+              disabled={loadingLogout}
+            >
+              <Text style={{ fontSize: 18, color: '#fff' }}>
+                {loadingLogout ? 'Logging out...' : 'Logout'}
+              </Text>
+            </TouchableOpacity>
+          </View>
 
         </ScrollView>
 

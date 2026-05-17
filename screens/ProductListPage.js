@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useCallback } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from "react-native";
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
@@ -6,6 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { ThemeContext } from "../theme/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
 import { BASE_URL } from "../config";
 
 import Total from "../productlistcomponents/Total";
@@ -19,15 +20,38 @@ export default function ProductListPage({ navigation }) {
   const [searchText, setSearchText] = useState("");
   const [products, setProducts] = useState([]); // ✅ SINGLE SOURCE OF TRUTH
 
+  const normalizePublicationStatus = (item) => {
+    const publicationStatus = String(item?.publicationStatus || "").toLowerCase().trim();
+    const status = String(item?.status || "").toLowerCase().trim();
+
+    if (publicationStatus === "draft" || publicationStatus === "published") return publicationStatus;
+    if (status === "inactive") return "draft";
+    if (status === "active") return "published";
+    if (status === "draft" || status === "published") return status;
+    return "draft";
+  };
+
   const normalizeProduct = (item) => ({
     _id: item?._id || item?.id,
     productname: item?.productname || item?.name || item?.productName || "",
     category: item?.category || "",
     description: item?.description || "",
     price: Number(item?.price || item?.regularPrice || 0),
-    status: item?.status || item?.publicationStatus || "draft",
-    image: item?.image || (item?.images?.[0] ? { url: item.images[0] } : null),
-    images: Array.isArray(item?.images) ? item.images : [],
+    status: normalizePublicationStatus(item),
+    rawStatus: item?.status || "",
+    publicationStatus: item?.publicationStatus || "",
+    image: (() => {
+      const img = item?.image || (item?.images?.[0] ? { url: item.images[0] } : null);
+      if (!img) return null;
+      const url = img.url || img.path || img;
+      if (!url) return null;
+      // ensure absolute URL
+      if (typeof url === "string" && !/^https?:\/\//i.test(url)) {
+        return { url: `${BASE_URL.replace(/\/$/, "")}/${url.replace(/^\//, "")}` };
+      }
+      return { url };
+    })(),
+    images: Array.isArray(item?.images) ? item.images.map((u) => (typeof u === 'string' && !/^https?:\/\//i.test(u) ? `${BASE_URL.replace(/\/$/,"")}/${u.replace(/^\//,"")}` : u)) : [],
   });
 
   // ================= FETCH ALL PRODUCTS =================
@@ -61,6 +85,13 @@ export default function ProductListPage({ navigation }) {
   useEffect(() => {
     fetchProducts();
   }, []);
+
+  // ✅ Refresh products when screen comes into focus (after add/edit)
+  useFocusEffect(
+    useCallback(() => {
+      fetchProducts();
+    }, [])
+  );
 
   // ================= DERIVED COUNTS (REAL TIME) =================
   const totalCount = products.length;
