@@ -1,14 +1,14 @@
 import React, { useMemo, useState, useEffect, useCallback } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { Entypo } from "@expo/vector-icons";
 import All from "../components/All";
-import Completed from "../components/Completed";
-import Pending  from "../components/Pending";
+import Accepted from "../components/Accepted";
+import Completed  from "../components/Completed";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL as CONFIG_BASE_URL } from "../config";
 
-export default function Orders() {
-    const [activeTab, setactiveTab] = useState("All");
+export default function Orders() {    const navigation = useNavigation();    const [activeTab, setactiveTab] = useState("All");
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const BASE_URL = (process.env.EXPO_PUBLIC_API_URL || CONFIG_BASE_URL || "").replace(/\/+$/, "");
@@ -33,7 +33,11 @@ export default function Orders() {
             }
 
             const data = await res.json();
-            const list = Array.isArray(data) ? data : data?.orders || [];
+            const list = Array.isArray(data)
+                ? data
+                : Array.isArray(data?.data)
+                ? data.data
+                : data?.orders || [];
             setOrders(list);
         } catch (error) {
             console.log("Orders fetch error:", error);
@@ -47,17 +51,23 @@ export default function Orders() {
         fetchOrders();
     }, [fetchOrders]);
 
+    useFocusEffect(
+      React.useCallback(() => {
+        fetchOrders();
+      }, [fetchOrders])
+    );
+
     const totalAmount = useMemo(
-        () => orders.reduce((sum, order) => sum + Number(order?.totalAmount || order?.total || 0), 0),
+        () => orders.reduce((sum, order) => sum + Number(order?.totalAmount || order?.total || order?.amount || 0), 0),
         [orders]
     );
     const totalCount = orders.length;
-    const pendingOrders = useMemo(
-        () => orders.filter((o) => ["pending", "new"].includes(String(o?.status || "").toLowerCase())),
+    const completedOrders = useMemo(
+        () => orders.filter((o) => ["completed"].includes(String(o?.status || "").toLowerCase())),
         [orders]
     );
-    const completedOrders = useMemo(
-        () => orders.filter((o) => ["completed", "accepted", "delivered"].includes(String(o?.status || "").toLowerCase())),
+    const acceptedOrders = useMemo(
+        () => orders.filter((o) => ["accepted"].includes(String(o?.status || "").toLowerCase())),
         [orders]
     );
 
@@ -99,16 +109,12 @@ export default function Orders() {
 
             <View style={{ paddingHorizontal: 20, paddingVertical: 14 }}>
                 <View style={styles.card1}>
-
-                    <View style={{ flexDirection: "row",justifyContent:"space-between", alignItems:"center" }}>
-                        <Text style={{ fontSize: 22 }}>Today's Orders</Text>
-                        <View style={{flexDirection:"row", alignItems:"center", gap:6 }}>
-                        <Entypo name="bar-graph" size={26} color="green" />
-                        <Text style={{ fontSize: 22 }}>{Math.round(totalAmount)}</Text>
-                        </View>
-                    </View>
-
-                    <View><Text>{totalCount} Orders</Text></View>
+                        <Text style={{ fontSize: 19, fontFamily:"Medium",
+                            lineHeight: Math.round(19 * 1.5)
+                         }}>Today's Orders</Text>
+                    <Text style={{fontSize:14, fontFamily:"Medium",
+                        lineHeight: Math.round(14 * 1.5), color:"#157a4f"
+                    }}>{totalCount} Orders</Text>                        
                 </View>
             </View>
 
@@ -118,14 +124,14 @@ export default function Orders() {
                     <Text style={styles.row1text}>All</Text>
                 </TouchableOpacity>
 
+                <TouchableOpacity onPress={() => setactiveTab("Accepted")}
+                    style={[styles.row1button, activeTab == "Accepted" && styles.ActiveTab]}>
+                    <Text style={styles.row1text}>Accepted</Text>
+                </TouchableOpacity>
+
                 <TouchableOpacity onPress={() => setactiveTab("Completed")}
                     style={[styles.row1button, activeTab == "Completed" && styles.ActiveTab]}>
                     <Text style={styles.row1text}>Completed</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity onPress={() => setactiveTab("Pending")}
-                    style={[styles.row1button, activeTab == "Pending" && styles.ActiveTab]}>
-                    <Text style={styles.row1text}>Pending</Text>
                 </TouchableOpacity>
             </View>
 
@@ -136,8 +142,8 @@ export default function Orders() {
             ) : (
                 <>
                     {activeTab == "All" && <All orders={orders} onStatusChange={updateOrderStatus} onRefresh={fetchOrders} />}
+                    {activeTab == "Accepted" && <Accepted orders={acceptedOrders} onRefresh={fetchOrders} onComplete={(order) => navigation.navigate("OrderDetailPage", { order })} />}
                     {activeTab == "Completed" && <Completed orders={completedOrders} onRefresh={fetchOrders} />}
-                    {activeTab == "Pending" && <Pending orders={pendingOrders} onStatusChange={updateOrderStatus} onRefresh={fetchOrders} />}
                 </>
             )}
 
@@ -149,7 +155,7 @@ const styles = StyleSheet.create({
     card1: {
         borderRadius: 10,
         borderColor: "black",
-        minHeight: 95,
+        minHeight: 80,
         borderWidth: 1,
         shadowColor: "#413f4f",
         elevation: 10,
@@ -158,7 +164,9 @@ const styles = StyleSheet.create({
         shadowRadius: 5,
         shadowOffset: { width: 2, height: 4 },
         paddingHorizontal: 16,
-        paddingVertical: 18
+        justifyContent: "space-between",
+        flexDirection: "row",
+        alignItems: "center",     
     },
     row1: {
         flexDirection: "row",
@@ -167,9 +175,11 @@ const styles = StyleSheet.create({
         paddingBottom:8
     },
     row1text: {
-        fontSize: 16,
+        fontSize: 14,
         color: "white",
-        paddingHorizontal: 6
+        paddingHorizontal: 6,
+        fontFamily:"Medium",
+        lineHeight: Math.round(14 * 1.5)
     },
     row1button: {
         flex:1,

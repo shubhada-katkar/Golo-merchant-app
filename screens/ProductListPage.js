@@ -28,30 +28,59 @@ export default function ProductListPage({ navigation }) {
     if (status === "inactive") return "draft";
     if (status === "active") return "published";
     if (status === "draft" || status === "published") return status;
-    return "draft";
+    return "published";
   };
 
   const normalizeProduct = (item) => ({
-    _id: item?._id || item?.id,
+    _id: item?.productId || item?._id || item?.id,
+    productId: item?.productId || item?._id || item?.id,
     productname: item?.productname || item?.name || item?.productName || "",
     category: item?.category || "",
     description: item?.description || "",
     price: Number(item?.price || item?.regularPrice || 0),
+    stockQuantity: Number(item?.stockQuantity ?? item?.stock ?? 0),
     status: normalizePublicationStatus(item),
     rawStatus: item?.status || "",
     publicationStatus: item?.publicationStatus || "",
     image: (() => {
-      const img = item?.image || (item?.images?.[0] ? { url: item.images[0] } : null);
+      const img =
+        item?.image ||
+        (item?.productImages?.[0] ? { url: item.productImages[0] } : null) ||
+        (item?.images?.[0] ? { url: item.images[0] } : null);
       if (!img) return null;
       const url = img.url || img.path || img;
       if (!url) return null;
-      // ensure absolute URL
-      if (typeof url === "string" && !/^https?:\/\//i.test(url)) {
-        return { url: `${BASE_URL.replace(/\/$/, "")}/${url.replace(/^\//, "")}` };
-      }
-      return { url };
+      const normalizedUrl =
+        typeof url === "string" && !/^https?:\/\//i.test(url)
+          ? `${BASE_URL.replace(/\/$/, "")}/${url.replace(/^\//, "")}`
+          : url;
+      return { url: normalizedUrl };
     })(),
-    images: Array.isArray(item?.images) ? item.images.map((u) => (typeof u === 'string' && !/^https?:\/\//i.test(u) ? `${BASE_URL.replace(/\/$/,"")}/${u.replace(/^\//,"")}` : u)) : [],
+    imageUrl: (() => {
+      const img =
+        item?.image ||
+        (item?.productImages?.[0] ? item.productImages[0] : null) ||
+        (item?.images?.[0] ? item.images[0] : null);
+      if (!img) return null;
+      const url = img.url || img.path || img;
+      if (!url) return null;
+      return typeof url === "string" && !/^https?:\/\//i.test(url)
+        ? `${BASE_URL.replace(/\/$/, "")}/${url.replace(/^\//, "")}`
+        : url;
+    })(),
+    images: Array.isArray(item?.productImages)
+      ? item.productImages.map((u) =>
+          typeof u === "string" && !/^https?:\/\//i.test(u)
+            ? `${BASE_URL.replace(/\/$/, "")}/${u.replace(/^\//, "")}`
+            : u,
+        )
+      : Array.isArray(item?.images)
+      ? item.images.map((u) =>
+          typeof u === "string" && !/^https?:\/\//i.test(u)
+            ? `${BASE_URL.replace(/\/$/, "")}/${u.replace(/^\//, "")}`
+            : u,
+        )
+      : [],
   });
 
   // ================= FETCH ALL PRODUCTS =================
@@ -60,12 +89,12 @@ export default function ProductListPage({ navigation }) {
       const token = await AsyncStorage.getItem("merchantToken");
       if (!token) return;
 
-      let res = await fetch(`${BASE_URL}/merchant/products`, {
+      let res = await fetch(`${BASE_URL}/products/merchant`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!res.ok && res.status === 404) {
-        res = await fetch(`${BASE_URL}/products/merchant`, {
+        res = await fetch(`${BASE_URL}/merchant/products`, {
           headers: { Authorization: `Bearer ${token}` },
         });
       }
@@ -168,7 +197,7 @@ export default function ProductListPage({ navigation }) {
 
       {activeTab === "Publish" && (
         <Publish
-          products={products.filter((p) => p.status === "published")}
+          products={products}
           setProducts={setProducts}
           searchText={searchText}
         />
@@ -176,7 +205,7 @@ export default function ProductListPage({ navigation }) {
 
       {activeTab === "Draft" && (
         <Draft
-          products={products.filter((p) => p.status === "draft")}
+          products={products}
           setProducts={setProducts}
           searchText={searchText}
         />

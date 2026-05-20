@@ -17,26 +17,22 @@ export default function OfferScroll({ products = [], discount }) {
   };
 
   const renderItem = ({ item }) => {
-    const discountValue = Number(discount) || 0;
-    const finalPrice =
-      discountValue > 0
-        ? item.price - (item.price * discountValue) / 100
-        : item.price;
+    const imageUri = item.image?.url || item.imageUrl || item.images?.[0] || "";
+    const name = item.productname || item.name || item.productName || "Product";
+    const originalPrice = Number(item.originalPrice ?? item.price ?? item.offerPrice ?? 0);
+    const offerPrice = Number(item.offerPrice ?? item.price ?? item.originalPrice ?? 0);
+    const hasDiscount = offerPrice !== originalPrice && originalPrice > 0;
 
     return (
       <View style={styles.card}>
-        <Image source={{ uri: item.image?.url }} style={styles.image} />
+        <Image source={{ uri: imageUri }} style={styles.image} />
 
         <View style={styles.textbox}>
-          <Text style={styles.text}>
-            Product Name: {item.productname}
-          </Text>
-          <Text style={styles.text}>
-            Product Price: ₹{item.price}
-          </Text>
-          <Text style={styles.text}>
-            Discounted Price: ₹{finalPrice.toFixed(2)}
-          </Text>
+          <Text style={styles.text}>Name: {name}</Text>
+          <Text style={styles.text}>Price: ₹{offerPrice.toFixed(2)}</Text>
+          {hasDiscount && (
+            <Text style={styles.text}>Original: ₹{originalPrice.toFixed(2)}</Text>
+          )}
         </View>
       </View>
     );
@@ -46,7 +42,7 @@ export default function OfferScroll({ products = [], discount }) {
     <View style={[styles.container, { height: getContainerHeight() }]}>
       <FlatList
         data={products}
-        keyExtractor={(item) => item._id}
+        keyExtractor={(item) => item._id || item.id || item.productId || String(item?.name || item?.productname || Math.random())}
         renderItem={renderItem}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator

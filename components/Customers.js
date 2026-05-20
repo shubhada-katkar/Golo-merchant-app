@@ -7,20 +7,20 @@ export default function Customers() {
         <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
             <View style={{ flexDirection: "row", paddingHorizontal: 18, paddingVertical: 18 }}>
                 <View style={styles.graph}>
-                    <Text style={{ fontSize: 22 }}>Monthly Customers</Text>
+                    <Text style={{ fontSize: 22, paddingHorizontal:10 }}>Monthly Customers</Text>
                 </View>
             </View>
-            <View style={{ flexDirection: "row", paddingHorizontal: 34, paddingVertical: 18 }}>
+            <View style={{ flexDirection: "row", paddingHorizontal: 18, paddingVertical: 18 }}>
                 <View style={styles.card1}>
-                    <Text style={{ fontSize: 22, paddingHorizontal: 20 }}>Products liked by Customers</Text>
-                    <Text style={{ paddingHorizontal: 20, color: "#727272" }}>In Last 30 Days</Text>
+                    <Text style={{ fontSize: 22, paddingHorizontal: 10 }}>Products liked by Customers</Text>
+                    <Text style={{ paddingHorizontal: 10, color: "#727272" }}>In Last 30 Days</Text>
                 </View>
             </View>
 
             <View style={{ flexDirection: "row", paddingHorizontal: 18, paddingVertical: 18 }}>
                 <View style={styles.card2}>
-                    <Text style={{ fontSize: 22, paddingHorizontal: 20 }}>Device Type</Text>
-                    <Text style={{ paddingHorizontal: 20, color: "#727272" }}>What Customers Use</Text>
+                    <Text style={{ fontSize: 22, paddingHorizontal: 10 }}>Device Type</Text>
+                    <Text style={{ paddingHorizontal: 10, color: "#727272" }}>What Customers Use</Text>
 
                     <Image source={require("../assets/graph.png")}
                         style={{ height: 220, width: 220, alignSelf: "center" }} />
@@ -48,29 +48,33 @@ export default function Customers() {
 
             <View style={{ flexDirection: "row", paddingHorizontal: 18, paddingVertical: 18 }}>
                 <View style={styles.card3}>
-                    <Text style={{ fontSize: 22, paddingHorizontal: 20 }}>Age and Gender</Text>
+                    <Text style={{ fontSize: 18, paddingHorizontal: 10,
+                        lineHeight: Math.round(18 * 1.5), fontFamily:"Medium"
+                     }}>Age and Gender</Text>
 
                     <View style={{ flexDirection: "row" }}>
-                        <Text style={{ paddingHorizontal: 20, color: "#727272" }}>Statistics</Text>
+                        <Text style={{ paddingHorizontal: 10, color: "#727272",
+                            fontSize: 14, lineHeight: Math.round(14 * 1.5), fontFamily:"Medium"
+                         }}>Statistics</Text>
 
                         <View style={{ flexDirection: "row", marginLeft: "auto", alignItems: "center" }}>
                             <FontAwesome name="circle" size={18} color="#4caf50" />
-                            <Text style={{ paddingHorizontal: 10 }}>
+                            <Text style={{ paddingHorizontal: 10, fontSize: 14, lineHeight: Math.round(14 * 1.5), fontFamily:"Medium" }}>
                                 Male</Text>
 
                             <FontAwesome name="circle" size={18} color="#f9a641" />
-                            <Text style={{ paddingHorizontal: 10 }}>
+                            <Text style={{ paddingHorizontal: 10, fontSize: 14, lineHeight: Math.round(14 * 1.5), fontFamily:"Medium" }}>
                                 Female</Text>
                         </View>
 
                     </View>
 
                     <View style={{paddingLeft:10,paddingTop:26,gap:26}}>
-                        <Text style={{fontSize:18}}>18-24</Text>
-                        <Text style={{fontSize:18}}>25-34</Text>
-                        <Text style={{fontSize:18}}>35-44</Text>
-                        <Text style={{fontSize:18}}>45-64</Text>
-                        <Text style={{fontSize:18}}>65+</Text>
+                        <Text style={styles.smallfont}>18-24</Text>
+                        <Text style={styles.smallfont}>25-34</Text>
+                        <Text style={styles.smallfont}>35-44</Text>
+                        <Text style={styles.smallfont}>45-64</Text>
+                        <Text style={styles.smallfont}>65+</Text>
                     </View>
 
                 </View>
@@ -78,8 +82,9 @@ export default function Customers() {
 
             <View style={{ flexDirection: "row", paddingHorizontal: 18, paddingVertical: 18 }}>
                 <View style={styles.card3}>
-                    <Text style={{ fontSize: 22, paddingHorizontal: 20 }}>Location</Text>
-                    <Text style={{ paddingHorizontal: 20, color: "#727272" }}>Statistics</Text>
+                    <Text style={{ fontSize: 18, paddingHorizontal: 10, 
+                        lineHeight: Math.round(18 * 1.5), fontFamily:"Medium" }}>Location</Text>
+                    <Text style={{ paddingHorizontal: 10, color: "#727272", fontSize: 14, lineHeight: Math.round(14 * 1.5), fontFamily:"Medium" }}>Statistics</Text>
                 </View>
             </View>
         </ScrollView>
@@ -138,4 +143,9 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 2, height: 4 },
         padding: 10,
     },
+    smallfont: {
+        fontSize: 13,
+        fontFamily:"Medium",
+        lineHeight: Math.round(13 * 1.5),
+    }
 })

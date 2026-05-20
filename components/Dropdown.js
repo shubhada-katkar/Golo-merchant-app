@@ -10,23 +10,26 @@ export default function Dropdown({ BASE_URL, token, onChange, value: parentValue
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [resolvedToken, setResolvedToken] = useState(token || "");
+    const [merchantId, setMerchantId] = useState("");
     const resolvedBaseUrl = (BASE_URL || process.env.EXPO_PUBLIC_API_URL || CONFIG_BASE_URL || "").replace(/\/+$/, "");
 
     useEffect(() => {
         const resolveAuth = async () => {
             if (token) {
                 setResolvedToken(token);
-                return;
+            } else {
+                const storedToken = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+                setResolvedToken(storedToken || "");
             }
-            const storedToken = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
-            setResolvedToken(storedToken || "");
+            const storedMerchantId = await AsyncStorage.getItem("merchantId");
+            setMerchantId(storedMerchantId || "");
         };
         resolveAuth();
     }, [token]);
 
     useEffect(() => {
-        if (resolvedToken && resolvedBaseUrl) loadProducts();
-    }, [resolvedToken, resolvedBaseUrl]);
+        if (resolvedBaseUrl) loadProducts();
+    }, [resolvedToken, resolvedBaseUrl, merchantId]);
 
     // 🔥 sync AFTER items load
     useEffect(() => {
@@ -45,13 +48,17 @@ export default function Dropdown({ BASE_URL, token, onChange, value: parentValue
             const cached = await AsyncStorage.getItem("cachedProducts");
             if (cached) setItems(JSON.parse(cached));
 
-            let res = await fetch(`${resolvedBaseUrl}/merchant/products`, {
-                headers: { Authorization: `Bearer ${resolvedToken}` }
+            const endpoint = merchantId
+                ? `${resolvedBaseUrl}/merchant/products/public/${merchantId}?page=1&limit=100`
+                : `${resolvedBaseUrl}/merchant/products?page=1&limit=100`;
+
+            let res = await fetch(endpoint, {
+                headers: resolvedToken ? { Authorization: `Bearer ${resolvedToken}` } : {},
             });
 
             if (!res.ok && res.status === 404) {
-                res = await fetch(`${resolvedBaseUrl}/products/merchant`, {
-                    headers: { Authorization: `Bearer ${resolvedToken}` }
+                res = await fetch(`${resolvedBaseUrl}/products/merchant?page=1&limit=100`, {
+                    headers: resolvedToken ? { Authorization: `Bearer ${resolvedToken}` } : {},
                 });
             }
 
@@ -61,8 +68,13 @@ export default function Dropdown({ BASE_URL, token, onChange, value: parentValue
                 ? data
                 : data?.products || data?.data?.products || data?.data || [];
             const list = rawList.filter((item) => {
-                const status = String(item?.publicationStatus || item?.status || "").toLowerCase();
-                return !status || status === "published";
+                const publicationStatus = String(item?.publicationStatus || "").toLowerCase();
+                if (publicationStatus) return publicationStatus === "published";
+                const status = String(item?.status || "").toLowerCase();
+                if (status) {
+                    return status !== "draft" && status !== "inactive";
+                }
+                return true;
             });
             const formatted = list.map(p => ({
                 label: p.productname || p.name || p.productName || "Product",

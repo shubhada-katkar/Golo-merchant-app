@@ -27,10 +27,6 @@ export default function Topbar() {
                     <FontAwesome name="bell-o" size={28} 
                     color={currentRoute === "NotificationsPage" ? "#157a4f" : "black"} />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={()=>navigation.navigate("ChatsPage")}>
-                    <MaterialCommunityIcons name="square-rounded-badge-outline" size={30} 
-                    color={currentRoute === "ChatsPage" ? "#157a4f" : "black"}/>
-                </TouchableOpacity>
             </View>
         </View>
     );

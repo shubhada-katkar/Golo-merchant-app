@@ -54,7 +54,9 @@ const styles = StyleSheet.create({
         justifyContent: "space-between"
     },
     text1: {
-        fontSize: 18,
+        fontSize: 16,
+        fontFamily: "Medium",
+        lineHeight: Math.round(16 * 1.5)
     },
     ActiveTab: {
         height: 3,

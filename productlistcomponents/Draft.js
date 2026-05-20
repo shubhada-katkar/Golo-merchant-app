@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from "react";
+import React, { useState, useContext } from "react";
 import {
   View, Text, TouchableOpacity, StyleSheet, FlatList,
   Image, Alert,
@@ -14,28 +14,47 @@ export default function Draft({ products, setProducts, searchText, }) {
   const { colors } = useContext(ThemeContext);
   const [deletingId, setDeletingId] = useState(null);
   const navigation = useNavigation();
+
+  const getProductId = (item) => item?.productId || item?._id || item?.id;
+
   // ================= PUBLISH =================
-  const publishNow = async (productId) => {
+  const publishNow = async (item) => {
+    const productId = getProductId(item);
+    if (!productId) {
+      Alert.alert("Error", "Unable to identify the product");
+      return;
+    }
+
     try {
       const token = await AsyncStorage.getItem("merchantToken");
+      if (!token) {
+        Alert.alert("Error", "Not authenticated");
+        return;
+      }
 
-      let res = await fetch(`${BASE_URL}/merchant/products/${productId}`, {
+      let res = await fetch(`${BASE_URL}/products/${productId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ publicationStatus: "published", status: "active" }),
+        body: JSON.stringify({ status: "active" }),
       });
 
       if (!res.ok && res.status === 404) {
-        res = await fetch(`${BASE_URL}/products/${productId}`, {
+        res = await fetch(`${BASE_URL}/merchant/products/${productId}`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ status: "active", publicationStatus: "published" }),
+          body: JSON.stringify({
+            name: item.productname,
+            category: item.category,
+            description: item.description || "",
+            price: item.price || 0,
+            stockQuantity: item.stockQuantity ?? 1,
+          }),
         });
       }
 
@@ -44,13 +63,12 @@ export default function Draft({ products, setProducts, searchText, }) {
         return;
       }
 
-      // 🔥 move product from draft → published
-      setProducts(prev =>
-        prev.map(p =>
-          p._id === productId
+      setProducts((prev) =>
+        prev.map((p) =>
+          getProductId(p) === productId
             ? { ...p, status: "published", rawStatus: "active", publicationStatus: "published" }
-            : p
-        )
+            : p,
+        ),
       );
 
       Alert.alert("Success", "Product published!");
@@ -65,17 +83,21 @@ export default function Draft({ products, setProducts, searchText, }) {
     try {
       setDeletingId(productId);
       const token = await AsyncStorage.getItem("merchantToken");
+      if (!token) {
+        Alert.alert("Error", "Not authenticated");
+        return;
+      }
 
-      let res = await fetch(`${BASE_URL}/merchant/products/${productId}`, {
+      let res = await fetch(`${BASE_URL}/products/${productId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!res.ok && res.status === 404) {
-        res = await fetch(`${BASE_URL}/products/${productId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+        res = await fetch(`${BASE_URL}/merchant/products/${productId}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
       }
 
       if (!res.ok) {
@@ -83,8 +105,7 @@ export default function Draft({ products, setProducts, searchText, }) {
         return;
       }
 
-      // 🔥 remove globally
-      setProducts(prev => prev.filter(p => p._id !== productId));
+      setProducts((prev) => prev.filter((p) => getProductId(p) !== productId));
 
       Alert.alert("Success", "Draft deleted");
     } catch (err) {
@@ -96,57 +117,68 @@ export default function Draft({ products, setProducts, searchText, }) {
   };
 
   // ================= UI =================
-  const filteredProducts = products.filter(
-    (item) =>
-      item.productname?.toLowerCase().includes(searchText?.toLowerCase() || "") ||
-      item.category?.toLowerCase().includes(searchText?.toLowerCase() || "")
-  );
+  const filteredProducts = products
+    .filter((item) => item.status === "draft")
+    .filter(
+      (item) =>
+        item.productname?.toLowerCase().includes(searchText?.toLowerCase() || "") ||
+        item.category?.toLowerCase().includes(searchText?.toLowerCase() || "")
+    );
 
-  const renderItem = ({ item }) => (
-    <View style={styles.card}>
-      <View style={{ flexDirection: "row" }}>
-        {item.image?.url ? (
-          <Image source={{ uri: item.image.url }} style={styles.image} />
-        ) : (
-          <View style={styles.image} />
-        )}
+  const renderItem = ({ item }) => {
+    const productId = getProductId(item);
 
-        <View style={{ flex: 1, paddingHorizontal: 10 }}>
-          <View style={styles.row}>
-            <Text style={{ fontSize: 18 }}>{item.productname}</Text>
+    return (
+      <View style={styles.card}>
+        <View style={{ flexDirection: "row" }}>
+          {(() => {
+            const imageUri =
+              typeof item.image === "string"
+                ? item.image
+                : item.image?.url || item.image?.imageUrl || item.imageUrl || item.images?.[0] || item.productImages?.[0];
+            return imageUri ? (
+              <Image source={{ uri: imageUri }} style={styles.image} />
+            ) : (
+              <View style={styles.image} />
+            );
+          })()}
 
-            <View style={{ flexDirection: "row", gap: 12 }}>
-              <TouchableOpacity
-                disabled={deletingId === item._id}
-                onPress={() => deleteDraft(item._id)}
-              >
-                <MaterialIcons
-                  name={
-                    deletingId === item._id
-                      ? "hourglass-empty"
-                      : "delete-outline"
+          <View style={{ flex: 1, paddingHorizontal: 10 }}>
+            <View style={styles.row}>
+              <Text style={{ fontSize: 18 }}>{item.productname}</Text>
+
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                <TouchableOpacity
+                  disabled={deletingId === productId}
+                  onPress={() => deleteDraft(productId)}
+                >
+                  <MaterialIcons
+                    name={
+                      deletingId === productId
+                        ? "hourglass-empty"
+                        : "delete-outline"
+                    }
+                    size={24}
+                    color="red"
+                  />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() =>
+                    navigation.navigate("NewProductPage", { product: item })
                   }
-                  size={24}
-                  color="red"
-                />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() =>
-                  navigation.navigate("NewProductPage", { product: item })
-                }
-              >
-                <AntDesign name="edit" size={22} />
-              </TouchableOpacity>
+                >
+                  <AntDesign name="edit" size={22} />
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
 
           <Text>{item.category}</Text>
           <Text numberOfLines={1}>{item.description}</Text>
 
           <TouchableOpacity
             style={styles.publish}
-            onPress={() => publishNow(item._id)}
+            onPress={() => publishNow(item)}
           >
             <Text>+ Publish Now</Text>
           </TouchableOpacity>
@@ -161,7 +193,7 @@ export default function Draft({ products, setProducts, searchText, }) {
         style={{ backgroundColor: colors.background }}
         contentContainerStyle={{ padding: 14, paddingBottom: 80 }}
         data={filteredProducts}
-        keyExtractor={(item) => item._id}
+        keyExtractor={(item) => getProductId(item)}
         renderItem={renderItem}
         ListEmptyComponent={
           <Text style={{ textAlign: "center", marginTop: 20 }}>
@@ -216,3 +248,4 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 });
+}

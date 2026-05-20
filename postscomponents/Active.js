@@ -13,7 +13,7 @@ import { AntDesign } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL } from "../config";
 
-export default function Expire() {
+export default function Active() {
     const { colors } = useContext(ThemeContext);
     const navigation = useNavigation();
     const [offers, setOffers] = useState([]);
@@ -101,7 +101,7 @@ export default function Expire() {
         );
     };
 
-    const fetchExpiredOffers = useCallback(async () => {
+    const fetchOffers = useCallback(async () => {
         if (!token) {
             setOffers([]);
             setLoading(false);
@@ -110,7 +110,7 @@ export default function Expire() {
 
         setLoading(true);
         try {
-            let response = await fetch(`${BASE_URL}/vouchers/merchant/offers?status=expired&page=1&limit=100`, {
+            let response = await fetch(`${BASE_URL}/vouchers/merchant/offers?status=active&page=1&limit=100`, {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
@@ -125,16 +125,16 @@ export default function Expire() {
             }
 
             const result = await response.json();
-            let expiredOffers = normalizeOfferResults(result);
-            expiredOffers = expiredOffers.filter((item) => {
-                if (item.status) return item.status.toLowerCase() === "expired";
+            let activeOffers = normalizeOfferResults(result);
+            activeOffers = activeOffers.filter((item) => {
+                if (item.status) return item.status.toLowerCase() === "active";
                 const endDate = new Date(item.endDate || item.validTo || item.expiresAt || 0);
-                return endDate <= new Date();
+                return endDate > new Date();
             });
-            const enrichedOffers = await enrichOffersWithDetails(expiredOffers);
+            const enrichedOffers = await enrichOffersWithDetails(activeOffers);
             setOffers(enrichedOffers);
         } catch (error) {
-            console.log("Fetch Expired Offers Error:", error);
+            console.log("Fetch Active Offers Error:", error);
             setOffers([]);
         } finally {
             setLoading(false);
@@ -143,13 +143,12 @@ export default function Expire() {
 
     useFocusEffect(
         useCallback(() => {
-            fetchExpiredOffers();
-        }, [fetchExpiredOffers])
+            fetchOffers();
+        }, [fetchOffers])
     );
 
     const renderItem = ({ item }) => {
         const title = item.offerTitle || item.bannerTitle || item.title || item.requestId || "Untitled Offer";
-        const status = item.status || "expired";
         const discountLabel = item.discount || item.discountPercentage || item.bannerCategory || "N/A";
         const validTo = item.endDate || item.expiresAt || item.endsAt || item.validTo || item.selectedDates?.[item.selectedDates.length - 1] || item.expiredAt;
         const productImage = getOfferImage(item);
@@ -168,13 +167,15 @@ export default function Expire() {
                             <Text style={{ fontSize: 18, fontWeight: "bold" }}>
                                 {title}
                             </Text>
-
-                            <Text style={{
-                                color: status.toLowerCase() === "active" ? "green" : "red",
-                                marginRight: 10
-                            }}>
-                                {status}
-                            </Text>
+                            <TouchableOpacity
+                                onPress={() =>
+                                    navigation.navigate("AddOfferPage", {
+                                        offerData: item
+                                    })
+                                }
+                            >
+                                <AntDesign name="edit" size={18} color="black" />
+                            </TouchableOpacity>
                         </View>
 
                         <Text style={{ marginTop: 5 }}>
@@ -183,7 +184,7 @@ export default function Expire() {
 
                         {validTo && (
                             <Text style={{ fontSize: 12, marginTop: 3 }}>
-                                Expired On: {new Date(validTo).toDateString()}
+                                Expires On: {new Date(validTo).toDateString()}
                             </Text>
                         )}
                     </View>
@@ -193,23 +194,22 @@ export default function Expire() {
     };
 
     return (
-        <FlatList
-            style={{ flex: 1, backgroundColor: colors.background }}
-            contentContainerStyle={{ padding: 14, paddingBottom: 80 }}
-            data={offers}
-            keyExtractor={(item) => item._id || item.offerId || item.requestId || String(item.id || Math.random())}
-            renderItem={renderItem}
-            showsVerticalScrollIndicator={false}
-            refreshing={loading}
-            onRefresh={fetchExpiredOffers}
-            ListEmptyComponent={
-                !loading && (
-                    <Text style={{ textAlign: "center", marginTop: 20, color: colors.text }}>
-                        No expired offers yet
+        <View style={{ flex: 1, backgroundColor: colors.background }}>
+            <FlatList
+                data={offers}
+                keyExtractor={(item) => item._id || item.offerId || item.requestId || String(item.id || Math.random())}
+                renderItem={renderItem}
+                contentContainerStyle={{ padding: 14, paddingBottom: 80 }}
+                showsVerticalScrollIndicator={false}
+                refreshing={loading}
+                onRefresh={fetchOffers}
+                ListEmptyComponent={
+                    <Text style={{ textAlign: 'center', marginTop: 20, color: colors.text }}>
+                        No active offers available
                     </Text>
-                )
-            }
-        />
+                }
+            />
+        </View>
     );
 }
 

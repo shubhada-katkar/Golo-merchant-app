@@ -14,7 +14,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL } from "../config";
 
 export default function Recent() {
-
     const { colors } = useContext(ThemeContext);
     const [offers, setOffers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -22,62 +21,135 @@ export default function Recent() {
     const [token, setToken] = useState(null);
 
     useEffect(() => {
-        AsyncStorage.getItem("merchantToken").then(setToken);
+        AsyncStorage.getItem("merchantToken").then((value) => {
+            if (value) {
+                setToken(value);
+            } else {
+                AsyncStorage.getItem("accessToken").then((fallback) => {
+                    if (fallback) setToken(fallback);
+                });
+            }
+        });
     }, []);
 
-    // FETCH OFFERS
+    const normalizeOfferResults = (result) => {
+        if (Array.isArray(result)) return result;
+        if (result?.data && Array.isArray(result.data)) return result.data;
+        return [];
+    };
+
+    const normalizeImageUrl = (url) => {
+        if (!url || typeof url !== "string") return null;
+        return /^https?:\/\//i.test(url)
+            ? url
+            : `${BASE_URL.replace(/\/$/, "")}/${url.replace(/^\//, "")}`;
+    };
+
+    const getOfferImage = (item) => {
+        const urlCandidates = [
+            item.products?.[0]?.image?.url,
+            item.imageUrl,
+            item.offerImage,
+            item.image?.url,
+            item.image?.imageUrl,
+            typeof item.image === "string" ? item.image : null,
+            item.images?.[0],
+            item.productImages?.[0],
+            item.selectedProducts?.[0]?.imageUrl,
+            item.selectedProducts?.[0]?.image?.url,
+        ];
+        for (const url of urlCandidates) {
+            const normalized = normalizeImageUrl(url);
+            if (normalized) return normalized;
+        }
+        return null;
+    };
+
+    const fetchOfferDetails = async (offerId) => {
+        if (!offerId) return null;
+        try {
+            const response = await fetch(`${BASE_URL}/banners/promotions/offers/${offerId}`);
+            if (!response.ok) return null;
+            const json = await response.json();
+            return json?.data || null;
+        } catch (error) {
+            console.log(`Fetch offer details failed for ${offerId}:`, error);
+            return null;
+        }
+    };
+
+    const enrichOffersWithDetails = async (offerList) => {
+        return await Promise.all(
+            offerList.map(async (item) => {
+                const offerId = item.offerId || item._id || item.requestId;
+                if (!offerId) {
+                    return {
+                        ...item,
+                        imageUrl: getOfferImage(item),
+                    };
+                }
+
+                const details = await fetchOfferDetails(offerId);
+                const merged = {
+                    ...item,
+                    ...(details || {}),
+                };
+                return {
+                    ...merged,
+                    imageUrl: getOfferImage(merged),
+                };
+            })
+        );
+    };
+
     const fetchOffers = useCallback(async () => {
-        if (!token) return;
+        if (!token) {
+            setOffers([]);
+            setLoading(false);
+            return;
+        }
 
         setLoading(true);
         try {
-            let response = await fetch(`${BASE_URL}/offers/merchant`, {
+            let response = await fetch(`${BASE_URL}/vouchers/merchant/offers?page=1&limit=100`, {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
             });
 
-            if (!response.ok && response.status === 404) {
-                response = await fetch(`${BASE_URL}/banners/promotions/my`, {
+            if (!response.ok) {
+                response = await fetch(`${BASE_URL}/offers/merchant`, {
                     headers: {
-                        Authorization: `Bearer ${token}`,
-                        "Content-Type": "application/json"
-                    },
-                    method: "GET"
+                        Authorization: `Bearer ${token}`
+                    }
                 });
             }
 
             const result = await response.json();
-            setOffers(Array.isArray(result) ? result : []);
-
+            const allOffers = normalizeOfferResults(result);
+            const enrichedOffers = await enrichOffersWithDetails(allOffers);
+            setOffers(enrichedOffers);
         } catch (error) {
             console.log("Fetch Error:", error);
+            setOffers([]);
         } finally {
             setLoading(false);
         }
     }, [token]);
 
-    // Auto-refresh whenever screen is focused
     useFocusEffect(
         useCallback(() => {
             fetchOffers();
-        }, [token])
+        }, [fetchOffers])
     );
 
-    // FILTER: Only show non-expired offers
-    const activeOffers = offers.filter((item) => {
-        const validTo = new Date(item.validTo);
-        const now = new Date();
-        return validTo > now; // Only future dates
-    });
-
-    // RENDER CARD
     const renderItem = ({ item }) => {
-        let productImage = item.products?.[0]?.image?.url;
-        // Normalize image URL if relative
-        if (productImage && typeof productImage === 'string' && !/^https?:\/\//i.test(productImage)) {
-            productImage = `${BASE_URL.replace(/\/$/, '')}/${productImage.replace(/^\//, '')}`;
-        }
+        const title = item.offerTitle || item.bannerTitle || item.title || item.requestId || "Untitled Offer";
+        const status = item.status || "unknown";
+        const discountLabel = item.discount || item.discountPercentage || item.bannerCategory || "N/A";
+        const validTo = item.endDate || item.expiresAt || item.endsAt || item.validTo || item.selectedDates?.[item.selectedDates.length - 1] || item.expiredAt;
+
+        const productImage = getOfferImage(item);
 
         return (
             <View style={styles.card2}>
@@ -91,18 +163,18 @@ export default function Recent() {
                     <View style={{ flex: 1, paddingHorizontal: 10 }}>
                         <View style={styles.rowBetween}>
                             <Text style={{ fontSize: 18, fontWeight: "bold" }}>
-                                {item.title}
+                                {title}
                             </Text>
 
                             <View style={{ flexDirection: "row", alignItems: "center" }}>
                                 <Text style={{
-                                    color: item.status === "active" ? "green" : "red",
+                                    color: status.toLowerCase() === "active" ? "green" : "red",
                                     marginRight: 10
                                 }}>
-                                    {item.status}
+                                    {status}
                                 </Text>
 
-                                {item.status === "active" && (
+                                {status.toLowerCase() === "active" && (
                                     <TouchableOpacity
                                         onPress={() =>
                                             navigation.navigate("AddOfferPage", {
@@ -116,13 +188,15 @@ export default function Recent() {
                             </View>
                         </View>
 
-                        <Text style={{ marginTop: 5 }}>
-                            Discount: {item.discountPercentage}%
+                        <Text style={{ marginTop: 5, color: "#000000" }}>
+                            Offer Type: {discountLabel}
                         </Text>
 
-                        <Text style={{ fontSize: 12, marginTop: 3 }}>
-                            Valid Till: {new Date(item.validTo).toDateString()}
-                        </Text>
+                        {validTo && (
+                            <Text style={{ fontSize: 12, marginTop: 3, color: "#000000" }}>
+                                Expires On: {new Date(validTo).toDateString()}
+                            </Text>
+                        )}
                     </View>
                 </View>
             </View>
@@ -132,8 +206,8 @@ export default function Recent() {
     return (
         <View style={{ flex: 1, backgroundColor: colors.background }}>
             <FlatList
-                data={activeOffers}
-                keyExtractor={(item) => item._id}
+                data={offers}
+                keyExtractor={(item) => item._id || item.offerId || item.requestId || String(item.id || Math.random())}
                 renderItem={renderItem}
                 contentContainerStyle={{ padding: 14, paddingBottom: 80 }}
                 showsVerticalScrollIndicator={false}
@@ -141,7 +215,7 @@ export default function Recent() {
                 onRefresh={fetchOffers}
                 ListEmptyComponent={
                     <Text style={{ textAlign: 'center', marginTop: 20, color: colors.text }}>
-                        No active offers
+                        No offers available
                     </Text>
                 }
             />

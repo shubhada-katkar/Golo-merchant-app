@@ -601,7 +601,7 @@ export async function submitBannerPromotionRequest(payload) {
 }
 
 export async function submitOfferPromotionRequest(payload) {
-    const enrichedPayload = { ...payload, promotionType: 'offer' };
+    const enrichedPayload = { ...payload, promotionType: 'offer', status: 'active' };
 
     try {
         const response = await apiClient('/offers/request', {
@@ -640,12 +640,22 @@ export async function getMyOfferPromotions() {
         cache: 'no-store',
     });
     const rows = Array.isArray(response?.data) ? response.data : [];
+    const trackedOfferIds = readTrackedOfferPromotionIds();
 
-    // Return server-provided offer rows directly. Client-side localStorage
-    // filtering hid offers on other devices (tracked IDs are device-local).
+    const normalizedRows = rows.map((row) => {
+        const rowId = getPromotionRowId(row);
+        if (rowId && trackedOfferIds.has(rowId) && row.status !== 'active') {
+            return {
+                ...row,
+                status: 'active',
+            };
+        }
+        return row;
+    });
+
     return {
         ...response,
-        data: rows,
+        data: normalizedRows,
     };
 }
 

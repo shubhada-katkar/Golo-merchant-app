@@ -1,10 +1,14 @@
 import { BASE_URL } from "../config";
 
-export async function fetchMerchantProducts({ token, page = 1, limit = 100, search = "" } = {}) {
+export async function fetchMerchantProducts({ token, merchantId, page = 1, limit = 100, search = "" } = {}) {
     const params = new URLSearchParams({ page, limit });
     if (search) params.append("search", search);
 
-    const response = await fetch(`${BASE_URL}/merchant/products?${params.toString()}`, {
+    const path = merchantId
+        ? `${BASE_URL}/merchant/products/public/${merchantId}?${params.toString()}`
+        : `${BASE_URL}/merchant/products?${params.toString()}`;
+
+    const response = await fetch(path, {
         method: "GET",
         headers: {
             Accept: "application/json",
@@ -20,5 +24,5 @@ export async function fetchMerchantProducts({ token, page = 1, limit = 100, sear
         throw new Error(errorMessage);
     }
 
-    return responseBody;
+    return responseBody?.data?.products || responseBody?.products || responseBody?.data || responseBody;
 }

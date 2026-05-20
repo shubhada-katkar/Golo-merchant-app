@@ -12,6 +12,7 @@ import { ThemeContext } from "../theme/ThemeContext";
 import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL } from "../config";
+import { uploadImageToCloudinary } from "../services/cloudinaryService";
 
 export default function NewProductPage({ navigation, route }) {
   const { colors } = useContext(ThemeContext);
@@ -32,6 +33,7 @@ export default function NewProductPage({ navigation, route }) {
     productname: "",
     category: "",
     description: "",
+    stockQuantity: "",
   };
   const [form, setForm] = useState(initialForm);
 
@@ -42,9 +44,17 @@ export default function NewProductPage({ navigation, route }) {
         category: editProduct.category || "",
         description: editProduct.description || "",
         price: String(editProduct.price || ""),
+        stockQuantity: String(editProduct.stockQuantity ?? editProduct.stock ?? ""),
       });
 
-      setImage(editProduct.image?.url || null);
+      const imageUrl =
+        editProduct.productImages?.[0] ||
+        editProduct.images?.[0] ||
+        editProduct.image?.url ||
+        editProduct.image?.imageUrl ||
+        editProduct.image ||
+        null;
+      setImage(typeof imageUrl === "string" ? imageUrl : null);
     }
   }, []);
 
@@ -76,8 +86,19 @@ export default function NewProductPage({ navigation, route }) {
     isPublished ? setIsSavingPublished(true) : setIsSavingDraft(true);
 
     try {
-      if (!form.productname || !form.category || !form.price) {
+      if (!form.productname || !form.category || form.price === "") {
         alert("Please fill all required fields");
+        return;
+      }
+
+      const stockQuantity = Number(form.stockQuantity ?? 0);
+      if (Number.isNaN(stockQuantity) || stockQuantity < 0) {
+        alert("Please enter a valid stock quantity");
+        return;
+      }
+
+      if (isPublished && stockQuantity === 0) {
+        alert("Please add stock quantity before publishing");
         return;
       }
 
@@ -91,74 +112,87 @@ export default function NewProductPage({ navigation, route }) {
       const method = isEdit ? "PUT" : "POST";
       const normalizedStatus = isPublished ? "active" : "inactive";
 
-      const formData = new FormData();
-      formData.append("productname", form.productname);
-      formData.append("productName", form.productname);
-      formData.append("name", form.productname);
-      formData.append("category", form.category);
-      formData.append("description", form.description);
-      formData.append("price", form.price);
-      formData.append("regularPrice", form.price);
-      formData.append("stockQuantity", "1");
-      formData.append("publicationStatus", status);
-      formData.append("status", normalizedStatus);
-
-      if (image && !image.startsWith("http")) {
-        formData.append("image", {
-          uri: image,
-          name: "product.jpg",
-          type: "image/jpeg",
-        });
+      let imageSourceUrl;
+      if (typeof image === "string" && !/^https?:\/\//i.test(image)) {
+        const uploadResult = await uploadImageToCloudinary(image, "golo/product-images");
+        if (!uploadResult.success) {
+          alert(uploadResult.message || "Failed to upload image. Please try again.");
+          return;
+        }
+        imageSourceUrl = uploadResult.url;
+        setImage(uploadResult.url);
+      } else if (typeof image === "string" && /^https?:\/\//i.test(image)) {
+        imageSourceUrl = image;
       }
 
-      const editIdentifier = editProduct?.productId || editProduct?._id || editProduct?.id;
-      const urlCandidates = isEdit
-        ? [
-            `${BASE_URL}/products/${editIdentifier}`,
-            `${BASE_URL}/merchant/products/${editIdentifier}`,
-            `${BASE_URL}/api/products/${editIdentifier}`,
-          ]
-        : [
-            `${BASE_URL}/products`,
-            `${BASE_URL}/merchant/products`,
-            `${BASE_URL}/products/add`,
-            `${BASE_URL}/api/products/add`,
-          ];
+      const productImages = imageSourceUrl ? [imageSourceUrl] : undefined;
 
-      const jsonPayload = {
+      const createJsonPayload = {
         productName: form.productname,
         category: form.category,
         description: form.description,
         regularPrice: Number(form.price),
-        stockQuantity: 1,
-        status: normalizedStatus,
-        publicationStatus: status,
+        stockQuantity,
+        ...(productImages ? { productImages } : {}),
       };
+
+      const updateJsonPayload = {
+        ...createJsonPayload,
+        status: normalizedStatus,
+      };
+
+      const merchantCreatePayload = {
+        name: form.productname,
+        category: form.category,
+        description: form.description,
+        price: Number(form.price),
+        stockQuantity,
+        ...(productImages ? { images: productImages } : {}),
+      };
+
+      const merchantUpdatePayload = {
+        name: form.productname,
+        category: form.category,
+        description: form.description,
+        price: Number(form.price),
+        stockQuantity,
+      };
+
+      const stripUnsupportedFields = (payload) => {
+        const { image, ...rest } = payload;
+        return rest;
+      };
+
+      const editIdentifier = editProduct?.productId || editProduct?._id || editProduct?.id;
+      const urlCandidates = isEdit
+        ? [`${BASE_URL}/products/${editIdentifier}`, `${BASE_URL}/merchant/products/${editIdentifier}`]
+        : [`${BASE_URL}/products`, `${BASE_URL}/merchant/products`];
+
+      const cleanCreateJsonPayload = stripUnsupportedFields(createJsonPayload);
+      const cleanUpdateJsonPayload = stripUnsupportedFields(updateJsonPayload);
+      const cleanMerchantCreatePayload = stripUnsupportedFields(merchantCreatePayload);
+      const cleanMerchantUpdatePayload = stripUnsupportedFields(merchantUpdatePayload);
 
       let response = null;
       for (const url of urlCandidates) {
+        const bodyPayload = url.includes("/merchant/products")
+          ? isEdit
+            ? cleanMerchantUpdatePayload
+            : cleanMerchantCreatePayload
+          : isEdit
+          ? cleanUpdateJsonPayload
+          : cleanCreateJsonPayload;
+
         response = await fetch(url, {
           method,
           headers: {
+            "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: formData,
+          body: JSON.stringify(bodyPayload),
         });
 
         if (response.ok) break;
-
-        const shouldRetryWithJson = response.status === 400 || response.status === 404 || response.status === 415;
-        if (shouldRetryWithJson) {
-          response = await fetch(url, {
-            method,
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(jsonPayload),
-          });
-          if (response.ok) break;
-        }
       }
 
       const text = await response?.text();
@@ -334,6 +368,14 @@ export default function NewProductPage({ navigation, route }) {
                 }}
               />
 
+              <Text style={[styles.text, { color: colors.text }]}>Stock Quantity*</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter stock quantity"
+                keyboardType="numeric"
+                value={form.stockQuantity}
+                onChangeText={(text) => setForm({ ...form, stockQuantity: text })}
+              />
             </View>
 
             <View style={{

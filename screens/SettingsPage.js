@@ -1,12 +1,14 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Switch, ScrollView } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Switch, ScrollView, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
 import { MaterialIcons, Ionicons, Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useContext } from "react";
 import { ThemeContext } from "../theme/ThemeContext";
 import { useRef } from "react";
+import { BASE_URL } from "../config";
 
 
 export default function SettingsPage({ navigation }) {
@@ -14,7 +16,66 @@ export default function SettingsPage({ navigation }) {
     const { theme, colors, toggleTheme } = useContext(ThemeContext);
     const [showDropdown, setShowDropdown] = useState(false);
     const [dropdownPos, setDropdownPos] = useState({ x: 0, y: 0 });
+    const [loadingLogout, setLoadingLogout] = useState(false);
     const arrowRef = useRef();
+
+    // ================= LOGOUT =================
+    const handleLogout = async () => {
+      Alert.alert("Confirm Logout", "Are you sure you want to logout?", [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Logout",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setLoadingLogout(true);
+
+              const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+
+              if (token) {
+                // Try primary modern endpoint
+                let res = await fetch(`${BASE_URL}/users/logout`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                  },
+                  body: JSON.stringify({ refreshToken: null }),
+                });
+
+                // Legacy fallback
+                if (!res.ok && res.status === 404) {
+                  await fetch(`${BASE_URL}/users/logout`, {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({ refreshToken: null }),
+                  });
+                }
+              }
+
+              // Clear local storage keys used by this app
+              await AsyncStorage.multiRemove([
+                "merchantToken",
+                "merchantData",
+                "merchantId",
+                "accessToken",
+                "user",
+                "refreshToken",
+              ]);
+
+              navigation.reset({ index: 0, routes: [{ name: "Login" }] });
+            } catch (err) {
+              Alert.alert("Logout failed", "Please try again");
+            } finally {
+              setLoadingLogout(false);
+            }
+          },
+        },
+      ]);
+    };
 
     return (
         <SafeAreaView style={{ backgroundColor: colors.background, flex: 1 }}>
@@ -46,61 +107,20 @@ export default function SettingsPage({ navigation }) {
                     />
                 </View>
 
-                <View style={{ position: "relative" }}>
-
-                    {/* LOCATION ROW */}
-                    <TouchableOpacity
-                        activeOpacity={0.7}
-                        style={styles.items}
-                        onPress={() => setShowDropdown(!showDropdown)}
-                    >
-                        <Ionicons name="location-outline" size={22} color={colors.text} />
-
-                        <Text style={[styles.text, { color: colors.text }]}>
-                            {location}
-                        </Text>
-
-                        <MaterialIcons
-                            name={showDropdown ? "keyboard-arrow-up" : "keyboard-arrow-down"}
-                            size={30}
-                            color={colors.text}
-                        />
-                    </TouchableOpacity>
-
-                    {/* DROPDOWN */}
-                    {showDropdown && (
-                        <>
-                            <View style={styles.dropdown}>
-
-                                <ScrollView
-                                    showsVerticalScrollIndicator={false}
-                                    nestedScrollEnabled={true}
-                                >
-                                    {["Karveer", "Ichalkaranji", "Rajampuri", "Shahupuri", "Bawda", "Gandhinagar"].map(item => (
-                                        <TouchableOpacity
-                                            key={item}
-                                            style={styles.dropdownItem}
-                                            onPress={() => {
-                                                setLocation(item);
-                                                setShowDropdown(false);
-                                            }}
-                                        >
-                                            <Text style={styles.dropdowntext}>{item}</Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </ScrollView>
-                            </View>
-                        </>
-                    )}
-                </View>
-                <TouchableOpacity style={styles.items}>
-                    <Ionicons name="language-outline" size={22} color={colors.text} />
-                    <Text style={[styles.text, { color: colors.text }]}>Language</Text>
-                </TouchableOpacity>
-
                 <TouchableOpacity style={styles.items} onPress={() => navigation.navigate("ProfileSettingsPage")}>
                     <MaterialCommunityIcons name="account-cog-outline" size={24} color={colors.text} />
                     <Text style={[styles.text, { color: colors.text }]}>Profile Settings</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[styles.items]} 
+                  onPress={handleLogout}
+                  disabled={loadingLogout}
+                >
+                    <MaterialIcons name="logout" size={24} color="#ff6b6b" />
+                    <Text style={[styles.text, { color: '#ff6b6b' }]}>
+                      {loadingLogout ? 'Logging out...' : 'Logout'}
+                    </Text>
                 </TouchableOpacity>
             </View>
 

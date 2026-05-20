@@ -1,4 +1,5 @@
-import React from "react";
+import React, {useEffect} from "react";
+import * as SplashScreen from "expo-splash-screen";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator, CardStyleInterpolators } from "@react-navigation/stack";
 import { ThemeProvider } from "./theme/ThemeContext";
@@ -13,15 +14,36 @@ import LoyaltyPage from "./screens/LoyaltyPage";
 import Registration from "./screens/Registration";
 import Login from "./screens/Login";
 import AddOfferPage from "./screens/AddOfferPage";
-import TemplatePage from "./screens/TemplatePage";
 import PreviewPage from "./screens/PreviewPage";
 import NotificationsPage from "./screens/NotificationsPage";
-import ChatsPage from "./screens/ChatsPage";
-import ChatScreen from "./screens/ChatScreen";
+import OrderDetailPage from "./screens/OrderDetailPage";
+import AllReviewsPage from "./screens/AllReviewsPage";
+import ScanQRCodePage from "./screens/ScanQRCodePage";
+import Orders from "./components/Orders";
+import { useFonts } from "expo-font";
+
+SplashScreen.preventAutoHideAsync();
 
 const Stack = createStackNavigator();
 
 export default function App() {
+
+  const [fontsLoaded] = useFonts({
+    "Italic": require("./assets/fonts/GoogleSans-Italic.ttf"),
+    "Bold": require("./assets/fonts/GoogleSans-Bold.ttf"),
+    "SemiBold": require("./assets/fonts/GoogleSans-SemiBold.ttf"),
+    "Medium": require("./assets/fonts/GoogleSans-Medium.ttf"),
+  });
+
+  useEffect(() => {
+    if (fontsLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
+
+  // ⚠️ Must return null while fonts are loading
+  if (!fontsLoaded) return null;
+
   return ( 
      <ThemeProvider>
     <NavigationContainer>
@@ -44,12 +66,12 @@ export default function App() {
     <Stack.Screen name="Registration" component={Registration}/>
     <Stack.Screen name="Login" component={Login}/>
     <Stack.Screen name="AddOfferPage" component={AddOfferPage}/>
-    <Stack.Screen name="TemplatePage" component={TemplatePage} />
     <Stack.Screen name="PreviewPage" component={PreviewPage}/>
     <Stack.Screen name="NotificationsPage" component={NotificationsPage}/>
-    <Stack.Screen name="ChatsPage" component={ChatsPage}/>
-    <Stack.Screen name="ChatScreen" component={ChatScreen}/>
-    
+    <Stack.Screen name="OrderDetailPage" component={OrderDetailPage}/>
+    <Stack.Screen name="Orders" component={Orders} />
+    <Stack.Screen name="ScanQRCodePage" component={ScanQRCodePage}/>
+    <Stack.Screen name="AllReviewsPage" component={AllReviewsPage}/>
       </Stack.Navigator>
     </NavigationContainer>
     </ThemeProvider>

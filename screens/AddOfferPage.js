@@ -61,11 +61,15 @@ const calculateOfferPrice = (price, offerType) => {
         return 0;
     }
 
-    switch (offerType) {
-        case "50%off":
+    const normalizedOfferType = String(offerType || "").toLowerCase();
+    switch (normalizedOfferType) {
+        case "bogo":
         case "b1g1":
-        case "b2g2":
             return Number((numericPrice * 0.5).toFixed(2));
+        case "50% off":
+        case "50%off":
+            return Number((numericPrice * 0.5).toFixed(2));
+        case "70% off":
         case "70%off":
             return Number((numericPrice * 0.3).toFixed(2));
         default:
@@ -95,6 +99,7 @@ export default function AddOfferPage({ navigation, route }) {
     const [offerType, setOfferType] = useState("");
     const [offerTypeModalOpen, setOfferTypeModalOpen] = useState(false);
     const [authToken, setAuthToken] = useState("");
+    const [merchantId, setMerchantId] = useState("");
     const [isDarkMode, setIsDarkMode] = useState(false);
     const [fromDate, setFromDate] = useState(null);
     const [toDate, setToDate] = useState(null);
@@ -116,11 +121,21 @@ export default function AddOfferPage({ navigation, route }) {
     const [loadingProducts, setLoadingProducts] = useState(false);
 
     const offerTypeOptions = [
-        { label: "B1G1 (Buy 1 Get 1)", value: "b1g1" },
-        { label: "B2G2 (Buy 2 Get 2)", value: "b2g2" },
-        { label: "50% Off", value: "50%off" },
-        { label: "70% Off", value: "70%off" },
-        { label: "Custom Offer", value: "custom" },
+        { label: "Special", value: "Special" },
+        { label: "Festival", value: "Festival" },
+        { label: "Limited Time", value: "Limited Time" },
+        { label: "Combo", value: "Combo" },
+        { label: "Clearance", value: "Clearance" },
+        { label: "Flash Sale", value: "Flash Sale" },
+        { label: "Buy One Get One (BOGO)", value: "BOGO" },
+        { label: "Flat Discount", value: "Flat Discount" },
+        { label: "Percentage Off", value: "Percentage Off" },
+        { label: "Bundle Deal", value: "Bundle Deal" },
+        { label: "New Arrival Offer", value: "New Arrival Offer" },
+        { label: "Weekend Offer", value: "Weekend Offer" },
+        { label: "Member Exclusive", value: "Member Exclusive" },
+        { label: "Loyalty Reward", value: "Loyalty Reward" },
+        { label: "Custom Offer", value: "Custom Offer" },
     ];
 
     // Prefill form if editing
@@ -163,14 +178,16 @@ export default function AddOfferPage({ navigation, route }) {
             try {
                 setLoadingProducts(true);
                 const accessToken = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+                const storedMerchantId = await AsyncStorage.getItem("merchantId");
                 if (!accessToken) {
                     navigation.navigate("Login");
                     return;
                 }
                 setAuthToken(accessToken);
+                setMerchantId(storedMerchantId || "");
 
-                const response = await fetchMerchantProducts({ token: accessToken });
-                setMerchantProducts(response.products || []);
+                const products = await fetchMerchantProducts({ token: accessToken, merchantId: storedMerchantId || undefined });
+                setMerchantProducts(Array.isArray(products) ? products : []);
             } catch (error) {
                 console.error("Failed to load merchant products:", error);
             } finally {
@@ -197,7 +214,7 @@ export default function AddOfferPage({ navigation, route }) {
             .map((id) => {
                 const merchantProduct = merchantProducts.find(p => p._id === id || p.id === id);
                 if (merchantProduct) {
-                    return merchantProduct;
+                    return normalizeSelectedProduct(merchantProduct, offerType);
                 }
 
                 const fallbackProduct = fallbackProducts.find(
@@ -208,17 +225,7 @@ export default function AddOfferPage({ navigation, route }) {
                     return null;
                 }
 
-                return {
-                    _id: fallbackProduct?.productId || fallbackProduct?._id || fallbackProduct?.id || "",
-                    id: fallbackProduct?.productId || fallbackProduct?._id || fallbackProduct?.id || "",
-                    name: fallbackProduct?.productName || fallbackProduct?.name || "Product",
-                    productname: fallbackProduct?.productName || fallbackProduct?.name || "Product",
-                    price: Number(fallbackProduct?.originalPrice || fallbackProduct?.price || 0),
-                    stockQuantity: Number(fallbackProduct?.stockQuantity || 0),
-                    image: { url: fallbackProduct?.imageUrl || fallbackProduct?.image?.url || "" },
-                    images: fallbackProduct?.imageUrl ? [fallbackProduct.imageUrl] : [],
-                    offerPrice: Number(fallbackProduct?.offerPrice || 0),
-                };
+                return normalizeSelectedProduct(fallbackProduct, offerType);
             })
             .filter(Boolean);
 

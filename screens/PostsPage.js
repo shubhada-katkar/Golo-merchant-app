@@ -4,7 +4,7 @@ import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
 import Recent from "../postscomponents/Recent";
 import Expire from "../postscomponents/Expire";
-import MostRevenue from "../postscomponents/MostRevenue";
+import Active from "../postscomponents/Active";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons, } from "@expo/vector-icons";
 import { useContext } from "react";
@@ -32,9 +32,9 @@ export default function ProfilePage({ navigation }) {
                     <Text style={styles.row2text}>Recent</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity onPress={() => setactiveTab("Most Revenue")}
-                    style={[styles.row2button, activeTab == "Most Revenue" && styles.ActiveTab]}>
-                    <Text style={styles.row2text}>Most Revenue</Text>
+                <TouchableOpacity onPress={() => setactiveTab("Active")}
+                    style={[styles.row2button, activeTab == "Active" && styles.ActiveTab]}>
+                    <Text style={styles.row2text}>Active</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity onPress={() => setactiveTab("Expire")}
@@ -47,7 +47,7 @@ export default function ProfilePage({ navigation }) {
 
             {activeTab == "Recent" && <Recent />}
 
-            {activeTab == "Most Revenue" && <MostRevenue />}
+            {activeTab == "Active" && <Active />}
 
             {activeTab == "Expire" && <Expire />}
 
