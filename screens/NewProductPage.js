@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from "react";
 import {
   View, Text, TouchableOpacity, TextInput,
   StyleSheet, Image, ScrollView, KeyboardAvoidingView, Platform,
-  TouchableWithoutFeedback, Dimensions,
+  TouchableWithoutFeedback, Dimensions, Keyboard,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Topbar from "../components/Topbar";
@@ -25,6 +25,7 @@ export default function NewProductPage({ navigation, route }) {
   const [categoryInputY, setCategoryInputY] = useState(0);
   const [isSavingPublished, setIsSavingPublished] = useState(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
   const [image, setImage] = useState(null);
 
@@ -38,6 +39,9 @@ export default function NewProductPage({ navigation, route }) {
   const [form, setForm] = useState(initialForm);
 
   useEffect(() => {
+    const showSub = Keyboard.addListener("keyboardDidShow", () => setIsKeyboardVisible(true));
+    const hideSub = Keyboard.addListener("keyboardDidHide", () => setIsKeyboardVisible(false));
+
     if (isEdit) {
       setForm({
         productname: editProduct.productname || "",
@@ -56,6 +60,10 @@ export default function NewProductPage({ navigation, route }) {
         null;
       setImage(typeof imageUrl === "string" ? imageUrl : null);
     }
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
   }, []);
 
   const pickImage = async () => {
@@ -228,7 +236,10 @@ export default function NewProductPage({ navigation, route }) {
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       {/* Detect taps outside */}
       <TouchableWithoutFeedback
-        onPress={() => setCategoryDropdownOpen(false)}
+        onPress={() => {
+          setCategoryDropdownOpen(false);
+          Keyboard.dismiss();
+        }}
       >
         <KeyboardAvoidingView
           style={{ flex: 1 }}
@@ -236,9 +247,10 @@ export default function NewProductPage({ navigation, route }) {
         >
           <Topbar />
           <ScrollView
-            contentContainerStyle={{ paddingBottom: bottomPadding }}
+            contentContainerStyle={{ paddingBottom: isKeyboardVisible ? bottomPadding + 140 : bottomPadding, flexGrow: 1 }}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
+            keyboardDismissMode="on-drag"
           >
             <View style={styles.row1}>
               <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -414,9 +426,11 @@ export default function NewProductPage({ navigation, route }) {
         </KeyboardAvoidingView>
       </TouchableWithoutFeedback>
 
-      <SafeAreaView edges={["bottom"]} style={{ width: "100%", bottom: 0, position: "absolute" }}>
-        <Bottombar />
-      </SafeAreaView>
+      {!isKeyboardVisible && (
+        <SafeAreaView edges={["bottom"]} style={{ width: "100%", bottom: 0, position: "absolute" }}>
+          <Bottombar />
+        </SafeAreaView>
+      )}
     </SafeAreaView>
   );
 }
@@ -466,3 +480,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
 });
+
+
