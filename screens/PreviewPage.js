@@ -5,12 +5,12 @@ import Bottombar from "../components/Bottombar";
 import { MaterialIcons, AntDesign, Entypo } from "@expo/vector-icons";
 import { ThemeContext } from "../theme/ThemeContext";
 import { SafeAreaView } from "react-native-safe-area-context";
+import {BASE_URL} from "../config";
 
 export default function PreviewPage({ navigation, route }) {
     const { template } = route.params;
 
     const { colors } = useContext(ThemeContext);
-    const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>

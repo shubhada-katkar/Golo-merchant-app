@@ -142,7 +142,7 @@ export default function AddOfferPage({ navigation, route }) {
     useEffect(() => {
         if (offerData) {
             setTitle(offerData.title || offerData.bannerTitle || "");
-            setOfferType(offerData.offerType || offerData.bannerCategory || "");
+            setOfferType(offerData.offerType || offerData.bannerCategory || offerData.category || "");
             setFromDate(offerData.validFrom ? new Date(offerData.validFrom) : offerData.startDate ? new Date(offerData.startDate) : null);
             setToDate(offerData.validTo ? new Date(offerData.validTo) : offerData.endDate ? new Date(offerData.endDate) : null);
             setIsDarkMode(Boolean(offerData.loyaltyEnabled || offerData.loyaltyRewardEnabled));
@@ -293,7 +293,7 @@ export default function AddOfferPage({ navigation, route }) {
             }
 
             const requestId = offerData?.requestId || offerData?._id || offerData?.offerId;
-            const response = await fetch(`${BASE_URL}/banners/promotions/${requestId}?type=offer`, {
+            const response = await fetch(`${BASE_URL}/offers/${requestId}`, {
                 method: "DELETE",
                 headers: {
                     "Authorization": `Bearer ${accessToken}`,
@@ -383,11 +383,17 @@ export default function AddOfferPage({ navigation, route }) {
                         : []
             ).map((product) => normalizeSelectedProduct(product, offerType));
 
+            const totalPrice = selectedProductPayload.reduce(
+                (sum, product) => sum + (Number(product.offerPrice) || 0),
+                0,
+            );
+
             const payload = {
-                bannerTitle: title.trim(),
-                bannerCategory: offerType,
+                title: title.trim(),
+                category: offerType,
                 imageUrl: bannerUrl || offerData?.imageUrl || offerData?.bannerUrl || "",
                 selectedDates,
+                totalPrice,
                 loyaltyRewardEnabled: isDarkMode,
                 loyaltyStarsToOffer: isDarkMode ? 1 : 0,
                 loyaltyStarsPerPurchase: isDarkMode ? 1 : 0,
@@ -395,11 +401,6 @@ export default function AddOfferPage({ navigation, route }) {
                 loyaltyPointsPerPurchase: isDarkMode ? Number(stars) : 0,
                 selectedProducts: selectedProductPayload,
             };
-
-            if (!offerData) {
-                payload.promotionType = "offer";
-                payload.totalPrice = 0;
-            }
 
             if (terms?.trim()) {
                 payload.termsAndConditions = terms.trim();
@@ -415,8 +416,8 @@ export default function AddOfferPage({ navigation, route }) {
             const method = offerData ? "PUT" : "POST";
             const requestId = offerData?.requestId || offerData?._id || offerData?.offerId;
             const endpoint = offerData
-                ? `/banners/promotions/${requestId}?type=offer`
-                : "/banners/promotions/request";
+                ? `/offers/${requestId}`
+                : "/offers/request";
             const fullUrl = `${BASE_URL}${endpoint}`;
 
             console.log("Offer API Request:", {

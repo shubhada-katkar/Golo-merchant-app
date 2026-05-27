@@ -1,7 +1,7 @@
 const resolvedBaseUrl = (
 	process.env.EXPO_PUBLIC_API_URL ||
 	process.env.NEXT_PUBLIC_API_URL ||
-	"https://golo-backend-new.onrender.com"
+	"https://api.golo.co.in"
 ).replace(/\/+$/, "");
 
 export const BASE_URL = resolvedBaseUrl;

@@ -24,8 +24,7 @@ export default function ({ navigation }) {
                 throw new Error("Merchant authentication token not found.");
             }
 
-            const baseUrl = (process.env.EXPO_PUBLIC_API_URL || BASE_URL || "").replace(/\/+$/, "");
-            let response = await fetch(`${baseUrl}/merchant-dashboard/loyalty-leaderboard`, {
+            let response = await fetch(`${BASE_URL}/merchant-dashboard/loyalty-leaderboard`, {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",
@@ -34,7 +33,7 @@ export default function ({ navigation }) {
             });
 
             if (!response.ok) {
-                response = await fetch(`${baseUrl}/api/merchant-dashboard/loyalty-leaderboard`, {
+                response = await fetch(`${BASE_URL}/api/merchant-dashboard/loyalty-leaderboard`, {
                     method: "GET",
                     headers: {
                         "Content-Type": "application/json",

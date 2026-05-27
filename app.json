@@ -16,10 +16,16 @@
       "supportsTablet": true
     },
     "android": {
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.shubhadakatkar.myJSApp"
     },
     "plugins": [
       "@react-native-community/datetimepicker"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "e91bf8b0-f219-4986-aa43-c2b356b74a02"
+      }
+    }
   }
 }

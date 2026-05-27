@@ -1,16 +1,10 @@
-import { BASE_URL as CONFIG_BASE_URL } from "../config";
-
-const getBaseURL = () => {
-  const url = process.env.EXPO_PUBLIC_API_URL || CONFIG_BASE_URL || "";
-  return url.replace(/\/+$/, "");
-};
+import { BASE_URL } from "../config";
 
 /**
  * Fetch voucher details by voucherId to get offer title and other details
  */
 export const fetchVoucherDetails = async (voucherId, token) => {
   try {
-    const BASE_URL = getBaseURL();
     if (!BASE_URL || !voucherId || !token) {
       return null;
     }
@@ -39,7 +33,6 @@ export const fetchVoucherDetails = async (voucherId, token) => {
  */
 export const fetchCustomerProfile = async (userId, token) => {
   try {
-    const BASE_URL = getBaseURL();
     if (!BASE_URL || !userId || !token) {
       return null;
     }

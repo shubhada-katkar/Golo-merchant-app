@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Alert,
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { BASE_URL as CONFIG_BASE_URL } from "../config";
+import { BASE_URL } from "../config";
 import { enrichOrderDetails, fetchVoucherDetails } from "../services/orderService";
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
@@ -27,8 +27,6 @@ export default function OrderDetailPage() {
   const [showCodeInput, setShowCodeInput] = useState(false);
   const [codeValue, setCodeValue] = useState("");
   const [loading, setLoading] = useState(false);
-
-  const BASE_URL = (process.env.EXPO_PUBLIC_API_URL || CONFIG_BASE_URL || "").replace(/\/+$/, "");
 
   // Enrich order details with voucher and customer information
   useEffect(() => {
