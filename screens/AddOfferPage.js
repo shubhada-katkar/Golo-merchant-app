@@ -79,6 +79,14 @@ const calculateOfferPrice = (price, offerType) => {
 
 const normalizeSelectedProduct = (product, offerType = "") => {
     const originalPrice = Number(product?.price ?? product?.originalPrice ?? 0);
+    const description =
+        product?.description ||
+        product?.details ||
+        product?.productDescription ||
+        product?.shortDescription ||
+        product?.desc ||
+        product?.detail ||
+        "";
 
     return {
         productId: product?._id || product?.id || product?.productId || "",
@@ -87,6 +95,7 @@ const normalizeSelectedProduct = (product, offerType = "") => {
         originalPrice,
         offerPrice: Number(product?.offerPrice ?? calculateOfferPrice(originalPrice, offerType)),
         stockQuantity: Number(product?.stockQuantity || 0),
+        description,
     };
 };
 
