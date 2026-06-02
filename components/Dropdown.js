@@ -108,10 +108,11 @@ export default function Dropdown({ BASE_URL, token, onChange, value: parentValue
 
             showBadgeCloseIcon
             badgeColors={["#E5E7EB"]}
-            badgeTextStyle={{ color: "#000" }}
+            badgeTextStyle={{ color: "#000", fontFamily: "Medium",
+                fontSize: 13, lineHeight: Math.round(13 * 1.5)
+             }}
             badgeStyle={{
                 paddingHorizontal: 10,
-                paddingVertical: 6,
                 borderRadius: 8
             }}
 
@@ -130,7 +131,7 @@ export default function Dropdown({ BASE_URL, token, onChange, value: parentValue
                 borderColor: "#ccc",
             }}
 
-            textStyle={{ fontSize: 16 }}
+            textStyle={{ fontSize: 14, fontFamily: "Medium" }}
 
             searchContainerStyle={{
                 borderBottomWidth: 0

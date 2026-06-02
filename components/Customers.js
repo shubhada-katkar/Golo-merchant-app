@@ -5,17 +5,6 @@ import { FontAwesome } from "@expo/vector-icons";
 export default function Customers() {
     return (
         <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
-            <View style={{ flexDirection: "row", paddingHorizontal: 18, paddingVertical: 18 }}>
-                <View style={styles.graph}>
-                    <Text style={{ fontSize: 22, paddingHorizontal:10 }}>Monthly Customers</Text>
-                </View>
-            </View>
-            <View style={{ flexDirection: "row", paddingHorizontal: 18, paddingVertical: 18 }}>
-                <View style={styles.card1}>
-                    <Text style={{ fontSize: 22, paddingHorizontal: 10 }}>Products liked by Customers</Text>
-                    <Text style={{ paddingHorizontal: 10, color: "#727272" }}>In Last 30 Days</Text>
-                </View>
-            </View>
 
             <View style={{ flexDirection: "row", paddingHorizontal: 18, paddingVertical: 18 }}>
                 <View style={styles.card2}>

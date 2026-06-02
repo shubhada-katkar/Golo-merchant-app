@@ -14,12 +14,40 @@ export default function ProfilePage({ navigation }) {
     const [shopName, setShopName] = useState("Shop Name");
     const [profileImage, setProfileImage] = useState(require("../assets/profile.png"));
 
+    const normalizeImageUrl = (value) => {
+        if (!value) return null;
+        if (typeof value === "object") {
+            const candidates = [
+                value.secure_url,
+                value.url,
+                value.imageUrl,
+                value.photo,
+                value.profilePhoto,
+                value.shopPhoto,
+                value.uri,
+                value.path,
+            ];
+            for (const candidate of candidates) {
+                const normalized = normalizeImageUrl(candidate);
+                if (normalized) return normalized;
+            }
+            return null;
+        }
+        if (typeof value !== "string") return null;
+        const trimmed = value.trim();
+        if (!trimmed) return null;
+        if (trimmed.startsWith("data:") || trimmed.startsWith("base64,")) return trimmed;
+        if (trimmed.startsWith("//")) return `https:${trimmed}`;
+        if (/^https?:\/\//i.test(trimmed)) return trimmed;
+        return `${BASE_URL.replace(/\/$/, "")}/${trimmed.replace(/^\//, "")}`;
+    };
+
     // Fetch profile whenever the page comes into focus
     useFocusEffect(
         useCallback(() => {
             const fetchProfile = async () => {
                 try {
-                    const token = await AsyncStorage.getItem("merchantToken");
+                    const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
                     if (!token) return;
 
                     let res = await fetch(`${BASE_URL}/users/merchant/profile`, {
@@ -27,17 +55,25 @@ export default function ProfilePage({ navigation }) {
                     });
 
                     if (!res.ok && res.status === 404) {
-                        res = await fetch(`${BASE_URL}/api/merchant/profile`, {
+                        res = await fetch(`${BASE_URL}/merchant/profile`, {
                         headers: { Authorization: `Bearer ${token}` }
                         });
                     }
 
                     const data = await res.json();
+                    const merchantData = data?.data || data?.merchant || data || null;
 
-                    if (data.merchant) {
-                        setShopName(data.merchant.shopName || "Shop Name");
-                        if (data.merchant.image?.url) {
-                            setProfileImage({ uri: data.merchant.image.url });
+                    if (merchantData) {
+                        setShopName(merchantData.storeName || merchantData.shopName || "Shop Name");
+                        const imageUrl = normalizeImageUrl(
+                            merchantData.profilePhoto ||
+                            merchantData.shopPhoto ||
+                            merchantData.image ||
+                            merchantData.profilePhotoUrl ||
+                            merchantData.photo
+                        );
+                        if (imageUrl) {
+                            setProfileImage({ uri: imageUrl });
                         } else {
                             setProfileImage(require("../assets/profile.png"));
                         }
@@ -118,7 +154,7 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         paddingHorizontal: 30,
         alignItems: "center",
-        paddingTop: 8
+        paddingTop: 30
     },
     switch: {
         backgroundColor: "#c0bdbd",

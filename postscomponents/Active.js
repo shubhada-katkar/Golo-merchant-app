@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { ThemeContext } from "../theme/ThemeContext";
-import { AntDesign } from "@expo/vector-icons";
+import { AntDesign, MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL } from "../config";
 
@@ -218,7 +218,9 @@ export default function Active() {
 
                     <View style={{ flex: 1, paddingHorizontal: 10 }}>
                         <View style={styles.rowBetween}>
-                            <Text style={{ fontSize: 18, fontWeight: "bold" }}>
+                            <Text style={{ fontSize: 18, fontFamily: "Medium",
+                                lineHeight: Math.round(18 * 1.5)
+                            }}>
                                 {title}
                             </Text>
                             <View style={styles.actionRow}>
@@ -237,17 +239,21 @@ export default function Active() {
                                     style={styles.actionButton}
                                     disabled={deletingOfferId === getOfferId(item)}
                                 >
-                                    <AntDesign name="delete" size={18} color={deletingOfferId === getOfferId(item) ? "#999" : "#ef4d4d"} />
+                                    <MaterialIcons name="delete-outline" size={19} color={deletingOfferId === getOfferId(item) ? "#999" : "#ef4d4d"} />
                                 </TouchableOpacity>
                             </View>
                         </View>
 
-                        <Text style={{ marginTop: 5 }}>
+                        <Text style={{ marginTop: 5, fontSize:12,
+                            fontFamily:"Medium", lineHeight: Math.round(12 * 1.5)
+                         }}>
                             Discount: {discountLabel}
                         </Text>
 
                         {validTo && (
-                            <Text style={{ fontSize: 12, marginTop: 3 }}>
+                            <Text style={{ fontSize: 12, marginTop: 3,
+                                fontFamily:"Medium", lineHeight: Math.round(12 * 1.5)
+                             }}>
                                 Expires On: {new Date(validTo).toDateString()}
                             </Text>
                         )}
@@ -268,7 +274,9 @@ export default function Active() {
                 refreshing={loading}
                 onRefresh={fetchOffers}
                 ListEmptyComponent={
-                    <Text style={{ textAlign: 'center', marginTop: 20, color: colors.text }}>
+                    <Text style={{ textAlign: 'center', marginTop: 20, color: colors.text,
+                        fontSize:12, fontFamily:"Medium", lineHeight: Math.round(12 * 1.5)
+                     }}>
                         No active offers available
                     </Text>
                 }

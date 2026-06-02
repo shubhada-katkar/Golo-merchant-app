@@ -473,9 +473,11 @@ export default function AddOfferPage({ navigation, route }) {
                     <Topbar />
                     <View style={styles.row1}>
                         <TouchableOpacity onPress={() => navigation.goBack()}>
-                            <MaterialIcons name="arrow-back-ios" size={28} color={colors.text} style={{ padding: 10 }} />
+                            <MaterialIcons name="arrow-back-ios" size={26} color={colors.text} style={{ padding: 10 }} />
                         </TouchableOpacity>
-                        <Text style={{ fontSize: 22, paddingLeft: 5, color: colors.text }}>
+                        <Text style={{ fontSize: 20, paddingLeft: 5, color: colors.text,
+                            lineHeight: Math.round(20 * 1.5), fontFamily: "Medium"
+                         }}>
                             {offerData ? "Edit Offer" : "Add Offer"}
                         </Text>
                     </View>
@@ -486,7 +488,9 @@ export default function AddOfferPage({ navigation, route }) {
                             {loadingProducts ? (
                                 <View style={{ padding: 20, justifyContent: "center", alignItems: "center" }}>
                                     <ActivityIndicator size="small" color="#157a4f" />
-                                    <Text style={{ color: colors.text, marginTop: 8 }}>Loading products...</Text>
+                                    <Text style={{ color: colors.text, marginTop: 8,
+                                        fontSize: 14, lineHeight: Math.round(14 * 1.5), fontFamily: "Medium"
+                                     }}>Loading products...</Text>
                                 </View>
                             ) : (
                                 <Dropdown
@@ -512,7 +516,8 @@ export default function AddOfferPage({ navigation, route }) {
                                 backgroundColor: "#f8f6f2",
                                 alignItems: "center"
                             }}>
-                            <Text style={{ fontSize: 16 }}>
+                            <Text style={{ fontSize: 14, lineHeight: Math.round(14 * 1.5), 
+                                fontFamily: "Medium" }}>
                                 {showOffers ? "Hide Selected Products" : "View Selected Products"}
                             </Text>
                         </TouchableOpacity>
@@ -524,7 +529,7 @@ export default function AddOfferPage({ navigation, route }) {
                         </View>
                     )}
 
-                    <ScrollView contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 80 }} keyboardShouldPersistTaps="handled">
+                    <ScrollView contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 50 }} keyboardShouldPersistTaps="handled">
                         <Text style={[styles.text, { color: colors.text }]}>Offer Title</Text>
                         <TextInput
                             placeholder="Enter Offer Title"
@@ -551,14 +556,16 @@ export default function AddOfferPage({ navigation, route }) {
                                     />
                                     <View style={styles.bannerOverlay}>
                                         <Feather name="edit-2" size={18} color="#fff" />
-                                        <Text style={{ color: "#fff", fontSize: 13, marginLeft: 6 }}>Tap to change</Text>
+                                        <Text style={{ color: "#fff", fontSize: 13, marginLeft: 6,
+                                            lineHeight: Math.round(13 * 1.4), fontFamily: "Medium"
+                                         }}>Tap to change</Text>
                                     </View>
                                 </>
                             ) : (
                                 <>
                                     <Feather name="upload" size={30} color="#157a4f" />
-                                    <Text style={{ color: "#157a4f", fontWeight: "600", marginTop: 8 }}>Upload Banner Image</Text>
-                                    <Text style={{ color: "#999", fontSize: 12, marginTop: 4 }}>Recommended: 16:9 ratio</Text>
+                                    <Text style={{ color: "#157a4f", fontSize: 14, lineHeight: Math.round(14 * 1.5), fontFamily: "Medium", marginTop: 8 }}>Upload Banner Image</Text>
+                                    <Text style={{ color: "#999", fontSize: 12, marginTop: 4, lineHeight: Math.round(12 * 1.4), fontFamily: "Medium" }}>Recommended: 16:9 ratio</Text>
                                 </>
                             )}
                         </TouchableOpacity>
@@ -568,7 +575,9 @@ export default function AddOfferPage({ navigation, route }) {
                             style={[styles.input, { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingRight: 15 }]}
                             onPress={() => setOfferTypeModalOpen(true)}
                         >
-                            <Text style={{ fontSize: 16, color: offerType ? "#000" : "#999" }}>
+                            <Text style={{ fontSize: 16, color: offerType ? "#000" : "#999",
+                                lineHeight: Math.round(16 * 1.5), fontFamily: "Medium"
+                             }}>
                                 {offerType ? offerTypeOptions.find(opt => opt.value === offerType)?.label : "Select offer type"}
                             </Text>
                             <Ionicons name="chevron-down" size={20} color="#333" />
@@ -583,7 +592,8 @@ export default function AddOfferPage({ navigation, route }) {
                             <TouchableWithoutFeedback onPress={() => setOfferTypeModalOpen(false)}>
                                 <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center" }}>
                                     <View style={{ backgroundColor: "#fff", borderRadius: 15, width: "85%", maxHeight: "40%", paddingVertical: 20 }}>
-                                        <Text style={{ fontSize: 18, fontWeight: "bold", marginBottom: 15, paddingHorizontal: 20, color: colors.text }}>
+                                        <Text style={{ fontSize: 14, lineHeight: Math.round(14 * 1.5), fontFamily: "Medium", 
+                                            marginBottom: 15, paddingHorizontal: 20, color: colors.text }}>
                                             Select Offer Type
                                         </Text>
                                         <FlatList
@@ -603,7 +613,7 @@ export default function AddOfferPage({ navigation, route }) {
                                                         setOfferTypeModalOpen(false);
                                                     }}
                                                 >
-                                                    <Text style={{ fontSize: 16, color: offerType === item.value ? "#157a4f" : colors.text, fontWeight: offerType === item.value ? "bold" : "normal" }}>
+                                                    <Text style={{ fontSize: 16, lineHeight: Math.round(16 * 1.5), fontFamily: "Medium", color: offerType === item.value ? "#157a4f" : colors.text, fontWeight: offerType === item.value ? "bold" : "normal" }}>
                                                         {item.label}
                                                     </Text>
                                                 </TouchableOpacity>
@@ -651,7 +661,9 @@ export default function AddOfferPage({ navigation, route }) {
                         )}
 
                         <View style={{ flexDirection: "row", alignItems: "center", paddingTop: 10 }}>
-                            <Text style={{ fontSize: 18, color: colors.text }}>Loyalty Reward</Text>
+                            <Text style={{ fontSize: 16, color: colors.text,
+                                lineHeight: Math.round(16 * 1.5), fontFamily: "Medium"
+                             }}>Loyalty Reward</Text>
                             <Switch
                                 value={isDarkMode}
                                 onValueChange={(value) => {
@@ -701,7 +713,9 @@ export default function AddOfferPage({ navigation, route }) {
                                 onPress={handleSubmit}
                                 disabled={isSaving || isDeleting || isBannerUploading}
                             >
-                                <Text style={{ color: "#fff", fontSize: 16 }}>
+                                <Text style={{ color: "#fff", fontSize: 16,
+                                    fontFamily: "Medium", lineHeight: Math.round(16 * 1.5)
+                                 }}>
                                     {isBannerUploading ? "Uploading banner..." : isSaving ? (offerData ? "Updating..." : "Saving...") : offerData ? "Update Offer" : "Add Offer"}
                                 </Text>
                             </TouchableOpacity>
@@ -712,7 +726,7 @@ export default function AddOfferPage({ navigation, route }) {
                                     onPress={handleDelete}
                                     disabled={isSaving || isDeleting}
                                 >
-                                    <Text style={{ color: "#fff", fontSize: 16 }}>
+                                    <Text style={{ color: "#fff", fontSize: 16, fontFamily: "Medium", lineHeight: Math.round(16 * 1.5) }}>
                                         {isDeleting ? "Deleting..." : "Delete Offer"}
                                     </Text>
                                 </TouchableOpacity>
@@ -721,7 +735,7 @@ export default function AddOfferPage({ navigation, route }) {
                         </View>
 
                         <TouchableOpacity onPress={clearAllFields} style={{ marginTop: 12, alignItems: "center" }}>
-                            <Text style={{ color: "red", fontSize: 18 }}>Clear All</Text>
+                            <Text style={{ color: "red", fontSize: 18, fontFamily: "Medium", lineHeight: Math.round(18 * 1.5) }}>Clear All</Text>
                         </TouchableOpacity>
 
                     </ScrollView>
@@ -737,8 +751,8 @@ export default function AddOfferPage({ navigation, route }) {
 
 const styles = StyleSheet.create({
     row1: { alignItems: "center", flexDirection: "row", paddingVertical: 8, paddingHorizontal: 14 },
-    text: { fontSize: 18, paddingTop: 18 },
-    input: { fontSize: 16, backgroundColor: "#ccc", padding: 10, borderRadius: 10 },
+    text: { fontSize: 16, paddingTop:20, fontFamily: "Medium", lineHeight: Math.round(16 * 1.5) },
+    input: { fontSize: 14, backgroundColor: "#ccc", padding: 10, borderRadius: 10, fontFamily: "Medium" },
     button: { backgroundColor: "#f5b849", borderRadius: 10, alignItems: "center", justifyContent: "center", padding: 6, borderColor: "#b9b9b9", borderWidth: 1, marginTop: 20 },
     dateBox: { flex: 1, flexDirection: "row", alignItems: "center", backgroundColor: "#ccc", borderRadius: 10, paddingHorizontal: 10 },
     rowButton: {

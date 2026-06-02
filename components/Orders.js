@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect, useCallback } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { Entypo } from "@expo/vector-icons";
 import All from "../components/All";
@@ -105,9 +105,46 @@ export default function Orders() {    const navigation = useNavigation();    con
     };
 
     const deleteOrder = async (orderId) => {
-        // mark as rejected (backend has no delete endpoint), then refresh list
-        await updateOrderStatus(orderId, 'rejected');
-        await fetchOrders();
+        Alert.alert(
+            'Delete order',
+            'Are you sure you want to delete this order?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+                            if (!token || !BASE_URL) return;
+
+                            let res = await fetch(`${BASE_URL}/orders/${orderId}`, {
+                                method: 'DELETE',
+                                headers: {
+                                    Authorization: `Bearer ${token}`,
+                                },
+                            });
+
+                            if (!res.ok && res.status === 404) {
+                                res = await fetch(`${BASE_URL}/api/orders/${orderId}`, {
+                                    method: 'DELETE',
+                                    headers: {
+                                        Authorization: `Bearer ${token}`,
+                                    },
+                                });
+                            }
+
+                            if (res.ok) {
+                                await fetchOrders();
+                            }
+                        } catch (error) {
+                            console.log('Delete order error:', error);
+                        }
+                    },
+                },
+            ],
+            { cancelable: true }
+        );
     };
 
     return (

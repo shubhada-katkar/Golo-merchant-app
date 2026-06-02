@@ -87,6 +87,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   text: {
-    fontSize: Math.min(width * 0.04, 16),
+    fontSize: Math.min(width * 0.04, 14),
+    fontFamily: "Medium",
+    lineHeight: Math.round(Math.min(width * 0.04, 14) * 1.5),
   },
 });

@@ -20,6 +20,34 @@ export default function Overview() {
     const [recentOrders, setRecentOrders] = useState([]);
     const [visitsTrend, setVisitsTrend] = useState({ labels: [], values: [] });
 
+    const normalizeImageUrl = (value) => {
+        if (!value) return null;
+        if (typeof value === "object") {
+            const candidates = [
+                value.secure_url,
+                value.url,
+                value.imageUrl,
+                value.photo,
+                value.profilePhoto,
+                value.shopPhoto,
+                value.uri,
+                value.path,
+            ];
+            for (const candidate of candidates) {
+                const normalized = normalizeImageUrl(candidate);
+                if (normalized) return normalized;
+            }
+            return null;
+        }
+        if (typeof value !== "string") return null;
+        const trimmed = value.trim();
+        if (!trimmed) return null;
+        if (trimmed.startsWith("data:") || trimmed.startsWith("base64,")) return trimmed;
+        if (trimmed.startsWith("//")) return `https:${trimmed}`;
+        if (/^https?:\/\//i.test(trimmed)) return trimmed;
+        return `${BASE_URL.replace(/\/$/, "")}/${trimmed.replace(/^\//, "")}`;
+    };
+
     const timeAgo = (date) => {
         if (!date) return "";
         const d = new Date(date);
@@ -46,7 +74,7 @@ export default function Overview() {
 
             const fetchProfile = async () => {
                 try {
-                    const token = await AsyncStorage.getItem("merchantToken");
+                    const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
                     if (!token) return;
 
                     let res = await fetch(`${BASE_URL}/users/merchant/profile`, {
@@ -64,14 +92,22 @@ export default function Overview() {
                     }
 
                     const data = await res.json();
+                    const merchantData = data?.data || data?.merchant || data || null;
 
                     if (!active) return;
 
-                    if (data.merchant) {
-                        setShopName(data.merchant.shopName || "Shop Name");
+                    if (merchantData) {
+                        setShopName(merchantData.storeName || merchantData.shopName || "Shop Name");
+                        const imageUrl = normalizeImageUrl(
+                            merchantData.profilePhoto ||
+                            merchantData.shopPhoto ||
+                            merchantData.image ||
+                            merchantData.profilePhotoUrl ||
+                            merchantData.photo
+                        );
 
-                        if (data.merchant.image?.url) {
-                            setProfileImage({ uri: data.merchant.image.url });
+                        if (imageUrl) {
+                            setProfileImage({ uri: imageUrl });
                         } else {
                             setProfileImage(require("../assets/profile.png"));
                         }
@@ -172,7 +208,7 @@ export default function Overview() {
 
             {/* ===== PROFILE HEADER ===== */}
             <View style={{ flexDirection: "row", paddingHorizontal: 18, paddingVertical: 8, alignItems: "center" }}>
-                <Image source={profileImage} style={{ height: 90, width: 90, borderRadius: 45 }} />
+                <Image source={profileImage} style={{ height: 80, width: 80, borderRadius: 45 }} />
 
                 <View style={{ flexDirection: "column", paddingHorizontal: 10 }}>
                     <Text style={{ fontSize: 20, color: colors.text,

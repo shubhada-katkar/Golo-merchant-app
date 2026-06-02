@@ -49,7 +49,7 @@ export default function HomePage() {
 const styles = StyleSheet.create({
     first: {
         flexDirection: "row",
-        paddingVertical: 5,
+        paddingVertical: 8,
         paddingHorizontal: 18,
         justifyContent: "space-between"
     },

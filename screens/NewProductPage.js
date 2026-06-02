@@ -22,6 +22,7 @@ export default function NewProductPage({ navigation, route }) {
   const isEdit = !!editProduct;
   const [isSaving, setIsSaving] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [merchantStoreSubCategory, setMerchantStoreSubCategory] = useState("");
 
   const [image, setImage] = useState(null);
 
@@ -36,6 +37,28 @@ export default function NewProductPage({ navigation, route }) {
   useEffect(() => {
     const showSub = Keyboard.addListener("keyboardDidShow", () => setIsKeyboardVisible(true));
     const hideSub = Keyboard.addListener("keyboardDidHide", () => setIsKeyboardVisible(false));
+
+    const loadMerchantProfile = async () => {
+      try {
+        const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+        if (!token) return;
+
+        const headers = { Authorization: `Bearer ${token}` };
+        let response = await fetch(`${BASE_URL}/users/merchant/profile`, { headers });
+        if (!response.ok && response.status === 404) {
+          response = await fetch(`${BASE_URL}/merchant/profile`, { headers });
+        }
+
+        if (!response.ok) return;
+        const data = await response.json();
+        const merchantData = data?.data || data || {};
+        setMerchantStoreSubCategory(merchantData.storeSubCategory || "");
+      } catch (error) {
+        console.log("Error fetching merchant category:", error);
+      }
+    };
+
+    loadMerchantProfile();
 
     if (isEdit) {
       setForm({
@@ -91,6 +114,11 @@ const saveProduct = async () => {
         return;
       }
 
+      if (!merchantStoreSubCategory) {
+        alert("Please select your store sub-category in Profile Settings before adding products.");
+        return;
+      }
+
       const stockQuantity = Number(form.stockQuantity ?? 0);
       if (Number.isNaN(stockQuantity) || stockQuantity < 0) {
         alert("Please enter a valid stock quantity");
@@ -120,10 +148,12 @@ const saveProduct = async () => {
       }
 
       const productImages = imageSourceUrl ? [imageSourceUrl] : undefined;
+      const productCategory = merchantStoreSubCategory;
 
       const createJsonPayload = {
         productName: form.productname,
         description: form.description,
+        category: productCategory,
         regularPrice: Number(form.price),
         stockQuantity,
         ...(productImages ? { productImages } : {}),
@@ -136,6 +166,7 @@ const saveProduct = async () => {
       const merchantCreatePayload = {
         name: form.productname,
         description: form.description,
+        category: productCategory,
         price: Number(form.price),
         stockQuantity,
         ...(productImages ? { images: productImages } : {}),
@@ -144,6 +175,7 @@ const saveProduct = async () => {
       const merchantUpdatePayload = {
         name: form.productname,
         description: form.description,
+        category: productCategory,
         price: Number(form.price),
         stockQuantity,
       };
@@ -295,6 +327,15 @@ const saveProduct = async () => {
                 onChangeText={(text) => setForm({ ...form, description: text })}
               />
 
+              <Text style={[styles.text, { color: colors.text }]}>Category</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Uses your store sub-category"
+                value={merchantStoreSubCategory}
+                editable={false}
+                selectTextOnFocus={false}
+              />
+
               <Text style={[styles.text, { color: colors.text }]}>Price*</Text>
               <TextInput
                 style={styles.input}
@@ -306,7 +347,7 @@ const saveProduct = async () => {
                 }}
               />
 
-              <Text style={[styles.text, { color: colors.text }]}>Stock Quantity*</Text>
+              <Text style={[styles.text, { color: colors.text }]}>Stock Quantity</Text>
               <TextInput
                 style={styles.input}
                 placeholder="Enter stock quantity"
@@ -316,17 +357,11 @@ const saveProduct = async () => {
               />
             </View>
 
-           <View
-  style={{
-    paddingTop: 30,
-    paddingHorizontal: 16,
-  }}
->
+           <View style={{ paddingTop: 30, paddingHorizontal: 16}} >
   <TouchableOpacity
     style={[styles.button, { opacity: isSaving ? 0.6 : 1 }]}
     onPress={saveProduct}
-    disabled={isSaving}
-  >
+    disabled={isSaving} >
     <Text style={{ fontSize: 16, fontFamily:"Medium", lineHeight: Math.round(18 * 1.5) }}>
       {isSaving ? "Processing..." : "Save Product"}
     </Text>

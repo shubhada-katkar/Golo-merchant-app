@@ -21,9 +21,11 @@ export default function ProfilePage({ navigation }) {
 
             <View style={styles.row1}>
                 <TouchableOpacity onPress={() => navigation.navigate("HomePage")}>
-                    <MaterialIcons name="arrow-back-ios" size={28} color={colors.text} style={{ padding: 10 }} />
+                    <MaterialIcons name="arrow-back-ios" size={26} color={colors.text} style={{ padding: 10 }} />
                 </TouchableOpacity>
-                <Text style={{ fontSize: 22, paddingLeft: 5, color: colors.text }}>Posts</Text>
+                <Text style={{ fontSize: 20, paddingLeft: 5, color: colors.text,
+                    fontFamily:"Medium", lineHeight: Math.round(20 * 1.5)
+                 }}>Posts</Text>
             </View>
 
             <View style={styles.row2}>
@@ -73,9 +75,11 @@ const styles = StyleSheet.create({
         gap: 5
     },
     row2text: {
-        fontSize: 16,
+        fontSize: 14,
         color: "white",
-        paddingVertical: 2
+        paddingVertical: 2,
+        fontFamily:"Medium", 
+        lineHeight: Math.round(14 * 1.5)
     },
     row2button: {
         flex: 1,

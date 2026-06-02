@@ -22,14 +22,11 @@ export default function OrderDetailPage() {
   const route = useRoute();
   const [orderData, setOrderData] = useState(route.params?.order || {});
   const [enriching, setEnriching] = useState(false);
-
   const order = orderData;
-
   const [showCodeInput, setShowCodeInput] = useState(false);
   const [codeValue, setCodeValue] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Enrich order details with voucher and customer information
   useEffect(() => {
     const enrichDetails = async () => {
       try {
@@ -54,7 +51,6 @@ export default function OrderDetailPage() {
       enrichDetails();
     }
   }, []);
-
 
   const offerName = order?.offerTitle || order?.offerName || order?.title || order?.name || order?.voucher?.offerTitle || "Offer details not available";
   const claimedAt = order?.claimedAt || order?.createdAt || order?.placedAt || order?.timestamp;
@@ -316,11 +312,8 @@ export default function OrderDetailPage() {
             <View style={styles.codeButtonRow}>
               <TouchableOpacity 
                 style={[styles.codeButton, styles.cancelButton]} 
-                onPress={() => {
-                  setShowCodeInput(false);
-                  setCodeValue("");
-                }}
-              >
+                onPress={() => { setShowCodeInput(false);
+                  setCodeValue(""); }} >
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity 
@@ -330,13 +323,11 @@ export default function OrderDetailPage() {
                     if (!voucherId) {
                       Alert.alert('Error', 'Voucher ID not available');
                       return;
-                    }
-                    
+                    }                   
                     if (!codeValue.trim()) {
                       Alert.alert('Error', 'Please enter a verification code');
                       return;
                     }
-
                     setLoading(true);
                     const token = await AsyncStorage.getItem('merchantToken') || await AsyncStorage.getItem('accessToken');
                     if (!token || !BASE_URL) throw new Error('Missing credentials');
@@ -352,8 +343,7 @@ export default function OrderDetailPage() {
                     setLoading(false);
                   }
                 }}
-                disabled={loading}
-              >
+                disabled={loading} >
                 {loading ? (
                   <ActivityIndicator size="small" color="white" />
                 ) : (

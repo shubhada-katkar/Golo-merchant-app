@@ -18,6 +18,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import { MaterialIcons } from "@expo/vector-icons";
 import { TextInput } from "react-native";
+import { Picker } from "@react-native-picker/picker";
 import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
@@ -27,6 +28,43 @@ import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
 import { ThemeContext } from "../theme/ThemeContext";
 import { BASE_URL } from "../config";
+import { uploadImageToCloudinary } from "../services/cloudinaryService";
+
+const STORE_CATEGORIES = [
+  "Food & Restaurants",
+  "Home Services",
+  "Beauty & Wellness",
+  "Healthcare & Medical",
+  "Hotels & Accommodation",
+  "Shopping & Retail",
+  "Education & Training",
+  "Real Estate",
+  "Events & Entertainment",
+  "Professional Services",
+  "Automotive Services",
+  "Home Improvement",
+  "Fitness & Sports",
+  "Daily Needs & Utilities",
+  "Local Businesses & Vendors",
+];
+
+const STORE_SUBCATEGORIES = {
+  "Food & Restaurants": ["Restaurants", "Cafes", "Bakeries", "Fast Food", "Cloud Kitchen"],
+  "Home Services": ["Cleaning", "Plumbing", "Electrical", "Appliance Repair", "Pest Control"],
+  "Beauty & Wellness": ["Salon", "Spa", "Skincare", "Haircare", "Makeup Services"],
+  "Healthcare & Medical": ["Clinics", "Pharmacy", "Diagnostics", "Dental Care", "Physiotherapy"],
+  "Hotels & Accommodation": ["Hotels", "Resorts", "Guest House", "Homestay", "Hostels"],
+  "Shopping & Retail": ["Clothing", "Footwear", "Grocery", "Jewelry", "Accessories"],
+  "Education & Training": ["Coaching", "Tuition", "Language Classes", "Computer Training", "Skill Development"],
+  "Real Estate": ["Residential", "Commercial", "Rentals", "Property Consultants", "Property Management"],
+  "Events & Entertainment": ["Event Planning", "Photography", "Catering", "Music & DJ", "Decorations"],
+  "Professional Services": ["Legal", "Accounting", "Consulting", "Marketing", "IT Services"],
+  "Automotive Services": ["Car Service", "Bike Service", "Car Wash", "Tyre Shop", "Accessories"],
+  "Home Improvement": ["Interior Design", "Furniture", "Paint Services", "Carpentry", "Renovation"],
+  "Fitness & Sports": ["Gym", "Yoga", "Personal Training", "Sports Coaching", "Nutrition"],
+  "Daily Needs & Utilities": ["Laundry", "Water Supply", "Gas Services", "Stationery", "Household Supplies"],
+  "Local Businesses & Vendors": ["General Store", "Wholesaler", "Local Vendor", "Handicrafts", "Other Services"],
+};
 
 export default function ProfileSettingsPage({ navigation }) {
 
@@ -35,13 +73,10 @@ export default function ProfileSettingsPage({ navigation }) {
   const [number, setNumber] = useState("");
   const [email, setEmail] = useState("");
   const [shopName, setShopName] = useState("");
+  const [storeCategory, setStoreCategory] = useState("");
+  const [storeSubCategory, setStoreSubCategory] = useState("");
   const [profileImage, setProfileImage] = useState(null);
   const [profileImageError, setProfileImageError] = useState(false);
-  const [pass, setpass] = useState(false);
-
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [loadingPass, setLoadingPass] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(false);
 
   const [storeAddress, setStoreAddress] = useState("");
@@ -57,6 +92,10 @@ export default function ProfileSettingsPage({ navigation }) {
 
   const webviewRef = useRef(null);
   const searchTimeoutRef = useRef(null);
+  const subCategoryOptions = React.useMemo(
+    () => STORE_SUBCATEGORIES[storeCategory] || [],
+    [storeCategory],
+  );
 
   const DEFAULT_REGION = {
     latitude: 20.5937,
@@ -91,9 +130,20 @@ export default function ProfileSettingsPage({ navigation }) {
     if (!value) return null;
 
     if (typeof value === "object") {
-      if (typeof value.uri === "string" && value.uri) return normalizeImageUrl(value.uri);
-      if (typeof value.url === "string" && value.url) return normalizeImageUrl(value.url);
-      if (typeof value.path === "string" && value.path) return normalizeImageUrl(value.path);
+      const candidates = [
+        value.secure_url,
+        value.url,
+        value.imageUrl,
+        value.photo,
+        value.profilePhoto,
+        value.shopPhoto,
+        value.uri,
+        value.path,
+      ];
+      for (const candidate of candidates) {
+        const normalized = normalizeImageUrl(candidate);
+        if (normalized) return normalized;
+      }
       return null;
     }
 
@@ -101,20 +151,16 @@ export default function ProfileSettingsPage({ navigation }) {
     const trimmed = value.trim();
     if (!trimmed) return null;
 
-    // Handle data URLs and base64 strings
     if (trimmed.startsWith("data:") || trimmed.startsWith("base64,")) {
       return trimmed;
     }
 
-    // Handle protocol-relative URLs
     if (trimmed.startsWith("//")) return `https:${trimmed}`;
 
-    // Handle regular URLs
     if (/^https?:\/\//i.test(trimmed)) {
       return trimmed;
     }
 
-    // Handle relative backend paths by prefixing the API base URL
     return `${BASE_URL.replace(/\/$/, "")}/${trimmed.replace(/^\//, "")}`;
   };
 
@@ -186,15 +232,19 @@ export default function ProfileSettingsPage({ navigation }) {
       const headers = { Authorization: `Bearer ${token}` };
 
       // Fetch merchant profile
+      const userProfilePromise = fetch(`${BASE_URL}/users/profile`, { headers });
       let merchantRes = await fetch(`${BASE_URL}/users/merchant/profile`, { headers });
       if (!merchantRes.ok && merchantRes.status === 404) {
         merchantRes = await fetch(`${BASE_URL}/merchant/profile`, { headers });
       }
 
       const merchantJson = merchantRes.ok ? await merchantRes.json() : null;
+      const userProfileRes = await userProfilePromise;
+      const userProfileJson = userProfileRes.ok ? await userProfileRes.json() : null;
       
       // Backend returns { success: true, data: { merchant_object } }
       const merchantData = merchantJson?.data || null;
+      const userProfileData = userProfileJson?.data || null;
 
       if (!merchantData) {
         console.log("No merchant data found");
@@ -202,21 +252,35 @@ export default function ProfileSettingsPage({ navigation }) {
       }
 
       // Extract fields from merchant object using backend field names
-      const mergedName = merchantData?.storeName || merchantData?.name || "";
+      const mergedName = userProfileData?.name || merchantData?.merchantName || merchantData?.name || "";
+      const mergedShopName = merchantData?.storeName || "";
       const mergedEmail = merchantData?.storeEmail || merchantData?.email || "";
       const mergedNumber = merchantData?.contactNumber || merchantData?.phone || "";
-      const mergedImage = merchantData?.profilePhoto || merchantData?.image || merchantData?.profilePhotoUrl || merchantData?.photo || null;
+      const mergedCategory = merchantData?.storeCategory || userProfileData?.merchantProfile?.storeCategory || "";
+      const mergedSubCategory = merchantData?.storeSubCategory || userProfileData?.merchantProfile?.storeSubCategory || "";
+      const mergedImage =
+        merchantData?.profilePhoto ||
+        merchantData?.shopPhoto ||
+        merchantData?.image ||
+        merchantData?.profilePhotoUrl ||
+        merchantData?.photo ||
+        userProfileData?.merchantProfile?.profilePhoto ||
+        userProfileData?.merchantProfile?.shopPhoto ||
+        userProfileData?.profilePhoto ||
+        null;
       const mergedStoreAddress = merchantData?.storeLocation || merchantData?.address || "";
       const mergedLatitude = merchantData?.storeLocationLatitude ?? merchantData?.latitude ?? null;
       const mergedLongitude = merchantData?.storeLocationLongitude ?? merchantData?.longitude ?? null;
 
-      console.log("Loaded merchant profile:", { mergedName, mergedEmail, mergedNumber, hasImage: !!mergedImage, mergedStoreAddress, mergedLatitude, mergedLongitude });
+      console.log("Loaded merchant profile:", { mergedName, mergedShopName, mergedEmail, mergedNumber, mergedCategory, mergedSubCategory, hasImage: !!mergedImage, mergedStoreAddress, mergedLatitude, mergedLongitude });
       console.log("Raw profile image:", mergedImage);
 
       setName(mergedName);
       setEmail(mergedEmail);
       setNumber(mergedNumber);
-      setShopName(mergedName); // Use merchant name for shop name field
+      setShopName(mergedShopName);
+      setStoreCategory(mergedCategory);
+      setStoreSubCategory(mergedSubCategory);
       setStoreAddress(mergedStoreAddress);
       setStoreLatitude(mergedLatitude);
       setStoreLongitude(mergedLongitude);
@@ -399,75 +463,6 @@ export default function ProfileSettingsPage({ navigation }) {
     setLocationSearchResults([]);
   }, [locationModalVisible]);
 
-  const handleResetPassword = async () => {
-
-    // Empty check
-    if (!newPassword || !confirmPassword) {
-      return alert("Please fill both password fields");
-    }
-
-    // Match check
-    if (newPassword !== confirmPassword) {
-      return alert("Passwords do not match");
-    }
-
-    // Length validation (recommended)
-    if (newPassword.length < 6) {
-      return alert("Password must be at least 6 characters");
-    }
-
-    try {
-      const token = await AsyncStorage.getItem("merchantToken");
-      if (!token) return alert("Not authenticated");
-
-      setLoadingPass(true);
-
-      // Send OTP to email
-      let otpRes = await fetch(`${BASE_URL}/users/send-password-otp`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-      });
-
-      if (!otpRes.ok) {
-        setLoadingPass(false);
-        return alert("Failed to send OTP. Please try again.");
-      }
-
-      // For now, use the OTP endpoint with a placeholder
-      // In production, you should show an OTP input dialog
-      let res = await fetch(`${BASE_URL}/users/change-password-otp`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ newPassword, otp: "000000" })
-      });
-
-      const data = await res.json();
-      setLoadingPass(false);
-
-      if (!res.ok) {
-        return alert(data.message || "Password update failed");
-      }
-
-      alert("Password updated successfully");
-
-      // Reset UI
-      setpass(false);
-      setNewPassword("");
-      setConfirmPassword("");
-
-    } catch (error) {
-      console.log("Password reset error:", error);
-      setLoadingPass(false);
-      alert("Server error");
-    }
-  };
-
   // ================= LOAD MERCHANT PROFILE =================
   useEffect(() => {
     loadProfile();
@@ -506,29 +501,43 @@ export default function ProfileSettingsPage({ navigation }) {
   // ================= SAVE PROFILE =================
   const saveProfile = async () => {
     try {
-      const token = await AsyncStorage.getItem("merchantToken");
+      const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
       if (!token) return alert("Not authenticated");
 
-      let res = await fetch(`${BASE_URL}/merchant/profile`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          storeName: name,
-          storeEmail: email,
-          contactNumber: number,
+      const [merchantRes, userRes] = await Promise.all([
+        fetch(`${BASE_URL}/merchant/profile`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            storeName: shopName,
+            contactNumber: number,
+            storeCategory,
+            storeSubCategory,
+          }),
         }),
-      });
+        fetch(`${BASE_URL}/users/profile`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            name,
+          }),
+        }),
+      ]);
 
-      const data = await res.json();
+      const merchantData = await merchantRes.json();
+      const userData = await userRes.json();
 
-      if (res.ok) {
+      if (merchantRes.ok && userRes.ok) {
         await loadProfile();
         alert("Profile updated successfully");
       } else {
-        alert(data.message || "Update failed");
+        alert(merchantData.message || userData.message || "Update failed");
       }
     } catch (error) {
       console.log("Error updating profile:", error);
@@ -538,22 +547,24 @@ export default function ProfileSettingsPage({ navigation }) {
 
   const uploadProfileImage = async (imageUri) => {
     try {
-      const token = await AsyncStorage.getItem("merchantToken");
+      const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
       if (!token) return alert("Not authenticated");
 
-      const formData = new FormData();
-      formData.append("profilePhoto", {
-        uri: imageUri,
-        name: "profile.jpg",
-        type: "image/jpeg",
-      });
+      const uploadResult = await uploadImageToCloudinary(imageUri, "golo/profile-photos");
+      if (!uploadResult.success) {
+        return alert(uploadResult.message || "Image upload failed");
+      }
 
       let res = await fetch(`${BASE_URL}/merchant/profile`, {
         method: "PUT",
         headers: {
+          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: formData,
+        body: JSON.stringify({
+          profilePhoto: uploadResult.url,
+          shopPhoto: uploadResult.url,
+        }),
       });
 
       const data = await res.json();
@@ -564,7 +575,7 @@ export default function ProfileSettingsPage({ navigation }) {
       }
 
       // Backend returns { success: true, data: { merchant_object } }
-      const uploadedImageUrl = data?.data?.profilePhoto || data?.profilePhoto || null;
+      const uploadedImageUrl = data?.data?.profilePhoto || data?.profilePhoto || uploadResult.url;
       console.log("Profile photo updated, URL:", uploadedImageUrl);
       
       if (uploadedImageUrl) {
@@ -634,7 +645,7 @@ export default function ProfileSettingsPage({ navigation }) {
               style={[styles.shopNameInput, { color: colors.text }]}
               value={shopName}
               onChangeText={setShopName}
-              placeholder="Shop Name"
+              placeholder="Store Name"
               placeholderTextColor="#555"
             />
           </View>
@@ -667,8 +678,59 @@ export default function ProfileSettingsPage({ navigation }) {
               value={email}
               placeholder="Enter email"
               placeholderTextColor="#555"
-              onChangeText={setEmail}
+              editable={false}
+              selectTextOnFocus={false}
             />
+
+            <Text style={[styles.text, { color: colors.text }]}>Store Category</Text>
+            <View style={styles.pickerWrap}>
+              <Picker
+                selectedValue={storeCategory}
+                onValueChange={(value) => {
+                  setStoreCategory(value);
+                  setStoreSubCategory("");
+                }}
+                style={styles.picker}
+              >
+                <Picker.Item
+                  label="Select store category"
+                  value=""
+                  style={styles.pickerItem}
+                />
+                {STORE_CATEGORIES.map((category) => (
+                  <Picker.Item
+                    key={category}
+                    label={category}
+                    value={category}
+                    style={styles.pickerItem}
+                  />
+                ))}
+              </Picker>
+            </View>
+
+            <Text style={[styles.text, { color: colors.text }]}>Store Sub-category</Text>
+            <View style={styles.pickerWrap}>
+              <Picker
+                selectedValue={storeSubCategory}
+                onValueChange={(value) => setStoreSubCategory(value)}
+                style={styles.picker}
+                enabled={!!storeCategory}
+              >
+                <Picker.Item
+                  label={storeCategory ? "Select store sub-category" : "Select store category first"}
+                  value=""
+                  style={styles.pickerItem}
+                />
+                {subCategoryOptions.map((subCategory) => (
+                  <Picker.Item
+                    key={subCategory}
+                    label={subCategory}
+                    value={subCategory}
+                    style={styles.pickerItem}
+                  />
+                ))}
+              </Picker>
+            </View>
             {loadingProfile ? (
               <Text style={{ marginTop: 8, color: colors.text }}>Refreshing profile...</Text>
             ) : null}
@@ -709,62 +771,6 @@ export default function ProfileSettingsPage({ navigation }) {
                }}>Save Details</Text>
             </TouchableOpacity>
           </View>
-
-          {!pass ? (
-            <View style={{ paddingHorizontal: 20, gap: 15 }}>
-              <TouchableOpacity style={styles.button} onPress={() => setpass(true)}>
-                <Text style={{ fontSize: 16, fontFamily: "Medium",
-                  lineHeight: Math.round(16 * 1.4)
-                 }}>Reset Password</Text>
-              </TouchableOpacity>
-            </View>) : (
-            <>
-              <View style={styles.passcard}>
-
-                <Text style={styles.text}>Set Password</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter Password"
-                  secureTextEntry
-                  value={newPassword}
-                  onChangeText={setNewPassword}
-                />
-
-                <Text style={styles.text}>Confirm Password</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Confirm Password"
-                  secureTextEntry
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                />
-
-                <View style={{flexDirection:"row",marginTop:14,gap:10}}>
-                <TouchableOpacity
-                  onPress={handleResetPassword}
-                  style={[styles.button, { flex:1}]}
-                >
-
-                  <Text style={{ fontSize: 16, fontFamily: "Medium",
-                    lineHeight: Math.round(16 * 1.4)
-                   }}>
-                    {loadingPass ? "Updating..." : "Done"}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => setpass(false)}
-                  style={[styles.button, { flex:1}]}
-                >
-                  <Text style={{ fontSize: 16, fontFamily: "Medium",
-                    lineHeight: Math.round(16 * 1.4)
-                   }}>Cancel</Text>
-                </TouchableOpacity>
-
-                </View>
-              </View>
-            </>
-          )}
 
           <Modal visible={locationModalVisible} animationType="slide">
             <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>              
@@ -842,7 +848,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, marginLeft: 6, lineHeight: Math.round(20 * 1.4), fontFamily: "Medium" },
   divider: { height: 1 },
   row2: { flexDirection: "row", alignItems: "center", padding: 14 },
-  profileImage: { width: 120, height: 120, borderRadius: 60 },
+  profileImage: { width: 110, height: 110, borderRadius: 60 },
   text: { fontSize: 16, marginTop: 18, lineHeight: Math.round(16 * 1.4), fontFamily: "Medium" },
   input: {
     backgroundColor: "#dad8d8",
@@ -853,6 +859,23 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Medium",
     marginTop: 6,
+  },
+  pickerWrap: {
+    backgroundColor: "#dad8d8",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#6b6a6a",
+    marginTop: 6,
+    overflow: "hidden",
+  },
+  picker: {
+    height: 50,
+    width: "100%",
+  },
+  pickerItem: {
+    fontSize: 14,
+    fontFamily: "Medium",
+    lineHeight: Math.round(14 * 1.5),
   },
   button: {
     backgroundColor: "#f5b849",
@@ -868,13 +891,6 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     minWidth: 140,
     fontFamily: "Medium",
-  },
-  passcard: {
-    padding: 16,
-    backgroundColor: "#fffedd",
-    margin: 16,
-    borderRadius: 12,
-    elevation: 2
   },
   locationCard: {
     borderWidth: 1,
