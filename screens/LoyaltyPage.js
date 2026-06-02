@@ -133,7 +133,7 @@ export default function ({ navigation }) {
             <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
                 <View style={styles.row1}>
                     <TouchableOpacity style={{ padding: 10 }} onPress={() => navigation.goBack()}>
-                        <MaterialIcons name="arrow-back-ios" size={28} color={colors.text} />
+                        <MaterialIcons name="arrow-back-ios" size={26} color={colors.text} />
                     </TouchableOpacity>
                     <Text style={[styles.pageTitle, { color: colors.text }]}>Loyalty Rewards</Text>
                 </View>
@@ -244,10 +244,10 @@ const styles = StyleSheet.create({
         paddingHorizontal: 14,
     },
     pageTitle: {
-        fontSize: 18,
+        fontSize: 20,
         paddingLeft: 5,
         fontFamily: "Medium",
-        lineHeight: Math.round(18 * 1.2),
+        lineHeight: Math.round(20 * 1.2),
     },
     summaryRow: {
         flexDirection: "row",

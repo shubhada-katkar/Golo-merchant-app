@@ -102,7 +102,9 @@ export default function Total({ products, setProducts, searchText,}) {
 
         <View style={{ flex: 1, paddingHorizontal: 10 }}>
           <View style={styles.row}>
-            <Text style={{ fontSize: 18 }}>{item.productname}</Text>
+            <Text style={{ fontSize: 16, fontFamily:"Medium", lineHeight: Math.round(16 * 1.5) }}>
+              {item.productname}
+            </Text>
 
             <View style={{ flexDirection: "row", gap: 12 }}>
               <TouchableOpacity
@@ -130,8 +132,16 @@ export default function Total({ products, setProducts, searchText,}) {
             </View>
           </View>
 
-          <Text>{item.category}</Text>
-          <Text numberOfLines={1}>{item.description}</Text>
+          <Text style={{ fontFamily:"Medium", lineHeight: Math.round(14 * 1.5),
+            fontSize: 12,
+           }}>
+            Category: {item.category}
+          </Text>
+          <Text numberOfLines={1} style={{ fontFamily:"Medium", lineHeight: Math.round(14 * 1.5),
+            fontSize: 12, ellipsizeMode: "tail"
+           }}>
+            Description: {item.description}
+          </Text>
         </View>
       </View>
     </View>

@@ -18,8 +18,12 @@ export default function Topbar() {
                 style={{ height: 48, width: 48, resizeMode: "contain" }} />
 
             <View style={{ flexDirection: "column", paddingHorizontal: 12 }}>
-                <Text style={{ fontSize: 18, fontWeight: "600", color:colors.text }}>GOLO</Text>
-                <Text style={{ fontSize: 14, color:colors.activeTab }}>Rajarampuri,Kolhapur</Text>
+                <Text style={{ fontSize: 16, fontFamily: "Medium", color:colors.text,
+                    lineHeight: Math.round(16 * 1.5)
+                 }}>GOLO</Text>
+                <Text style={{ fontSize: 12, color:colors.activeTab,
+                    lineHeight: Math.round(12 * 1.5), fontFamily: "Medium"
+                 }}>Rajarampuri,Kolhapur</Text>
             </View>
 
             <View style={styles.rowcontainer}>

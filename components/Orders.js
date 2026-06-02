@@ -104,6 +104,12 @@ export default function Orders() {    const navigation = useNavigation();    con
         }
     };
 
+    const deleteOrder = async (orderId) => {
+        // mark as rejected (backend has no delete endpoint), then refresh list
+        await updateOrderStatus(orderId, 'rejected');
+        await fetchOrders();
+    };
+
     return (
         <View style={{flex:1}}>
 
@@ -111,7 +117,7 @@ export default function Orders() {    const navigation = useNavigation();    con
                 <View style={styles.card1}>
                         <Text style={{ fontSize: 19, fontFamily:"Medium",
                             lineHeight: Math.round(19 * 1.5)
-                         }}>Today's Orders</Text>
+                         }}>Total Orders</Text>
                     <Text style={{fontSize:14, fontFamily:"Medium",
                         lineHeight: Math.round(14 * 1.5), color:"#157a4f"
                     }}>{totalCount} Orders</Text>                        
@@ -141,9 +147,9 @@ export default function Orders() {    const navigation = useNavigation();    con
                 </View>
             ) : (
                 <>
-                    {activeTab == "All" && <All orders={orders} onStatusChange={updateOrderStatus} onRefresh={fetchOrders} />}
-                    {activeTab == "Accepted" && <Accepted orders={acceptedOrders} onRefresh={fetchOrders} onComplete={(order) => navigation.navigate("OrderDetailPage", { order })} />}
-                    {activeTab == "Completed" && <Completed orders={completedOrders} onRefresh={fetchOrders} />}
+                    {activeTab == "All" && <All orders={orders} onStatusChange={updateOrderStatus} onRefresh={fetchOrders} onDelete={deleteOrder} />}
+                    {activeTab == "Accepted" && <Accepted orders={acceptedOrders} onRefresh={fetchOrders} onComplete={(order) => navigation.navigate("OrderDetailPage", { order })} onDelete={deleteOrder} />}
+                    {activeTab == "Completed" && <Completed orders={completedOrders} onRefresh={fetchOrders} onDelete={deleteOrder} />}
                 </>
             )}
 

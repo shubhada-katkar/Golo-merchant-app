@@ -20,11 +20,7 @@ export default function NewProductPage({ navigation, route }) {
   const bottomPadding = screenHeight * 0.10;
   const editProduct = route?.params?.product;
   const isEdit = !!editProduct;
-  const categories = ["Travel", "Food", "Clothing", "Electronics", "Books"];
-  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
-  const [categoryInputY, setCategoryInputY] = useState(0);
-  const [isSavingPublished, setIsSavingPublished] = useState(false);
-  const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
   const [image, setImage] = useState(null);
@@ -32,7 +28,6 @@ export default function NewProductPage({ navigation, route }) {
   const initialForm = {
     price: "",
     productname: "",
-    category: "",
     description: "",
     stockQuantity: "",
   };
@@ -45,7 +40,6 @@ export default function NewProductPage({ navigation, route }) {
     if (isEdit) {
       setForm({
         productname: editProduct.productname || "",
-        category: editProduct.category || "",
         description: editProduct.description || "",
         price: String(editProduct.price || ""),
         stockQuantity: String(editProduct.stockQuantity ?? editProduct.stock ?? ""),
@@ -86,15 +80,13 @@ export default function NewProductPage({ navigation, route }) {
     }
   };
 
-  const saveProduct = async (status) => {
-    const isPublished = status === "published";
+const saveProduct = async () => {
+  if (isSaving) return;
 
-    if ((isPublished && isSavingPublished) || (!isPublished && isSavingDraft)) return;
-
-    isPublished ? setIsSavingPublished(true) : setIsSavingDraft(true);
+  setIsSaving(true);
 
     try {
-      if (!form.productname || !form.category || form.price === "") {
+      if (!form.productname || form.price === "") {
         alert("Please fill all required fields");
         return;
       }
@@ -102,11 +94,6 @@ export default function NewProductPage({ navigation, route }) {
       const stockQuantity = Number(form.stockQuantity ?? 0);
       if (Number.isNaN(stockQuantity) || stockQuantity < 0) {
         alert("Please enter a valid stock quantity");
-        return;
-      }
-
-      if (isPublished && stockQuantity === 0) {
-        alert("Please add stock quantity before publishing");
         return;
       }
 
@@ -118,7 +105,6 @@ export default function NewProductPage({ navigation, route }) {
       }
 
       const method = isEdit ? "PUT" : "POST";
-      const normalizedStatus = isPublished ? "active" : "inactive";
 
       let imageSourceUrl;
       if (typeof image === "string" && !/^https?:\/\//i.test(image)) {
@@ -137,7 +123,6 @@ export default function NewProductPage({ navigation, route }) {
 
       const createJsonPayload = {
         productName: form.productname,
-        category: form.category,
         description: form.description,
         regularPrice: Number(form.price),
         stockQuantity,
@@ -145,13 +130,11 @@ export default function NewProductPage({ navigation, route }) {
       };
 
       const updateJsonPayload = {
-        ...createJsonPayload,
-        status: normalizedStatus,
+       ...createJsonPayload,
       };
 
       const merchantCreatePayload = {
         name: form.productname,
-        category: form.category,
         description: form.description,
         price: Number(form.price),
         stockQuantity,
@@ -160,7 +143,6 @@ export default function NewProductPage({ navigation, route }) {
 
       const merchantUpdatePayload = {
         name: form.productname,
-        category: form.category,
         description: form.description,
         price: Number(form.price),
         stockQuantity,
@@ -223,7 +205,7 @@ export default function NewProductPage({ navigation, route }) {
       console.log(error);
       alert("Network / Server Error");
     } finally {
-      isPublished ? setIsSavingPublished(false) : setIsSavingDraft(false);
+      setIsSaving(false);
     }
   };
 
@@ -237,7 +219,6 @@ export default function NewProductPage({ navigation, route }) {
       {/* Detect taps outside */}
       <TouchableWithoutFeedback
         onPress={() => {
-          setCategoryDropdownOpen(false);
           Keyboard.dismiss();
         }}
       >
@@ -246,28 +227,29 @@ export default function NewProductPage({ navigation, route }) {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <Topbar />
+                      <View style={styles.row1}>
+              <TouchableOpacity onPress={() => navigation.goBack()}>
+                <MaterialIcons
+                  name="arrow-back-ios"
+                  size={26}
+                  style={{ padding: 10 }}
+                  color={colors.text}
+                />
+              </TouchableOpacity>
+              <Text style={{ fontSize: 20, color: colors.text,
+                fontFamily:"Medium", lineHeight: Math.round(20 * 1.5)
+               }}>
+                {isEdit ? "Edit Product" : "Add New Product"}
+              </Text>
+            </View>
+
+            <View style={{ flexDirection: "row", backgroundColor: "black", height: 1 }} />
           <ScrollView
             contentContainerStyle={{ paddingBottom: isKeyboardVisible ? bottomPadding + 140 : bottomPadding, flexGrow: 1 }}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             keyboardDismissMode="on-drag"
           >
-            <View style={styles.row1}>
-              <TouchableOpacity onPress={() => navigation.goBack()}>
-                <MaterialIcons
-                  name="arrow-back-ios"
-                  size={28}
-                  style={{ padding: 10 }}
-                  color={colors.text}
-                />
-              </TouchableOpacity>
-              <Text style={{ fontSize: 22, color: colors.text }}>
-                {isEdit ? "Edit Product" : "Add New Product"}
-              </Text>
-            </View>
-
-            <View style={{ flexDirection: "row", backgroundColor: "black", height: 1 }} />
-
             <View style={styles.row2}>
               <TouchableOpacity style={styles.card1} onPress={pickImage}>
                 <Feather name="upload" size={30} color="#157a4f" />
@@ -290,7 +272,9 @@ export default function NewProductPage({ navigation, route }) {
             </View>
 
             <View style={{ paddingHorizontal: 18 }}>
-              <Text style={{ fontSize: 20, color: colors.text }}>Product Details</Text>
+              <Text style={{ fontSize: 18, color: colors.text,
+                  fontFamily:"Medium", lineHeight: Math.round(18 * 1.5)
+               }}>Product Details</Text>
 
               <Text style={[styles.text, { color: colors.text }]}>Product Name*</Text>
               <TextInput
@@ -299,64 +283,6 @@ export default function NewProductPage({ navigation, route }) {
                 value={form.productname}
                 onChangeText={(text) => setForm({ ...form, productname: text })}
               />
-
-              <Text style={[styles.text, { color: colors.text }]}>Category*</Text>
-
-              {/* Category Input */}
-              <TouchableOpacity
-                onLayout={(e) => setCategoryInputY(e.nativeEvent.layout.y)}
-                style={[styles.input, { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }]}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  setCategoryDropdownOpen(!categoryDropdownOpen);
-                }}
-              >
-                <Text style={{ fontSize: 18, color: form.category ? colors.text : "#888" }}>
-                  {form.category || "Select Category"}
-                </Text>
-                <Feather
-                  name={categoryDropdownOpen ? "chevron-up" : "chevron-down"}
-                  size={24}
-                  color={colors.text}
-                />
-              </TouchableOpacity>
-
-              {/* Floating Dropdown */}
-              {categoryDropdownOpen && (
-                <View
-                  style={{
-                    position: "absolute",
-                    top: categoryInputY + 50, // adjust to input height
-                    left: 18,
-                    right: 18,
-                    borderWidth: 1,
-                    backgroundColor: "#ffffff",
-                    borderRadius: 10,
-                    maxHeight: 200,
-                    zIndex: 999,
-                    elevation: 5,
-                    shadowColor: "#000",
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.25,
-                    shadowRadius: 3,
-                  }}
-                >
-                  <ScrollView nestedScrollEnabled={true}>
-                    {categories.map((cat) => (
-                      <TouchableOpacity
-                        key={cat}
-                        onPress={() => {
-                          setForm({ ...form, category: cat });
-                          setCategoryDropdownOpen(false);
-                        }}
-                        style={{ paddingVertical: 12, paddingHorizontal: 12 }}
-                      >
-                        <Text style={{ fontSize: 18, color:"#000000" }}>{cat}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-              )}
 
               <Text style={[styles.text, { color: colors.text }]}>Description</Text>
               <TextInput
@@ -390,36 +316,29 @@ export default function NewProductPage({ navigation, route }) {
               />
             </View>
 
-            <View style={{
-              flexDirection: "row", paddingTop: 30,
-              paddingHorizontal: 16,
-              justifyContent: "space-equal", gap: 14
-            }}>
-              <TouchableOpacity
-                style={[styles.button, { opacity: isSavingPublished ? 0.6 : 1 }, { flex: 1 }]}
-                onPress={() => saveProduct("published")}
-                disabled={isSavingPublished}
-              >
-                <Text style={{ fontSize: 20 }}>
-                  {isSavingPublished ? "Processing..." : "Save Details"}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.button, { backgroundColor: "#157a4f", opacity: isSavingDraft ? 0.6 : 1 }, { flex: 1 }]}
-                onPress={() => saveProduct("draft")}
-                disabled={isSavingDraft}
-              >
-                <Text style={{ fontSize: 20 }}>
-                  {isSavingDraft ? "Processing..." : "Save As Draft"}
-                </Text>
-              </TouchableOpacity>
-            </View>
+           <View
+  style={{
+    paddingTop: 30,
+    paddingHorizontal: 16,
+  }}
+>
+  <TouchableOpacity
+    style={[styles.button, { opacity: isSaving ? 0.6 : 1 }]}
+    onPress={saveProduct}
+    disabled={isSaving}
+  >
+    <Text style={{ fontSize: 16, fontFamily:"Medium", lineHeight: Math.round(18 * 1.5) }}>
+      {isSaving ? "Processing..." : "Save Product"}
+    </Text>
+  </TouchableOpacity>
+</View>
 
             <TouchableOpacity
               onPress={clearAllFields}
             >
-              <Text style={{ fontSize: 20, alignSelf: "center", color: "red", paddingTop: 20 }}>Clear All</Text>
+              <Text style={{ fontSize: 16, alignSelf: "center", color: "red", paddingTop: 20,
+                fontFamily:"Medium", lineHeight: Math.round(16 * 1.5)
+               }}>Clear All</Text>
             </TouchableOpacity>
 
           </ScrollView>
@@ -458,8 +377,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   text: {
-    fontSize: 18,
+    fontSize: 16,
     paddingTop: 16,
+      fontFamily:"Medium",
+      lineHeight: Math.round(16 * 1.5)
   },
   input: {
     backgroundColor: "#dad8d8",
@@ -468,7 +389,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingVertical: 8,
     paddingHorizontal: 10,
-    fontSize: 18,
+    fontSize: 14,
+    fontFamily:"Medium",
   },
   button: {
     backgroundColor: "#f5b849",

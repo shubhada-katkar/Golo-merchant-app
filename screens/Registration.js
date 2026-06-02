@@ -357,7 +357,9 @@ export default function Registration({ navigation }) {
               <Text style={styles.label}>Password</Text>
               <View style={styles.inputPassword}>
                 <TextInput
-                  style={{ fontSize: 16, flex: 1 }}
+                  style={{ fontSize: 14, flex: 1,
+                    fontFamily:"Medium"
+                   }}
                   placeholder="Enter password"
                   secureTextEntry={!visiblePass}
                   value={password}
@@ -545,6 +547,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontSize: 12,
     color: "#444",
+    fontFamily:"Medium",
+    lineHeight:Math.round(12 * 1.5),
   },
   inputPassword: {
     flexDirection: "row",

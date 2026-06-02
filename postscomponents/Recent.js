@@ -5,7 +5,8 @@ import {
     TouchableOpacity,
     StyleSheet,
     FlatList,
-    Image
+    Image,
+    Alert
 } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { ThemeContext } from "../theme/ThemeContext";
@@ -19,6 +20,7 @@ export default function Recent() {
     const [loading, setLoading] = useState(true);
     const navigation = useNavigation();
     const [token, setToken] = useState(null);
+    const [deletingOfferId, setDeletingOfferId] = useState(null);
 
     useEffect(() => {
         AsyncStorage.getItem("merchantToken").then((value) => {
@@ -102,6 +104,58 @@ export default function Recent() {
         );
     };
 
+    const getOfferId = (item) => item.offerId || item._id || item.requestId || item.id;
+
+    const deleteOffer = async (item) => {
+        const offerId = getOfferId(item);
+        if (!offerId) {
+            Alert.alert("Delete Failed", "Unable to identify this offer.");
+            return;
+        }
+
+        try {
+            setDeletingOfferId(offerId);
+            const accessToken = token || await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+            if (!accessToken) {
+                Alert.alert("Authentication Required", "Please login again to delete offers.");
+                return;
+            }
+
+            const response = await fetch(`${BASE_URL}/offers/${offerId}`, {
+                method: "DELETE",
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    "Content-Type": "application/json",
+                },
+            });
+
+            const result = await response.json().catch(() => null);
+            if (!response.ok) {
+                const message = result?.message || result?.error || `HTTP ${response.status}`;
+                Alert.alert("Delete Failed", message);
+                return;
+            }
+
+            setOffers((prevOffers) => prevOffers.filter((offer) => getOfferId(offer) !== offerId));
+            Alert.alert("Success", "Offer deleted successfully.");
+        } catch (err) {
+            Alert.alert("Delete Failed", err.message || "Unable to delete offer.");
+        } finally {
+            setDeletingOfferId(null);
+        }
+    };
+
+    const confirmDeleteOffer = (item) => {
+        Alert.alert(
+            "Delete Offer",
+            "Are you sure you want to delete this offer?",
+            [
+                { text: "Cancel", style: "cancel" },
+                { text: "Delete", style: "destructive", onPress: () => deleteOffer(item) }
+            ]
+        );
+    };
+
     const fetchOffers = useCallback(async () => {
         if (!token) {
             setOffers([]);
@@ -165,26 +219,24 @@ export default function Recent() {
                             <Text style={{ fontSize: 18, fontWeight: "bold" }}>
                                 {title}
                             </Text>
-
-                            <View style={{ flexDirection: "row", alignItems: "center" }}>
-                                <Text style={{
-                                    color: status.toLowerCase() === "active" ? "green" : "red",
-                                    marginRight: 10
-                                }}>
-                                    {status}
-                                </Text>
-
-                                {status.toLowerCase() === "active" && (
-                                    <TouchableOpacity
-                                        onPress={() =>
-                                            navigation.navigate("AddOfferPage", {
-                                                offerData: item
-                                            })
-                                        }
-                                    >
-                                        <AntDesign name="edit" size={18} color="black" />
-                                    </TouchableOpacity>
-                                )}
+                            <View style={styles.actionRow}>
+                                <TouchableOpacity
+                                    onPress={() =>
+                                        navigation.navigate("AddOfferPage", {
+                                            offerData: item
+                                        })
+                                    }
+                                    style={styles.actionButton}
+                                >
+                                    <AntDesign name="edit" size={18} color="black" />
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => confirmDeleteOffer(item)}
+                                    style={styles.actionButton}
+                                    disabled={deletingOfferId === getOfferId(item)}
+                                >
+                                    <AntDesign name="delete" size={18} color={deletingOfferId === getOfferId(item) ? "#999" : "#ef4d4d"} />
+                                </TouchableOpacity>
                             </View>
                         </View>
 
@@ -244,5 +296,13 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center"
+    },
+    actionRow: {
+        flexDirection: "row",
+        alignItems: "center",
+    },
+    actionButton: {
+        padding: 4,
+        marginLeft: 12,
     }
 });

@@ -5,7 +5,7 @@ import Bottombar from "../components/Bottombar";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Overview from "../components/Overview";
 import Orders from "../components/Orders";
-import Customers from "../components/Customers";
+import Customers from "../components/Customers.js";
 import { useContext } from "react";
 import { ThemeContext } from "../theme/ThemeContext";
 

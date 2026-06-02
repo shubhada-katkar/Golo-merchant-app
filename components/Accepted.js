@@ -2,10 +2,10 @@ import React from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
 import { useContext, useState, useEffect } from "react";
 import { ThemeContext } from "../theme/ThemeContext";
-import { Entypo, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Entypo, FontAwesome5, MaterialCommunityIcons, Feather } from "@expo/vector-icons";
 import { fmtAgo } from "../utils/timeFormatter";
 
-export default function Accepted({ orders = [], onComplete }) {
+export default function Accepted({ orders = [], onComplete, onDelete }) {
   const { colors } = useContext(ThemeContext);
   const [nowTick, setNowTick] = useState(Date.now());
 
@@ -30,10 +30,9 @@ export default function Accepted({ orders = [], onComplete }) {
               >Purchased {fmtAgo(order?.placedAt || order?.createdAt)}</Text>
 
               <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1,
-                marginVertical: 5
+                marginVertical: 4
                }} />
 
-              <View style={{ flexDirection: "row", marginTop: 10, alignItems: "center", justifyContent: "space-between" }}>
                 <View style={{ flexDirection: "row", gap: 5 }}>
                   <MaterialCommunityIcons name="account" size={20} />
                   <Text style={{ fontSize: 13, fontFamily:"Medium",
@@ -41,10 +40,14 @@ export default function Accepted({ orders = [], onComplete }) {
                    }}>{customerName}</Text>
                 </View>
 
-                <TouchableOpacity style={[styles.button, { backgroundColor: "#f5b849" }]} onPress={() => onComplete?.(order)}>
-                  <Text style={styles.buttonText}>Complete Order</Text>
-                </TouchableOpacity>
-              </View>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginVertical: 8, alignSelf:"flex-end" }}>
+                  <TouchableOpacity style={[styles.button, { backgroundColor: "#f5b849" }]} onPress={() => onComplete?.(order)}>
+                    <Text style={styles.buttonText}>Complete Order</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.deleteButton} onPress={() => onDelete?.(order?._id || order?.id)}>
+                    <Feather name="trash-2" size={16} color="#b71c1c" />
+                  </TouchableOpacity>
+                </View>
 
             </View>
           );
@@ -85,5 +88,13 @@ const styles = StyleSheet.create({
     fontFamily:"Medium",
     lineHeight: Math.round(14 * 1.5),
     fontSize: 14
+  }
+  ,deleteButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "transparent"
   }
 });

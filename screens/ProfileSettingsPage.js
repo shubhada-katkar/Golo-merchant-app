@@ -36,6 +36,7 @@ export default function ProfileSettingsPage({ navigation }) {
   const [email, setEmail] = useState("");
   const [shopName, setShopName] = useState("");
   const [profileImage, setProfileImage] = useState(null);
+  const [profileImageError, setProfileImageError] = useState(false);
   const [pass, setpass] = useState(false);
 
   const [newPassword, setNewPassword] = useState("");
@@ -87,25 +88,34 @@ export default function ProfileSettingsPage({ navigation }) {
   }, []);
 
   const normalizeImageUrl = (value) => {
-    if (!value || typeof value !== "string") return null;
+    if (!value) return null;
+
+    if (typeof value === "object") {
+      if (typeof value.uri === "string" && value.uri) return normalizeImageUrl(value.uri);
+      if (typeof value.url === "string" && value.url) return normalizeImageUrl(value.url);
+      if (typeof value.path === "string" && value.path) return normalizeImageUrl(value.path);
+      return null;
+    }
+
+    if (typeof value !== "string") return null;
     const trimmed = value.trim();
     if (!trimmed) return null;
-    
+
     // Handle data URLs and base64 strings
     if (trimmed.startsWith("data:") || trimmed.startsWith("base64,")) {
       return trimmed;
     }
-    
+
     // Handle protocol-relative URLs
     if (trimmed.startsWith("//")) return `https:${trimmed}`;
-    
-    // Handle regular URLs - don't encode if it's already a valid URL
-    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+
+    // Handle regular URLs
+    if (/^https?:\/\//i.test(trimmed)) {
       return trimmed;
     }
-    
-    // For other cases, assume it's a relative path
-    return trimmed;
+
+    // Handle relative backend paths by prefixing the API base URL
+    return `${BASE_URL.replace(/\/$/, "")}/${trimmed.replace(/^\//, "")}`;
   };
 
   const getLeafletMapHtml = (latitude, longitude) => {
@@ -195,7 +205,7 @@ export default function ProfileSettingsPage({ navigation }) {
       const mergedName = merchantData?.storeName || merchantData?.name || "";
       const mergedEmail = merchantData?.storeEmail || merchantData?.email || "";
       const mergedNumber = merchantData?.contactNumber || merchantData?.phone || "";
-      const mergedImage = merchantData?.profilePhoto || null;
+      const mergedImage = merchantData?.profilePhoto || merchantData?.image || merchantData?.profilePhotoUrl || merchantData?.photo || null;
       const mergedStoreAddress = merchantData?.storeLocation || merchantData?.address || "";
       const mergedLatitude = merchantData?.storeLocationLatitude ?? merchantData?.latitude ?? null;
       const mergedLongitude = merchantData?.storeLocationLongitude ?? merchantData?.longitude ?? null;
@@ -215,7 +225,14 @@ export default function ProfileSettingsPage({ navigation }) {
       if (mergedImage) {
         const normalizedImage = normalizeImageUrl(mergedImage);
         console.log("Normalized image URL:", normalizedImage);
-        setProfileImage(normalizedImage);
+        if (normalizedImage) {
+          setProfileImage(normalizedImage);
+          setProfileImageError(false);
+        } else {
+          setProfileImage(null);
+        }
+      } else {
+        setProfileImage(null);
       }
 
       if (mergedLatitude === null || mergedLongitude === null) {
@@ -481,6 +498,7 @@ export default function ProfileSettingsPage({ navigation }) {
     if (!result.canceled) {
       const uri = result.assets[0].uri;
       setProfileImage(uri);
+      setProfileImageError(false);
       await uploadProfileImage(uri); // ✅ pass fresh URI
     }
   };
@@ -546,13 +564,16 @@ export default function ProfileSettingsPage({ navigation }) {
       }
 
       // Backend returns { success: true, data: { merchant_object } }
-      const uploadedImageUrl = data?.data?.profilePhoto || null;
+      const uploadedImageUrl = data?.data?.profilePhoto || data?.profilePhoto || null;
       console.log("Profile photo updated, URL:", uploadedImageUrl);
       
       if (uploadedImageUrl) {
         const normalizedImage = normalizeImageUrl(uploadedImageUrl);
         console.log("Normalized uploaded image:", normalizedImage);
-        setProfileImage(normalizedImage);
+        if (normalizedImage) {
+          setProfileImage(normalizedImage);
+          setProfileImageError(false);
+        }
       }
       
       await loadProfile();
@@ -592,11 +613,15 @@ export default function ProfileSettingsPage({ navigation }) {
               <View style={{ position: "relative" }}>
                 <Image
                   source={
-                    profileImage
-                      ? { uri: profileImage }
-                      : require("../assets/profile.png")
+                    !profileImage || profileImageError
+                      ? require("../assets/profile.png")
+                      : { uri: profileImage }
                   }
                   style={styles.profileImage}
+                  onError={(event) => {
+                    console.log("Profile image load failed:", event.nativeEvent?.error || event.nativeEvent);
+                    setProfileImageError(true);
+                  }}
                 />
                 <View style={styles.cameraIcon}>
                   <MaterialIcons name="camera-alt" size={20} color="#ffffff" />
@@ -679,14 +704,18 @@ export default function ProfileSettingsPage({ navigation }) {
           {/* BUTTONS */}
           <View style={{ padding: 20, gap: 15 }}>
             <TouchableOpacity style={styles.button} onPress={saveProfile}>
-              <Text style={{ fontSize: 18 }}>Save Details</Text>
+              <Text style={{ fontSize: 16, fontFamily: "Medium",
+                lineHeight: Math.round(16 * 1.4)
+               }}>Save Details</Text>
             </TouchableOpacity>
           </View>
 
           {!pass ? (
             <View style={{ paddingHorizontal: 20, gap: 15 }}>
               <TouchableOpacity style={styles.button} onPress={() => setpass(true)}>
-                <Text style={{ fontSize: 18 }}>Reset Password</Text>
+                <Text style={{ fontSize: 16, fontFamily: "Medium",
+                  lineHeight: Math.round(16 * 1.4)
+                 }}>Reset Password</Text>
               </TouchableOpacity>
             </View>) : (
             <>
@@ -716,7 +745,9 @@ export default function ProfileSettingsPage({ navigation }) {
                   style={[styles.button, { flex:1}]}
                 >
 
-                  <Text style={{ fontSize: 18 }}>
+                  <Text style={{ fontSize: 16, fontFamily: "Medium",
+                    lineHeight: Math.round(16 * 1.4)
+                   }}>
                     {loadingPass ? "Updating..." : "Done"}
                   </Text>
                 </TouchableOpacity>
@@ -725,7 +756,9 @@ export default function ProfileSettingsPage({ navigation }) {
                   onPress={() => setpass(false)}
                   style={[styles.button, { flex:1}]}
                 >
-                  <Text style={{ fontSize: 18 }}>Cancel</Text>
+                  <Text style={{ fontSize: 16, fontFamily: "Medium",
+                    lineHeight: Math.round(16 * 1.4)
+                   }}>Cancel</Text>
                 </TouchableOpacity>
 
                 </View>
@@ -738,7 +771,9 @@ export default function ProfileSettingsPage({ navigation }) {
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Store Location</Text>
                 <TouchableOpacity onPress={closeLocationModal} style={styles.modalCloseButton}>
-                  <Text style={[styles.modalCloseText, { color: colors.text }]}>Cancel</Text>
+                  <Text style={{ fontSize: 16, fontFamily: "Medium",
+                    lineHeight: Math.round(16 * 1.4), color: "#d32b2b"
+                   }}>Cancel</Text>
                 </TouchableOpacity>
               </View>
 
@@ -804,18 +839,20 @@ export default function ProfileSettingsPage({ navigation }) {
 
 const styles = StyleSheet.create({
   row1: { flexDirection: "row", alignItems: "center", padding: 12 },
-  title: { fontSize: 22, marginLeft: 6 },
+  title: { fontSize: 20, marginLeft: 6, lineHeight: Math.round(20 * 1.4), fontFamily: "Medium" },
   divider: { height: 1 },
   row2: { flexDirection: "row", alignItems: "center", padding: 14 },
   profileImage: { width: 120, height: 120, borderRadius: 60 },
-  text: { fontSize: 18, marginTop: 18 },
+  text: { fontSize: 16, marginTop: 18, lineHeight: Math.round(16 * 1.4), fontFamily: "Medium" },
   input: {
     backgroundColor: "#dad8d8",
     borderRadius: 10,
     borderWidth: 1,
     borderColor: "#6b6a6a",
     padding: 10,
-    fontSize: 16
+    fontSize: 13,
+    fontFamily: "Medium",
+    marginTop: 6,
   },
   button: {
     backgroundColor: "#f5b849",
@@ -824,12 +861,13 @@ const styles = StyleSheet.create({
     alignItems: "center"
   },
   shopNameInput: {
-    fontSize: 26,
+    fontSize: 24,
     marginLeft: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#6b6a6a",
     paddingVertical: 2,
     minWidth: 140,
+    fontFamily: "Medium",
   },
   passcard: {
     padding: 16,
@@ -864,12 +902,16 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   locationPreviewText: {
-    fontSize: 16,
+    fontSize: 13,
+    fontFamily: "Medium",
+    lineHeight: Math.round(13 * 1.4),
     fontWeight: "600",
   },
   locationPreviewAction: {
     marginTop: 4,
-    fontSize: 14,
+    fontSize: 13,
+    fontFamily: "Medium",
+    lineHeight: Math.round(13 * 1.4),
     fontWeight: "500",
   },
   modalContainer: {
@@ -883,14 +925,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   modalTitle: {
-    fontSize: 22,
-    fontWeight: "700",
+    fontSize: 18,
+    fontFamily: "Medium",
+    lineHeight: Math.round(18 * 1.4),
   },
   modalCloseButton: {
     padding: 10,
-  },
-  modalCloseText: {
-    fontSize: 16,
   },
   searchContainer: {
     flexDirection: "row",
@@ -903,7 +943,8 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     paddingVertical: 10,
-    fontSize: 16,
+    fontSize: 14,
+    fontFamily: "Medium",
   },
   searchResults: {
     maxHeight: 180,
@@ -916,6 +957,8 @@ const styles = StyleSheet.create({
   },
   searchResultText: {
     fontSize: 16,
+    fontFamily: "Medium",
+    lineHeight: Math.round(16 * 1.4),
   },
   modalMapContainer: {
     flex: 1,
@@ -929,8 +972,10 @@ const styles = StyleSheet.create({
     height: Dimensions.get("window").height * 0.42,
   },
   modalNote: {
-    fontSize: 16,
+    fontSize: 14,
     marginBottom: 16,
+    fontFamily: "Medium",
+    lineHeight: Math.round(14 * 1.4),
   },
   modalActions: {
     flexDirection: "row",
@@ -948,8 +993,9 @@ const styles = StyleSheet.create({
   },
   modalButtonText: {
     color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: 14,
+    fontFamily: "Medium",
+    lineHeight: Math.round(14 * 1.4),
   },
   cameraIcon: {
     position: "absolute",

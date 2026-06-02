@@ -5,7 +5,7 @@ import { ThemeContext } from "../theme/ThemeContext";
 import { Entypo, FontAwesome5, MaterialCommunityIcons, Feather } from "@expo/vector-icons";
 import { fmtAgo } from "../utils/timeFormatter";
 
-export default function All({ orders = [], onStatusChange }) {
+export default function All({ orders = [], onStatusChange, onDelete }) {
   const { colors } = useContext(ThemeContext);
 
   // Tick state to force periodic re-render so relative times update in real-time
@@ -35,42 +35,61 @@ export default function All({ orders = [], onStatusChange }) {
                 }}
                 >Purchased {fmtAgo(order?.placedAt || order?.createdAt)}</Text>
 
-              <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1 }} />
+              <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1, marginVertical: 4 }} />
 
-              <View style={{ flexDirection: "row", marginTop: 10, alignItems: "center", justifyContent: "space-between" }}>
-                <View style={{ flexDirection: "row", gap: 5 }}>
+                <View style={{ flexDirection: "row", gap: 5, 
+                   flex: 1,  marginRight: 10, alignItems: "center"  }}>
                   <MaterialCommunityIcons name="account" size={20} />
-                  <Text style={{ fontSize: 13, fontFamily:"Medium", lineHeight: Math.round(13 * 1.5)
-                  }}
+                  <Text style={{ fontSize: 13, fontFamily:"Medium", lineHeight: Math.round(13 * 1.5),
+                  flexShrink: 1
+                  }} numberOfLines={1}  ellipsizeMode="tail"
                   >{customerName}</Text>
                 </View>
 
                 {isPending ? (
-                  <View style={{ flexDirection: "row", gap: 10 }}>
-                    <TouchableOpacity style={[styles.button, { backgroundColor: "#df5454" }]} onPress={() => onStatusChange?.(id, "rejected")}>
+                  <View style={{ flexDirection: "row", gap: 10, marginVertical: 8, alignSelf:"flex-end"}}>
+                    <TouchableOpacity style={[styles.button, { backgroundColor: "#df5454" }]} onPress={() => onStatusChange?.(id, "rejected") }>
                       <Entypo name="cross" size={16} color="white" />
                       <Text style={styles.text}>Reject</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={[styles.button, { backgroundColor: "#157a4f" }]} onPress={() => onStatusChange?.(id, "accepted")}>
+                    <TouchableOpacity style={[styles.button, { backgroundColor: "#157a4f" }]} onPress={() => onStatusChange?.(id, "accepted") }>
                       <Feather name="check" size={16} color="white" />
                       <Text style={styles.text}>Accept</Text>
                     </TouchableOpacity>
+                    <TouchableOpacity style={styles.deleteButton} onPress={() => onDelete?.(id)}>
+                      <Feather name="trash-2" size={16} color="#b71c1c" />
+                    </TouchableOpacity>
                   </View>
                 ) : status === "accepted" ? (
-                  <TouchableOpacity style={[styles.button, { backgroundColor: "#f5b849" }]}>
-                    <Text style={styles.acceptedButtonText}>Accepted</Text>
-                  </TouchableOpacity>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginVertical: 8, alignSelf:"flex-end" }}>
+                    <TouchableOpacity style={[styles.button, { backgroundColor: "#f5b849" }]}> 
+                      <Text style={styles.acceptedButtonText}>Accepted</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.deleteButton} onPress={() => onDelete?.(id)}>
+                      <Feather name="trash-2" size={16} color="#b71c1c" />
+                    </TouchableOpacity>
+                  </View>
                 ) : status === "completed" ? (
-                  <TouchableOpacity style={[styles.button, { backgroundColor: "#32a3388e", borderWidth: 1, borderColor: "#1549268e", flexDirection: "row", gap: 6 }]}>
-                    <Feather name="check-circle" size={16} color="#154926" />
-                    <Text style={styles.completedButtonText}>Completed</Text>
-                  </TouchableOpacity>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginVertical: 8, alignSelf:"flex-end" }}>
+                    <TouchableOpacity style={[styles.button, { backgroundColor: "#32a3388e", borderWidth: 1, borderColor: "#1549268e", flexDirection: "row", gap: 6 }]}> 
+                      <Feather name="check-circle" size={16} color="#154926" />
+                      <Text style={styles.completedButtonText}>Completed</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.deleteButton} onPress={() => onDelete?.(id)}>
+                      <Feather name="trash-2" size={16} color="#b71c1c" />
+                    </TouchableOpacity>
+                  </View>
                 ) : (
-                  <TouchableOpacity style={[styles.button, { backgroundColor: "#dadada" }]}>
-                    <Text style={styles.text}>{order?.status || "Updated"}</Text>
-                  </TouchableOpacity>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginVertical: 8, alignSelf:"flex-end" }}>
+                    <TouchableOpacity style={[styles.button, { backgroundColor: "#dadada" }]}> 
+                      <Text style={styles.text}>{(order?.status || "Updated").toString().charAt(0).toUpperCase() + (order?.status || "").toString().slice(1) || "Updated"}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.deleteButton} onPress={() => onDelete?.(id)}>
+                      <Feather name="trash-2" size={16} color="#b71c1c" />
+                    </TouchableOpacity>
+                  </View>
                 )}
-              </View>
+
             </View>
           );
         })}
@@ -125,5 +144,13 @@ const styles = StyleSheet.create({
     fontFamily: "Medium",
     lineHeight: Math.round(14 * 1.5),
     fontSize: 14
+  }
+  ,deleteButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "transparent"
   }
 });

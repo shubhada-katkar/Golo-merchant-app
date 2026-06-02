@@ -10,26 +10,12 @@ import { useFocusEffect } from "@react-navigation/native";
 import { BASE_URL } from "../config";
 
 import Total from "../productlistcomponents/Total";
-import Draft from "../productlistcomponents/Draft";
-import Publish from "../productlistcomponents/Publish";
 
 export default function ProductListPage({ navigation }) {
   const { colors } = useContext(ThemeContext);
 
-  const [activeTab, setActiveTab] = useState("Total");
   const [searchText, setSearchText] = useState("");
   const [products, setProducts] = useState([]); // ✅ SINGLE SOURCE OF TRUTH
-
-  const normalizePublicationStatus = (item) => {
-    const publicationStatus = String(item?.publicationStatus || "").toLowerCase().trim();
-    const status = String(item?.status || "").toLowerCase().trim();
-
-    if (publicationStatus === "draft" || publicationStatus === "published") return publicationStatus;
-    if (status === "inactive") return "draft";
-    if (status === "active") return "published";
-    if (status === "draft" || status === "published") return status;
-    return "published";
-  };
 
   const normalizeProduct = (item) => ({
     _id: item?.productId || item?._id || item?.id,
@@ -39,9 +25,6 @@ export default function ProductListPage({ navigation }) {
     description: item?.description || "",
     price: Number(item?.price || item?.regularPrice || 0),
     stockQuantity: Number(item?.stockQuantity ?? item?.stock ?? 0),
-    status: normalizePublicationStatus(item),
-    rawStatus: item?.status || "",
-    publicationStatus: item?.publicationStatus || "",
     image: (() => {
       const img =
         item?.image ||
@@ -125,14 +108,6 @@ export default function ProductListPage({ navigation }) {
   // ================= DERIVED COUNTS (REAL TIME) =================
   const totalCount = products.length;
 
-  const publishCount = products.filter(
-    (p) => p.status === "published"
-  ).length;
-
-  const draftCount = products.filter(
-    (p) => p.status === "draft"
-  ).length;
-
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <Topbar />
@@ -142,39 +117,19 @@ export default function ProductListPage({ navigation }) {
         <TouchableOpacity onPress={() => navigation.navigate("HomePage")}>
           <MaterialIcons
             name="arrow-back-ios"
-            size={28}
+            size={26}
             color={colors.text}
             style={{ padding: 10 }}
           />
         </TouchableOpacity>
-        <Text style={{ fontSize: 22, color: colors.text }}>
+        <Text style={{ fontSize: 20, color: colors.text, fontFamily:"Medium",
+          lineHeight: Math.round(20 * 1.5)
+         }}>
           Product List
         </Text>
       </View>
 
       <View style={{ height: 1, backgroundColor: colors.divider }} />
-
-      {/* Tabs */}
-      <View style={styles.row2}>
-        <Tab
-          title="Total"
-          count={totalCount}
-          active={activeTab === "Total"}
-          onPress={() => setActiveTab("Total")}
-        />
-        <Tab
-          title="Publish"
-          count={publishCount}
-          active={activeTab === "Publish"}
-          onPress={() => setActiveTab("Publish")}
-        />
-        <Tab
-          title="Draft"
-          count={draftCount}
-          active={activeTab === "Draft"}
-          onPress={() => setActiveTab("Draft")}
-        />
-      </View>
 
       {/* Search */}
       <View style={styles.search}>
@@ -182,34 +137,15 @@ export default function ProductListPage({ navigation }) {
           placeholder="Search product..."
           value={searchText}
           onChangeText={setSearchText}
-          style={{ fontSize: 16 }}
+          style={{ fontSize: 16, fontFamily:"Medium", }}
         />
       </View>
 
-      {/* Content */}
-      {activeTab === "Total" && (
-        <Total
-          products={products}
-          setProducts={setProducts}
-          searchText={searchText}
-        />
-      )}
-
-      {activeTab === "Publish" && (
-        <Publish
-          products={products}
-          setProducts={setProducts}
-          searchText={searchText}
-        />
-      )}
-
-      {activeTab === "Draft" && (
-        <Draft
-          products={products}
-          setProducts={setProducts}
-          searchText={searchText}
-        />
-      )}
+<Total
+  products={products}
+  setProducts={setProducts}
+  searchText={searchText}
+/>
 
       <SafeAreaView
         edges={["bottom"]}
@@ -221,48 +157,17 @@ export default function ProductListPage({ navigation }) {
   );
 }
 
-/* ---------------- UI Helpers ---------------- */
-const Tab = ({ title, count, active, onPress }) => (
-  <TouchableOpacity
-    onPress={onPress}
-    style={[styles.row2button, active && styles.ActiveTab]}
-  >
-    <Text style={styles.row2text}>{title}</Text>
-    <Text style={styles.number}>{count}</Text>
-  </TouchableOpacity>
-);
-
 const styles = StyleSheet.create({
   row1: {
     flexDirection: "row",
     alignItems: "center",
     padding: 14,
   },
-  row2: {
-    flexDirection: "row",
-    padding: 12,
-    gap: 8,
-  },
-  row2button: {
-    flex: 1,
-    borderRadius: 20,
-    backgroundColor: "#b8b5b5",
-    paddingVertical: 16,
-    alignItems: "center",
-  },
-  ActiveTab: {
-    backgroundColor: "#979797",
-    borderWidth: 1,
-    borderColor: "#535353",
-  },
-  row2text: {
-    fontSize: 16,
-    color: "white",
-    fontWeight: "600",
-  },
   number: {
-    fontSize: 20,
+    fontSize: 18,
     color: "#303030",
+    lineHeight: Math.round(18 * 1.5),
+    fontFamily:"Medium",
   },
   search: {
     backgroundColor: "white",

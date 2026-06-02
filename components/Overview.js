@@ -286,8 +286,12 @@ export default function Overview() {
                         return (
                             <TouchableOpacity key={idx} style={[styles.card2, styles.orderCard]} onPress={() => navigation.navigate("OrderDetailPage", { order: o })}>
                                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 10 }}>
-                                    <Text style={{ paddingTop: 4, color: '#4b5563' }}>{offer}</Text>
-                                    <Text style={{ fontSize: 12, color: '#000000' }}>{timeAgo(placed)}</Text>
+                                    <Text style={{ paddingTop: 4, color: '#4b5563', fontSize:12,
+                                        lineHeight: Math.round(12 * 1.5), fontFamily: "Medium"
+                                     }}>{offer}</Text>
+                                    <Text style={{ fontSize: 12, color: '#000000', 
+                                        lineHeight: Math.round(12 * 1.5), fontFamily: "Medium"
+                                     }}>{timeAgo(placed)}</Text>
                                 </View>
 
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap:5, paddingHorizontal: 10}}>
@@ -304,12 +308,6 @@ export default function Overview() {
                         </Text>
                     </View>
                 )}
-
-                {/* <TouchableOpacity onPress={() => navigation.navigate("Orders")}>
-                    <Text style={{fontSize:13, lineHeight: Math.round(12 * 1.5),
-                        fontFamily: "Medium", color: "#157a4f", alignSelf:"center", marginTop:6
-                    }}>Tap to see more</Text>
-                </TouchableOpacity> */}
 
                     <Text style={[styles.text, { color: colors.text }]}>Reviews</Text>                   
 
@@ -337,7 +335,9 @@ export default function Overview() {
                                  }}>
                                     {item.userName || item.userEmail || "Customer"}
                                 </Text>
-                                <Text style={{ paddingHorizontal: 10, paddingTop: 4, color: "#4b5563" }}>
+                                <Text style={{ paddingHorizontal: 10, paddingTop: 4, color: "#4b5563",
+                                    fontSize: 12, fontFamily: "Medium", lineHeight: Math.round(12 * 1.5)
+                                 }}>
                                     {item.content || "No review text provided."}
                                 </Text>
                                 {item.createdAt ? (

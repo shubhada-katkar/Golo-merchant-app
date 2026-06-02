@@ -8,6 +8,7 @@ import { enrichOrderDetails, fetchVoucherDetails } from "../services/orderServic
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
 import {ThemeContext} from "../theme/ThemeContext";
+import { MaterialIcons } from "@expo/vector-icons";
 
 const formatDateTime = (value) => {
   const date = value ? new Date(value) : new Date();
@@ -244,15 +245,26 @@ export default function OrderDetailPage() {
      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
                 <Topbar />
 
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 100 }]}> 
-        <View style={styles.headerRow}>
-          <View>
-            <Text style={styles.headerTitle}>Order Details</Text>
-          </View>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
-            <Text style={styles.closeText}>Back</Text>
-          </TouchableOpacity>
+        <View style={styles.row1}>
+            <TouchableOpacity onPress={() => navigation.navigate("HomePage")}> 
+                    <View style={{ justifyContent: 'center' }}>
+                        <MaterialIcons
+                            name="arrow-back-ios"
+                            size={26}
+                            color={colors.text}
+                            style={{ padding: 10 }}
+                        />
+                    </View>
+                </TouchableOpacity>
+
+                <Text style={{ fontSize: 20, color: colors.text, lineHeight: Math.round(20 * 1.2), flex: 1,
+                    fontFamily: "Medium"
+                 }}>Order Details</Text>
         </View>
+
+        <View style={{ height: 1, backgroundColor: colors.divider, marginBottom: 10 }} />
+
+        <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 100 }]}> 
 
         <View style={styles.card}>
           <Text style={styles.label}>Offer Name</Text>
@@ -362,6 +374,11 @@ export default function OrderDetailPage() {
 }
 
 const styles = StyleSheet.create({
+  row1: {
+        alignItems: "center",
+        flexDirection: "row",
+        paddingHorizontal: 14
+    },
   container: {
     flex: 1,
     backgroundColor: "#f7f7f7",
@@ -377,9 +394,9 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontFamily: "Medium",
-    lineHeight: Math.round(24 * 1.5),
+    lineHeight: Math.round(20 * 1.5),
   },
   closeButton: {
     backgroundColor: "#157a4f",
@@ -411,9 +428,9 @@ const styles = StyleSheet.create({
     lineHeight: Math.round(14 * 1.5)
   },
   value: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: "Medium",
-    lineHeight: Math.round(16 * 1.5),
+    lineHeight: Math.round(14 * 1.5),
     color: "#222",
   },
   actionButton: {
@@ -427,6 +444,8 @@ const styles = StyleSheet.create({
   actionText: {
     color: 'white',
     fontFamily: 'Medium',
+    fontSize: 14,
+    lineHeight: Math.round(14 * 1.5),
   },
   codeInputSection: {
     marginTop: 16,
@@ -437,10 +456,11 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb',
   },
   codeInputLabel: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: 'SemiBold',
     marginBottom: 12,
     color: '#111827',
+    lineHeight: Math.round(14 * 1.5),
   },
   codeInput: {
     borderWidth: 1,
@@ -474,16 +494,12 @@ const styles = StyleSheet.create({
     color: 'white',
     fontFamily: 'SemiBold',
     fontSize: 14,
+    lineHeight: Math.round(14 * 1.5),
   },
   cancelButtonText: {
     color: '#111827',
     fontFamily: 'SemiBold',
     fontSize: 14,
-  },
-  helpText: {
-    fontSize: 13,
-    color: '#444',
-    marginVertical: 10,
-    fontFamily: 'Medium',
+    lineHeight: Math.round(14 * 1.5),
   },
 });

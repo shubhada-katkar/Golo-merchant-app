@@ -180,7 +180,9 @@ export default function Login({ navigation }) {
 
       <View style={styles.centerContainer}>
 
-        <Text style={{ fontSize: width * 0.07, color: "#ffffff" }}>
+        <Text style={{ fontSize: width * 0.06, color: "#ffffff",
+          lineHeight:Math.round(width * 0.06 * 1.5), fontFamily:"SemiBold"
+         }}>
           Login To Your Account</Text>
 
         <View style={styles.card}>
@@ -197,7 +199,9 @@ export default function Login({ navigation }) {
 
               <Text style={styles.text}>Password</Text>
               <View style={styles.inputpassword}>
-                <TextInput style={{ fontSize: 16, flex: 1 }}
+                <TextInput style={{ fontSize: 16, flex: 1,
+                  fontFamily:"Medium"
+                 }}
                   placeholder="Enter password"
                   secureTextEntry={!visiblepass}
                   value={password}
@@ -219,7 +223,9 @@ export default function Login({ navigation }) {
                 style={[styles.button, loading && { opacity: 0.6 }]}
                 disabled={loading}
               >
-                <Text style={{ color: "white", fontSize: 18 }}>
+                <Text style={{ color: "white", fontSize: 18,
+                  fontFamily:"Medium", lineHeight:Math.round(18*1.5)
+                 }}>
                   {loading ? "Logging in..." : "Login"}
                 </Text>
               </TouchableOpacity>
@@ -246,7 +252,9 @@ export default function Login({ navigation }) {
                   onPress={handleSendOtp}
                   disabled={otpCooldown > 0 || otpLoading}>
 
-                  <Text style={{ color: "white", fontSize: 18 }}>
+                  <Text style={{ color: "white", fontSize: 18,
+                    fontFamily:"Medium", lineHeight:Math.round(18*1.5)
+                   }}>
                     {otpLoading
                       ? "Sending..."
                       : otpCooldown > 0
@@ -277,7 +285,9 @@ export default function Login({ navigation }) {
                       onPress={handleVerifyOtp}
                       disabled={verifyLoading}
                     >
-                      <Text style={{ color: "white" }}>
+                      <Text style={{ color: "white", fontSize: 18,
+                        fontFamily:"Medium", lineHeight:Math.round(18*1.5)
+                       }}>
                         {verifyLoading ? "Verifying..." : "Verify"}
                       </Text>
                     </TouchableOpacity>
@@ -289,14 +299,20 @@ export default function Login({ navigation }) {
         {!forgotMode ? (
           <>
             <View style={{ alignItems: "center", flexDirection: "row", marginTop: 10 }}>
-              <Text style={{ fontSize: 18 }}>Don't Have An Account?</Text>
+              <Text style={{ fontSize: 16,
+                fontFamily:"Medium", lineHeight:Math.round(16*1.5)
+               }}>
+                Don't Have An Account?
+              </Text>
               <TouchableOpacity onPress={() => navigation.navigate("Registration")}>
                 <Text style={styles.link}>Register Here</Text>
               </TouchableOpacity>
             </View>
 
             <View style={{ alignItems: "center", flexDirection: "row", marginTop: 10 }}>
-              <Text style={{ fontSize: 18 }}>Forgot Password?</Text>
+              <Text style={{ fontSize: 16,
+                fontFamily:"Medium", lineHeight:Math.round(16*1.5)
+               }}>Forgot Password?</Text>
               <TouchableOpacity onPress={() => {
                 setForgotMode(true);
                 setPassword("");
@@ -339,28 +355,28 @@ const styles = StyleSheet.create({
 
   text: {
     fontSize: width * 0.048,
+    fontFamily:"Medium", 
+    lineHeight:Math.round(width * 0.048 * 1.5)
   },
 
   input: {
-    backgroundColor: "#ffffff",
     borderRadius: 10,
     paddingHorizontal: 12,
-    height: 48,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: "#000000"
+    borderColor: "#000000",
+    fontFamily:"Medium"
   },
 
   otpInput: {
-    backgroundColor: "#ffffff",
     borderRadius: 10,
     paddingHorizontal: 12,
-    height: 48,
     flex: 1,
     fontSize: 16,
     marginRight: 8,
     borderWidth: 1,
-    borderColor: "#000000"
+    borderColor: "#000000",
+    fontFamily:"Medium",
   },
 
   button: {
@@ -378,9 +394,11 @@ const styles = StyleSheet.create({
   },
 
   link: {
-    fontSize: 18,
+    fontSize: 16,
     color: "#4caf50",
-    paddingHorizontal: 10
+    paddingHorizontal: 10,
+    fontFamily:"Medium", 
+    lineHeight:Math.round(16*1.5)
   },
   inputpassword: {
     flexDirection: "row",
@@ -388,10 +406,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
     borderRadius: 10,
     paddingLeft: 12,
-    height: 48,
     justifyContent: "space-between",
     borderWidth: 1,
-    borderColor: "#000000"
+    borderColor: "#000000",
+    fontFamily:"Medium"
   },
   centerContainer: {
     position: "absolute",

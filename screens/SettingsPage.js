@@ -83,9 +83,11 @@ export default function SettingsPage({ navigation }) {
 
             <View style={styles.row1}>
                 <TouchableOpacity onPress={() => navigation.goBack("ProfilePage")}>
-                    <MaterialIcons name="arrow-back-ios" size={28} style={{ padding: 10 }} color={colors.text} />
+                    <MaterialIcons name="arrow-back-ios" size={26} style={{ padding: 10 }} color={colors.text} />
                 </TouchableOpacity>
-                <Text style={{ fontSize: 22, paddingLeft: 5, color: colors.text }}>
+                <Text style={{ fontSize: 20, paddingLeft: 5, color: colors.text,
+                  lineHeight: Math.round(20 * 1.2), fontFamily: "Medium", flex: 1
+                 }}>
                     Settings
                 </Text>
 
@@ -155,8 +157,10 @@ const styles = StyleSheet.create({
         alignItems: "center"
     },
     text: {
-        fontSize: 20,
-        paddingHorizontal: 8
+        fontSize: 18,
+        paddingHorizontal: 8,
+        fontFamily: "Medium",
+        lineHeight: Math.round(18 * 1.2),
     },
     dropdown: {
         position: "absolute",

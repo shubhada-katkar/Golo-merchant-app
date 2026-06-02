@@ -57,25 +57,20 @@ export default function ProfilePage({ navigation }) {
 
             <View style={styles.row1}>
                 <TouchableOpacity onPress={() => navigation.navigate("HomePage")}>
-                    <MaterialIcons name="arrow-back-ios" size={28} color={colors.text} style={{ padding: 10 }} />
+                    <MaterialIcons name="arrow-back-ios" size={26} color={colors.text} style={{ padding: 10 }} />
                 </TouchableOpacity>
-                <Text style={{ fontSize: 22, paddingLeft: 5, color: colors.text }}>Profile</Text>
+                <Text style={{ fontSize: 20, paddingLeft: 5, color: colors.text,
+                    lineHeight: Math.round(20 * 1.2), fontFamily: "Medium", flex: 1
+                 }}>Profile</Text>
             </View>
 
             <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1, color: colors.divider }} />
 
             <View style={styles.row2}>
                 <Image source={profileImage} style={styles.image} />
-                <Text style={{ fontSize: 26, paddingHorizontal: 16, color: colors.text }}>{shopName}</Text>
-            </View>
-
-            <View style={{ paddingHorizontal: 40, paddingVertical: 6 }}>
-                <TouchableOpacity style={styles.switch}>
-                    <View style={{ flexDirection: "row" }}>
-                        <MaterialCommunityIcons name="account-switch-outline" size={20} />
-                        <Text style={{ fontSize: 14, paddingHorizontal: 5 }}>Switch To Customer</Text>
-                    </View>
-                </TouchableOpacity>
+                <Text style={{ fontSize: 24, paddingHorizontal: 16, color: colors.text,
+                    lineHeight: Math.round(24 * 1.2), fontFamily: "SemiBold", flex: 1
+                 }}>{shopName}</Text>
             </View>
 
             <View style={{ paddingTop: 30 }}>
@@ -140,7 +135,9 @@ const styles = StyleSheet.create({
         alignItems: "center"
     },
     text: {
-        fontSize: 20,
+        fontSize: 18,
         paddingHorizontal: 8,
+        lineHeight: Math.round(18 * 1.2),
+        fontFamily: "Medium"
     },
 });

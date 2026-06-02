@@ -172,9 +172,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   reviewText: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 12,
+    lineHeight: Math.round(12 * 1.5),
     color: "#374151",
+    fontFamily:"Medium"
   },
   reviewDate: {
     marginTop: 12,

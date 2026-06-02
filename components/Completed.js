@@ -4,7 +4,7 @@ import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useContext } from "react";
 import { ThemeContext } from "../theme/ThemeContext";
 
-export default function Completed({ orders = [] }) {
+export default function Completed({ orders = [], onDelete }) {
   const { colors } = useContext(ThemeContext);
   const [nowTick, setNowTick] = useState(Date.now());
 
@@ -29,10 +29,9 @@ export default function Completed({ orders = [] }) {
               >Order Completed Successfully</Text>            
             
               <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1,
-                marginVertical: 5
+                marginVertical: 4
                }} />
 
-              <View style={{ flexDirection: "row", marginTop: 10, alignItems: "center", justifyContent: "space-between" }}>
                 <View style={{ flexDirection: "row", gap: 5 }}>
                   <MaterialCommunityIcons name="account" size={20} />
                   <Text style={{fontFamily:"Medium",
@@ -40,12 +39,16 @@ export default function Completed({ orders = [] }) {
                   }}>{customerName}</Text>
                 </View>
 
-                <TouchableOpacity style={[styles.button, { backgroundColor: "#32a3388e" }]}> 
-                  <Feather name="check-circle" size={16} color="#154926" />
-                  <Text style={styles.buttonText}>Completed</Text>
-                </TouchableOpacity>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginVertical: 8, alignSelf:"flex-end" }}>
+                  <TouchableOpacity style={[styles.button, { backgroundColor: "#32a3388e" }]}> 
+                    <Feather name="check-circle" size={16} color="#154926" />
+                    <Text style={styles.buttonText}>Completed</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.deleteButton} onPress={() => onDelete?.(order?._id || order?.id)}>
+                    <Feather name="trash-2" size={16} color="#b71c1c" />
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
           );
         })}
         {orders.length === 0 ? <Text style={{ textAlign: "center", marginTop: 24 }}>No completed orders</Text> : null}
@@ -88,5 +91,13 @@ const styles = StyleSheet.create({
     fontFamily:"Medium",
     lineHeight: Math.round(14 * 1.5),
     fontSize: 14
+  }
+  ,deleteButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "transparent"
   }
 });
