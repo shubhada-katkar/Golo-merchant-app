@@ -4,7 +4,7 @@ import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useContext } from "react";
 import { ThemeContext } from "../theme/ThemeContext";
 
-export default function Completed({ orders = [], onDelete }) {
+export default function Completed({ orders = [] }) {
   const { colors } = useContext(ThemeContext);
   const [nowTick, setNowTick] = useState(Date.now());
 
@@ -43,9 +43,6 @@ export default function Completed({ orders = [], onDelete }) {
                   <TouchableOpacity style={[styles.button, { backgroundColor: "#32a3388e" }]}> 
                     <Feather name="check-circle" size={16} color="#154926" />
                     <Text style={styles.buttonText}>Completed</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.deleteButton} onPress={() => onDelete?.(order?._id || order?.id)}>
-                    <Feather name="trash-2" size={16} color="#b71c1c" />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -91,13 +88,5 @@ const styles = StyleSheet.create({
     fontFamily:"Medium",
     lineHeight: Math.round(14 * 1.5),
     fontSize: 14
-  }
-  ,deleteButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "transparent"
-  }
+  },
 });

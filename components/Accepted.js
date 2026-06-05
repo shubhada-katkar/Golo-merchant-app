@@ -5,7 +5,7 @@ import { ThemeContext } from "../theme/ThemeContext";
 import { Entypo, FontAwesome5, MaterialCommunityIcons, Feather } from "@expo/vector-icons";
 import { fmtAgo } from "../utils/timeFormatter";
 
-export default function Accepted({ orders = [], onComplete, onDelete }) {
+export default function Accepted({ orders = [], onComplete}) {
   const { colors } = useContext(ThemeContext);
   const [nowTick, setNowTick] = useState(Date.now());
 
@@ -43,9 +43,6 @@ export default function Accepted({ orders = [], onComplete, onDelete }) {
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginVertical: 8, alignSelf:"flex-end" }}>
                   <TouchableOpacity style={[styles.button, { backgroundColor: "#f5b849" }]} onPress={() => onComplete?.(order)}>
                     <Text style={styles.buttonText}>Complete Order</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.deleteButton} onPress={() => onDelete?.(order?._id || order?.id)}>
-                    <Feather name="trash-2" size={16} color="#b71c1c" />
                   </TouchableOpacity>
                 </View>
 
@@ -88,13 +85,5 @@ const styles = StyleSheet.create({
     fontFamily:"Medium",
     lineHeight: Math.round(14 * 1.5),
     fontSize: 14
-  }
-  ,deleteButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "transparent"
-  }
+  },
 });

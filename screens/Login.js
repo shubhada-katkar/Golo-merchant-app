@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect, useRef } from "react";
 import { View, TouchableOpacity, Text, TextInput, StyleSheet, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -8,7 +8,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Entypo } from "@expo/vector-icons";
 import { BASE_URL } from "../config";
 
-export default function Login({ navigation }) {
+export default function Login({ navigation, route }) {
   const { colors } = useContext(ThemeContext);
 
   const [email, setEmail] = useState("");
@@ -22,8 +22,45 @@ export default function Login({ navigation }) {
 
   const [otpCooldown, setOtpCooldown] = useState(0);
   const [otpLoading, setOtpLoading] = useState(false);
+  const [otpValidSeconds, setOtpValidSeconds] = useState(0);
+  const otpLength = 6;
+  const otpRefs = useRef([]);
 
   const [verifyLoading, setVerifyLoading] = useState(false);
+
+  const otpDigits = [...otp.split(""), ...Array(otpLength).fill("")].slice(0, otpLength);
+
+  const handleOtpChange = (index, value) => {
+    const digit = value.replace(/[^0-9]/g, "").slice(-1);
+    const nextDigits = [...otpDigits];
+    nextDigits[index] = digit;
+    const nextOtp = nextDigits.join("");
+    setOtp(nextOtp);
+    if (digit && index < otpLength - 1) {
+      otpRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyPress = (index, event) => {
+    if (event.nativeEvent.key === "Backspace" && !otpDigits[index] && index > 0) {
+      otpRefs.current[index - 1]?.focus();
+    }
+  };
+
+  useEffect(() => {
+    if (route?.params?.email) {
+      setEmail(route.params.email);
+    }
+  }, [route?.params?.email]);
+
+  const parseResponse = async (response) => {
+    const contentType = response.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+      return response.json();
+    }
+    const text = await response.text();
+    return { message: text || "Request failed" };
+  };
 
   // ================= LOGIN =================
   const handleLogin = async () => {
@@ -58,15 +95,6 @@ export default function Login({ navigation }) {
       const payload = {
         email: email.toLowerCase(),
         password,
-      };
-
-      const parseResponse = async (response) => {
-        const contentType = response.headers.get("content-type") || "";
-        if (contentType.includes("application/json")) {
-          return response.json();
-        }
-        const text = await response.text();
-        return { message: text || "Request failed" };
       };
 
       // New backend contract (used by web/customer app)
@@ -135,42 +163,119 @@ export default function Login({ navigation }) {
 
   // ================= SEND OTP =================
   const handleSendOtp = async () => {
-
-    if (!email) {
+    if (!email.trim()) {
       return Alert.alert("Error", "Enter email");
     }
 
     try {
       setOtpLoading(true);
-      // OTP endpoints not available in current backend
-      // Disabled for now - backend doesn't support send-otp
-      Alert.alert("Notice", "OTP feature temporarily unavailable");
+      if (!BASE_URL) {
+        Alert.alert("Configuration Error", "API URL is not configured");
+        setOtpLoading(false);
+        return;
+      }
+
+      const controller = new AbortController();
+      setTimeout(() => controller.abort(), 10000);
+
+      const response = await fetch(`${BASE_URL}/users/forgot-password/send-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+        signal: controller.signal,
+      });
+
+      const data = await parseResponse(response);
       setOtpLoading(false);
+
+      if (!response.ok) {
+        Alert.alert("Error", data.message || "Unable to send OTP");
+        return;
+      }
+
+      Alert.alert("Success", "OTP sent to your registered email address");
+      setOtpSent(true);
+      setOtp("");
+      setOtpCooldown(60);
+      setOtpValidSeconds(300);
     } catch (err) {
       setOtpLoading(false);
-      Alert.alert("Server error");
+      if (err.name === "AbortError") {
+        Alert.alert("Timeout", "Server took too long to respond");
+      } else {
+        Alert.alert("Server Error", "Unable to send OTP");
+      }
     }
   };
 
   // ================= VERIFY OTP =================
   const handleVerifyOtp = async () => {
-
-    if (!email || !otp) {
-      return Alert.alert("Error", "Enter OTP");
+    if (!email.trim() || !otp.trim()) {
+      return Alert.alert("Error", "Enter email and OTP");
     }
 
-    if (verifyLoading) return; // extra safety
+    if (verifyLoading) return;
 
     try {
       setVerifyLoading(true);
-      // OTP endpoints not available in current backend
-      // Disabled for now
-      Alert.alert("Notice", "OTP verification temporarily unavailable");
+      if (!BASE_URL) {
+        Alert.alert("Configuration Error", "API URL is not configured");
+        setVerifyLoading(false);
+        return;
+      }
+
+      const controller = new AbortController();
+      setTimeout(() => controller.abort(), 10000);
+
+      const response = await fetch(`${BASE_URL}/users/forgot-password/verify-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), otp: otp.trim() }),
+        signal: controller.signal,
+      });
+
+      const data = await parseResponse(response);
       setVerifyLoading(false);
+
+      if (!response.ok) {
+        Alert.alert("Error", data.message || "Invalid OTP");
+        return;
+      }
+
+      navigation.navigate("ResetPassword", {
+        email: email.trim().toLowerCase(),
+        otp: otp.trim(),
+      });
     } catch (err) {
       setVerifyLoading(false);
-      Alert.alert("Server error");
+      if (err.name === "AbortError") {
+        Alert.alert("Timeout", "Server took too long to respond");
+      } else {
+        Alert.alert("Server Error", "Unable to verify OTP");
+      }
     }
+  };
+
+  useEffect(() => {
+    if (otpCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setOtpCooldown((prev) => Math.max(prev - 1, 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [otpCooldown]);
+
+  useEffect(() => {
+    if (otpValidSeconds <= 0) return;
+    const timer = setInterval(() => {
+      setOtpValidSeconds((prev) => Math.max(prev - 1, 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [otpValidSeconds]);
+
+  const formatTimer = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
   return (
@@ -180,10 +285,18 @@ export default function Login({ navigation }) {
 
       <View style={styles.centerContainer}>
 
-        <Text style={{ fontSize: width * 0.06, color: "#ffffff",
+        {!forgotMode && (
+          <Text style={{ fontSize: width * 0.06, color: "#ffffff",
           lineHeight:Math.round(width * 0.06 * 1.5), fontFamily:"SemiBold"
          }}>
           Login To Your Account</Text>
+        )}
+        {forgotMode && (
+          <Text style={{ fontSize: width * 0.06, color: "#ffffff",
+            lineHeight:Math.round(width * 0.06 * 1.5), fontFamily:"SemiBold"
+           }}>
+            Forgot Password</Text>
+        )}
 
         <View style={styles.card}>
           {!forgotMode ? (
@@ -267,31 +380,64 @@ export default function Login({ navigation }) {
 
                 <>
                   <Text style={styles.text}>OTP</Text>
-                  <View style={{ flexDirection: "row", alignItems: "center" }}>
-
-                    <TextInput
-                      style={styles.otpInput}
-                      placeholder="Enter OTP"
-                      keyboardType="numeric"
-                      value={otp}
-                      onChangeText={setOtp}
-                    />
-
-                    <TouchableOpacity
-                      style={[
-                        styles.verifybutton,
-                        verifyLoading && { opacity: 0.6 }
-                      ]}
-                      onPress={handleVerifyOtp}
-                      disabled={verifyLoading}
-                    >
-                      <Text style={{ color: "white", fontSize: 18,
-                        fontFamily:"Medium", lineHeight:Math.round(18*1.5)
-                       }}>
-                        {verifyLoading ? "Verifying..." : "Verify"}
-                      </Text>
-                    </TouchableOpacity>
+                  <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 10 }}>
+                    <View style={styles.otpRow}>
+                      {otpDigits.map((digit, index) => (
+                        <TextInput
+                          key={`otp-${index}`}
+                          ref={(ref) => (otpRefs.current[index] = ref)}
+                          style={styles.otpBox}
+                          keyboardType="numeric"
+                          maxLength={1}
+                          value={digit}
+                          onChangeText={(value) => handleOtpChange(index, value)}
+                          onKeyPress={(event) => handleOtpKeyPress(index, event)}
+                          textAlign="center"
+                          placeholder="-"
+                          placeholderTextColor="#999"
+                        />
+                      ))}
+                    </View>
                   </View>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.verifybutton,
+                      verifyLoading && { opacity: 0.6 }
+                    ]}
+                    onPress={handleVerifyOtp}
+                    disabled={verifyLoading}
+                  >
+                    <Text style={{ color: "white", fontSize: 16,
+                      fontFamily:"Medium", lineHeight:Math.round(16 * 1.5),
+                      alignSelf:"center"
+                     }}>
+                      {verifyLoading ? "Verifying..." : "Verify"}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.smallButton,
+                      (otpCooldown > 0 || otpLoading) && { opacity: 0.6 }
+                    ]}
+                    onPress={handleSendOtp}
+                    disabled={otpCooldown > 0 || otpLoading}
+                  >
+                    <Text style={{ color: "white", fontSize: 16, fontFamily: "Medium",
+                      lineHeight: Math.round(16 * 1.5)
+                     }}>
+                      {otpLoading
+                        ? "Resending..."
+                        : otpCooldown > 0
+                          ? `Resend OTP (${otpCooldown}s)`
+                          : "Resend OTP"}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <Text style={styles.noteText}>
+                    OTP valid for {otpValidSeconds > 0 ? formatTimer(otpValidSeconds) : "00:00"}
+                  </Text>
                 </>)}
             </>)}
         </View>
@@ -400,6 +546,20 @@ const styles = StyleSheet.create({
     fontFamily:"Medium", 
     lineHeight:Math.round(16*1.5)
   },
+  smallButton: {
+    backgroundColor: "#157a4f",
+    borderRadius: 10,
+    padding: 10,
+    alignItems: "center",
+    marginTop: 10,
+  },
+  noteText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: "#333",
+    textAlign: "center",
+    fontFamily: "Medium",
+  },
   inputpassword: {
     flexDirection: "row",
     alignItems: "center",
@@ -410,6 +570,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#000000",
     fontFamily:"Medium"
+  },
+  otpRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+  },
+  otpBox: {
+    width: 42,
+    height: 60,
+    borderWidth: 1,
+    borderColor: "#000000",
+    borderRadius: 10,
+    fontSize: 18,
+    marginHorizontal: 2,
+    fontFamily: "Medium",
+    lineHeight: Math.round(18 * 1.5),
   },
   centerContainer: {
     position: "absolute",

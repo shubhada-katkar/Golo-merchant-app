@@ -47,7 +47,7 @@ export default function OrderDetailPage() {
       }
     };
 
-    if (orderData?.voucherId || orderData?.userId) {
+    if (orderData) {
       enrichDetails();
     }
   }, []);
@@ -171,30 +171,38 @@ export default function OrderDetailPage() {
       selectedVoucherId = await fetchVoucherIdFromVoucherRecord(order.voucher._id);
     }
 
-    // For QR scans, derive voucherId from the QR payload if not already available.
-    const parsedVoucherId = qrCode ? parseVoucherIdFromQrString(qrCode) : null;
-    if (!selectedVoucherId && parsedVoucherId) {
+    // Validation for QR Code
+    if (qrCode) {
+      const parsedVoucherId = parseVoucherIdFromQrString(qrCode);
+      
+      if (!parsedVoucherId) {
+        throw new Error('Invalid QR code format');
+      }
+
+      if (orderVoucherId && orderVoucherId !== parsedVoucherId) {
+        throw new Error('Scanned QR code does not belong to this order');
+      }
+
       selectedVoucherId = parsedVoucherId;
     }
 
-    // For manual code, verify the code and obtain linked voucherId when needed.
-    if (!selectedVoucherId && verificationCode) {
-      selectedVoucherId = await fetchVoucherIdFromCode(verificationCode);
+    // Validation for Alphanumeric Code
+    if (verificationCode) {
+      const verifiedVoucherId = await fetchVoucherIdFromCode(verificationCode);
+      
+      if (!verifiedVoucherId) {
+        throw new Error('Invalid or expired verification code');
+      }
+
+      if (orderVoucherId && orderVoucherId !== verifiedVoucherId) {
+        throw new Error('Entered code does not belong to this order');
+      }
+
+      selectedVoucherId = verifiedVoucherId;
     }
 
     if (!selectedVoucherId) {
       throw new Error('Voucher ID not available');
-    }
-
-    if (orderVoucherId && parsedVoucherId && orderVoucherId !== parsedVoucherId) {
-      throw new Error('Scanned voucher does not match this order');
-    }
-
-    if (orderVoucherId && verificationCode) {
-      const verifiedVoucherId = await fetchVoucherIdFromCode(verificationCode);
-      if (verifiedVoucherId && orderVoucherId !== verifiedVoucherId) {
-        throw new Error('Entered code does not belong to this order');
-      }
     }
 
     const payload = {};
@@ -320,10 +328,6 @@ export default function OrderDetailPage() {
                 style={[styles.codeButton, styles.submitButton]} 
                 onPress={async () => {
                   try {
-                    if (!voucherId) {
-                      Alert.alert('Error', 'Voucher ID not available');
-                      return;
-                    }                   
                     if (!codeValue.trim()) {
                       Alert.alert('Error', 'Please enter a verification code');
                       return;
@@ -332,7 +336,7 @@ export default function OrderDetailPage() {
                     const token = await AsyncStorage.getItem('merchantToken') || await AsyncStorage.getItem('accessToken');
                     if (!token || !BASE_URL) throw new Error('Missing credentials');
 
-                      await redeemVoucher({ verificationCode: codeValue });
+                    await redeemVoucher({ verificationCode: codeValue });
                     Alert.alert('Success', 'Order redeemed successfully');
                     setShowCodeInput(false);
                     setCodeValue("");

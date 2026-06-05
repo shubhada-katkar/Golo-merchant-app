@@ -47,11 +47,13 @@ export default function ({ navigation }) {
                 throw new Error(payload?.message || payload?.error || `Failed to load loyalty data (${response.status})`);
             }
 
-            const loyaltyRows = Array.isArray(payload?.data)
-                ? payload.data
-                : Array.isArray(payload?.data?.data)
-                    ? payload.data.data
-                    : [];
+            const loyaltyRows = Array.isArray(payload)
+                ? payload
+                : Array.isArray(payload?.data)
+                    ? payload.data
+                    : Array.isArray(payload?.data?.data)
+                        ? payload.data.data
+                        : [];
 
             setCustomers(loyaltyRows);
         } catch (fetchError) {
@@ -70,12 +72,12 @@ export default function ({ navigation }) {
 
         customers.forEach((row) => {
             const customerId = String(
-                row.userId || row.email || row.userEmail || row.user?.email || row.userName || row.name || row.voucherId || ''
+                row.userId || row._id || row.email || row.userEmail || row.user?.email || row.userName || row.name || row.voucherId || ''
             );
             const points = Number(
+                row.totalPoints ??
                 row.points ??
                 row.merchantPoints ??
-                row.totalPoints ??
                 row.loyaltyPointsCredited ??
                 row.loyaltyPoints ??
                 row.loyaltyPointsPerPurchase ??
@@ -84,10 +86,11 @@ export default function ({ navigation }) {
             );
             const redeemedAt = row.redeemedAt || row.claimedAt || row.createdAt || null;
             const previous = customerMap.get(customerId);
+            const rowOfferCount = Number(row.offersClaimed ?? row.offerCount ?? 0);
 
             if (previous) {
                 previous.merchantPoints += points;
-                previous.offerCount += 1;
+                previous.offerCount += rowOfferCount || 1;
                 if (redeemedAt) {
                     const previousDate = previous.lastRedeemedAt ? new Date(previous.lastRedeemedAt) : null;
                     const currentDate = new Date(redeemedAt);
@@ -101,10 +104,10 @@ export default function ({ navigation }) {
             } else {
                 customerMap.set(customerId, {
                     customerId,
-                    userName: row.userName || row.name || row.userEmail || row.email || 'Customer',
+                    userName: row.name || row.userName || row.userEmail || row.email || 'Customer',
                     userEmail: row.userEmail || row.email || null,
                     merchantPoints: points,
-                    offerCount: 1,
+                    offerCount: rowOfferCount || 1,
                     lastRedeemedAt: redeemedAt,
                 });
             }
@@ -245,9 +248,8 @@ const styles = StyleSheet.create({
     },
     pageTitle: {
         fontSize: 20,
-        paddingLeft: 5,
         fontFamily: "Medium",
-        lineHeight: Math.round(20 * 1.2),
+        lineHeight: Math.round(20 * 1.5),
     },
     summaryRow: {
         flexDirection: "row",

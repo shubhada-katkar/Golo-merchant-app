@@ -79,14 +79,16 @@ const calculateOfferPrice = (price, offerType) => {
 
 const normalizeSelectedProduct = (product, offerType = "") => {
     const originalPrice = Number(product?.price ?? product?.originalPrice ?? 0);
-    const description =
-        product?.description ||
-        product?.details ||
-        product?.productDescription ||
-        product?.shortDescription ||
-        product?.desc ||
-        product?.detail ||
-        "";
+    const numericStock = Number(
+        product?.stock ??
+        product?.stockQuantity ??
+        product?.quantity ??
+        product?.stock_qty ??
+        product?.available ??
+        product?.availableQuantity ??
+        product?.inStock ??
+        0
+    );
 
     return {
         productId: product?._id || product?.id || product?.productId || "",
@@ -94,8 +96,7 @@ const normalizeSelectedProduct = (product, offerType = "") => {
         imageUrl: product?.image?.url || product?.images?.[0] || product?.imageUrl || "",
         originalPrice,
         offerPrice: Number(product?.offerPrice ?? calculateOfferPrice(originalPrice, offerType)),
-        stockQuantity: Number(product?.stockQuantity || 0),
-        description,
+        stockQuantity: Number.isFinite(numericStock) ? numericStock : 0,
     };
 };
 
@@ -110,6 +111,7 @@ export default function AddOfferPage({ navigation, route }) {
     const [authToken, setAuthToken] = useState("");
     const [merchantId, setMerchantId] = useState("");
     const [isDarkMode, setIsDarkMode] = useState(false);
+    const [merchantStoreSubCategory, setMerchantStoreSubCategory] = useState("");
     const [fromDate, setFromDate] = useState(null);
     const [toDate, setToDate] = useState(null);
     const [showPicker, setShowPicker] = useState(false);
@@ -149,6 +151,26 @@ export default function AddOfferPage({ navigation, route }) {
 
     // Prefill form if editing
     useEffect(() => {
+        const loadMerchantProfile = async () => {
+            try {
+                const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+                if (!token) return;
+                const headers = { Authorization: `Bearer ${token}` };
+                let response = await fetch(`${BASE_URL}/users/merchant/profile`, { headers });
+                if (!response.ok && response.status === 404) {
+                    response = await fetch(`${BASE_URL}/merchant/profile`, { headers });
+                }
+                if (!response.ok) return;
+                const data = await response.json();
+                const merchantData = data?.data || data || {};
+                setMerchantStoreSubCategory(merchantData.storeSubCategory || "");
+            } catch (err) {
+                console.warn("Error fetching merchant profile:", err);
+            }
+        };
+
+        loadMerchantProfile();
+
         if (offerData) {
             setTitle(offerData.title || offerData.bannerTitle || "");
             setOfferType(offerData.offerType || offerData.bannerCategory || offerData.category || "");
@@ -399,13 +421,15 @@ export default function AddOfferPage({ navigation, route }) {
 
             const payload = {
                 title: title.trim(),
+                // category is the offer type selected from dropdown by merchant
                 category: offerType,
-                imageUrl: bannerUrl || offerData?.imageUrl || offerData?.bannerUrl || "",
+                // prefer explicit banner upload, otherwise use first selected product image or existing data
+                imageUrl: bannerUrl || selectedProductPayload?.[0]?.imageUrl || offerData?.imageUrl || offerData?.bannerUrl || "",
                 selectedDates,
                 totalPrice,
                 loyaltyRewardEnabled: isDarkMode,
-                loyaltyStarsToOffer: isDarkMode ? 1 : 0,
-                loyaltyStarsPerPurchase: isDarkMode ? 1 : 0,
+                loyaltyStarsToOffer: isDarkMode ? Number(stars) : 0,
+                loyaltyStarsPerPurchase: isDarkMode ? Number(stars) : 0,
                 loyaltyScorePerStar: isDarkMode ? Number(stars) : 0,
                 loyaltyPointsPerPurchase: isDarkMode ? Number(stars) : 0,
                 selectedProducts: selectedProductPayload,
@@ -416,7 +440,7 @@ export default function AddOfferPage({ navigation, route }) {
             }
 
             if (!payload.imageUrl) {
-                Alert.alert("Banner Required", "Please upload a banner image before saving this offer.");
+                Alert.alert("Image Required", "Please upload an image or select a product with an image before saving this offer.");
                 setIsSaving(false);
                 return;
             }
@@ -489,7 +513,7 @@ export default function AddOfferPage({ navigation, route }) {
                                 <View style={{ padding: 20, justifyContent: "center", alignItems: "center" }}>
                                     <ActivityIndicator size="small" color="#157a4f" />
                                     <Text style={{ color: colors.text, marginTop: 8,
-                                        fontSize: 14, lineHeight: Math.round(14 * 1.5), fontFamily: "Medium"
+                                        fontSize: 12, lineHeight: Math.round(12 * 1.5), fontFamily: "Medium"
                                      }}>Loading products...</Text>
                                 </View>
                             ) : (
@@ -529,7 +553,7 @@ export default function AddOfferPage({ navigation, route }) {
                         </View>
                     )}
 
-                    <ScrollView contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 50 }} keyboardShouldPersistTaps="handled">
+                    <ScrollView contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 80 }} keyboardShouldPersistTaps="handled">
                         <Text style={[styles.text, { color: colors.text }]}>Offer Title</Text>
                         <TextInput
                             placeholder="Enter Offer Title"
@@ -539,7 +563,7 @@ export default function AddOfferPage({ navigation, route }) {
                         />
 
 
-                        <Text style={[styles.text, { color: colors.text }]}>Offer Banner</Text>
+                        <Text style={[styles.text, { color: colors.text }]}>Offer Image</Text>
 
                         <TouchableOpacity
                             style={styles.card1}
@@ -575,8 +599,8 @@ export default function AddOfferPage({ navigation, route }) {
                             style={[styles.input, { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingRight: 15 }]}
                             onPress={() => setOfferTypeModalOpen(true)}
                         >
-                            <Text style={{ fontSize: 16, color: offerType ? "#000" : "#999",
-                                lineHeight: Math.round(16 * 1.5), fontFamily: "Medium"
+                            <Text style={{ fontSize: 14, color: offerType ? "#000" : "#999",
+                                 fontFamily: "Medium"
                              }}>
                                 {offerType ? offerTypeOptions.find(opt => opt.value === offerType)?.label : "Select offer type"}
                             </Text>
@@ -713,8 +737,8 @@ export default function AddOfferPage({ navigation, route }) {
                                 onPress={handleSubmit}
                                 disabled={isSaving || isDeleting || isBannerUploading}
                             >
-                                <Text style={{ color: "#fff", fontSize: 16,
-                                    fontFamily: "Medium", lineHeight: Math.round(16 * 1.5)
+                                <Text style={{ color: "#fff", fontSize: 15,
+                                    fontFamily: "Medium", lineHeight: Math.round(15 * 1.5)
                                  }}>
                                     {isBannerUploading ? "Uploading banner..." : isSaving ? (offerData ? "Updating..." : "Saving...") : offerData ? "Update Offer" : "Add Offer"}
                                 </Text>
@@ -726,7 +750,7 @@ export default function AddOfferPage({ navigation, route }) {
                                     onPress={handleDelete}
                                     disabled={isSaving || isDeleting}
                                 >
-                                    <Text style={{ color: "#fff", fontSize: 16, fontFamily: "Medium", lineHeight: Math.round(16 * 1.5) }}>
+                                    <Text style={{ color: "#fff", fontSize: 15, fontFamily: "Medium", lineHeight: Math.round(15 * 1.5) }}>
                                         {isDeleting ? "Deleting..." : "Delete Offer"}
                                     </Text>
                                 </TouchableOpacity>
@@ -735,7 +759,7 @@ export default function AddOfferPage({ navigation, route }) {
                         </View>
 
                         <TouchableOpacity onPress={clearAllFields} style={{ marginTop: 12, alignItems: "center" }}>
-                            <Text style={{ color: "red", fontSize: 18, fontFamily: "Medium", lineHeight: Math.round(18 * 1.5) }}>Clear All</Text>
+                            <Text style={{ color: "red", fontSize: 15, fontFamily: "Medium", lineHeight: Math.round(15 * 1.5) }}>Clear All</Text>
                         </TouchableOpacity>
 
                     </ScrollView>

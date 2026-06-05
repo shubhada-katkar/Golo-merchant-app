@@ -5,7 +5,7 @@ import { ThemeContext } from "../theme/ThemeContext";
 import { Entypo, FontAwesome5, MaterialCommunityIcons, Feather } from "@expo/vector-icons";
 import { fmtAgo } from "../utils/timeFormatter";
 
-export default function All({ orders = [], onStatusChange, onDelete }) {
+export default function All({ orders = [], onStatusChange }) {
   const { colors } = useContext(ThemeContext);
 
   // Tick state to force periodic re-render so relative times update in real-time
@@ -56,17 +56,11 @@ export default function All({ orders = [], onStatusChange, onDelete }) {
                       <Feather name="check" size={16} color="white" />
                       <Text style={styles.text}>Accept</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.deleteButton} onPress={() => onDelete?.(id)}>
-                      <Feather name="trash-2" size={16} color="#b71c1c" />
-                    </TouchableOpacity>
                   </View>
                 ) : status === "accepted" ? (
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginVertical: 8, alignSelf:"flex-end" }}>
                     <TouchableOpacity style={[styles.button, { backgroundColor: "#f5b849" }]}> 
                       <Text style={styles.acceptedButtonText}>Accepted</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.deleteButton} onPress={() => onDelete?.(id)}>
-                      <Feather name="trash-2" size={16} color="#b71c1c" />
                     </TouchableOpacity>
                   </View>
                 ) : status === "completed" ? (
@@ -75,17 +69,11 @@ export default function All({ orders = [], onStatusChange, onDelete }) {
                       <Feather name="check-circle" size={16} color="#154926" />
                       <Text style={styles.completedButtonText}>Completed</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.deleteButton} onPress={() => onDelete?.(id)}>
-                      <Feather name="trash-2" size={16} color="#b71c1c" />
-                    </TouchableOpacity>
                   </View>
                 ) : (
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginVertical: 8, alignSelf:"flex-end" }}>
                     <TouchableOpacity style={[styles.button, { backgroundColor: "#dadada" }]}> 
                       <Text style={styles.text}>{(order?.status || "Updated").toString().charAt(0).toUpperCase() + (order?.status || "").toString().slice(1) || "Updated"}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.deleteButton} onPress={() => onDelete?.(id)}>
-                      <Feather name="trash-2" size={16} color="#b71c1c" />
                     </TouchableOpacity>
                   </View>
                 )}
@@ -144,13 +132,5 @@ const styles = StyleSheet.create({
     fontFamily: "Medium",
     lineHeight: Math.round(14 * 1.5),
     fontSize: 14
-  }
-  ,deleteButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "transparent"
-  }
+  },
 });

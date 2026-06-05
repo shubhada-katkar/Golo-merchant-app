@@ -70,7 +70,7 @@ export default function Recent() {
     const fetchOfferDetails = async (offerId) => {
         if (!offerId) return null;
         try {
-            const response = await fetch(`${BASE_URL}/banners/promotions/offers/${offerId}`);
+            const response = await fetch(`${BASE_URL}/offers/${offerId}`);
             if (!response.ok) return null;
             const json = await response.json();
             return json?.data || null;
@@ -104,7 +104,7 @@ export default function Recent() {
         );
     };
 
-    const getOfferId = (item) => item.offerId || item._id || item.requestId || item.id;
+    const getOfferId = (item) => item.requestId || item.offerId || item._id || item.id;
 
     const deleteOffer = async (item) => {
         const offerId = getOfferId(item);
@@ -165,19 +165,11 @@ export default function Recent() {
 
         setLoading(true);
         try {
-            let response = await fetch(`${BASE_URL}/vouchers/merchant/offers?page=1&limit=100`, {
+            const response = await fetch(`${BASE_URL}/offers/my?page=1&limit=100`, {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
             });
-
-            if (!response.ok) {
-                response = await fetch(`${BASE_URL}/offers/merchant`, {
-                    headers: {
-                        Authorization: `Bearer ${token}`
-                    }
-                });
-            }
 
             const result = await response.json();
             const allOffers = normalizeOfferResults(result);
@@ -216,8 +208,8 @@ export default function Recent() {
 
                     <View style={{ flex: 1, paddingHorizontal: 10 }}>
                         <View style={styles.rowBetween}>
-                            <Text style={{ fontSize: 16, fontFamily: "Medium",
-                                lineHeight: Math.round(16 * 1.5), width: "60%",
+                            <Text style={{ fontSize: 18, fontFamily: "Medium",
+                                lineHeight: Math.round(18 * 1.5), width: "60%",
                             }} numberOfLines={1} ellipsizeMode="tail">
                                 {title}
                             </Text>
@@ -241,12 +233,6 @@ export default function Recent() {
                                 </TouchableOpacity>
                             </View>
                         </View>
-
-                        <Text style={{ marginTop: 5, fontSize:12,
-                            fontFamily:"Medium", lineHeight: Math.round(12 * 1.5)
-                         }}>
-                            Offer Type: {discountLabel}
-                        </Text>
 
                         {validTo && (
                             <Text style={{ fontSize: 12, marginTop: 3,

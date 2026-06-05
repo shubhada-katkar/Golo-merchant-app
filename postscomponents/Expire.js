@@ -70,7 +70,7 @@ export default function Expire() {
     const fetchOfferDetails = async (offerId) => {
         if (!offerId) return null;
         try {
-            const response = await fetch(`${BASE_URL}/banners/promotions/offers/${offerId}`);
+            const response = await fetch(`${BASE_URL}/offers/${offerId}`);
             if (!response.ok) return null;
             const json = await response.json();
             return json?.data || null;
@@ -103,7 +103,7 @@ export default function Expire() {
         );
     };
 
-    const getOfferId = (item) => item.offerId || item._id || item.requestId || item.id;
+    const getOfferId = (item) => item.requestId || item.offerId || item._id || item.id;
 
     const deleteOffer = async (item) => {
         const offerId = getOfferId(item);
@@ -164,26 +164,21 @@ export default function Expire() {
 
         setLoading(true);
         try {
-            let response = await fetch(`${BASE_URL}/vouchers/merchant/offers?status=expired&page=1&limit=100`, {
+            const response = await fetch(`${BASE_URL}/offers/my?page=1&limit=100`, {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
             });
 
-            if (!response.ok) {
-                response = await fetch(`${BASE_URL}/offers/merchant`, {
-                    headers: {
-                        Authorization: `Bearer ${token}`
-                    }
-                });
-            }
-
             const result = await response.json();
             let expiredOffers = normalizeOfferResults(result);
+            // Keep only offers whose valid-until date has already passed
             expiredOffers = expiredOffers.filter((item) => {
-                if (item.status) return item.status.toLowerCase() === "expired";
-                const endDate = new Date(item.endDate || item.validTo || item.expiresAt || 0);
-                return endDate <= new Date();
+                const raw = item.endDate || item.validTo || item.expiresAt || item.endsAt || item.expiredAt;
+                if (!raw) return false;
+                const endDate = new Date(raw);
+                if (isNaN(endDate.getTime())) return false;
+                return endDate.getTime() <= Date.now();
             });
             const enrichedOffers = await enrichOffersWithDetails(expiredOffers);
             setOffers(enrichedOffers);
@@ -244,12 +239,6 @@ export default function Expire() {
                                 </TouchableOpacity>
                             </View>
                         </View>
-
-                        <Text style={{ marginTop: 5, fontSize:12,
-                            fontFamily:"Medium", lineHeight: Math.round(12 * 1.5)
-                         }}>
-                            Discount: {discountLabel}
-                        </Text>
 
                         {validTo && (
                             <Text style={{ fontSize: 12, marginTop: 3,

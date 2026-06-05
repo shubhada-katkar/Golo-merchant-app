@@ -1,19 +1,6 @@
 import React, { useState, useEffect, useContext, useCallback, useRef } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Image,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  Modal,
-  ActivityIndicator,
-  FlatList,
-  Dimensions,
-  Keyboard,
-} from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, KeyboardAvoidingView,
+Platform, Modal, ActivityIndicator, FlatList, Dimensions, Keyboard } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -714,20 +701,17 @@ export default function ProfileSettingsPage({ navigation }) {
                 selectedValue={storeSubCategory}
                 onValueChange={(value) => setStoreSubCategory(value)}
                 style={styles.picker}
-                enabled={!!storeCategory}
-              >
+                enabled={!!storeCategory} >
                 <Picker.Item
                   label={storeCategory ? "Select store sub-category" : "Select store category first"}
                   value=""
-                  style={styles.pickerItem}
-                />
+                  style={styles.pickerItem}  />
                 {subCategoryOptions.map((subCategory) => (
                   <Picker.Item
                     key={subCategory}
                     label={subCategory}
                     value={subCategory}
-                    style={styles.pickerItem}
-                  />
+                    style={styles.pickerItem}  />
                 ))}
               </Picker>
             </View>
@@ -749,8 +733,7 @@ export default function ProfileSettingsPage({ navigation }) {
                     ),
                   }}
                   style={styles.locationPreviewMap}
-                  scrollEnabled={false}
-                />
+                  scrollEnabled={false} />
               </View>
             </View>
           </View>
@@ -761,7 +744,6 @@ export default function ProfileSettingsPage({ navigation }) {
                 </Text>
                 <Text style={[styles.locationPreviewAction, { color: colors.text }]}>Tap to edit location</Text>
               </TouchableOpacity>
-
 
           {/* BUTTONS */}
           <View style={{ padding: 20, gap: 15 }}>
@@ -803,8 +785,7 @@ export default function ProfileSettingsPage({ navigation }) {
                     <TouchableOpacity style={[styles.searchResultItem, { borderColor: colors.divider }]} onPress={() => selectSearchResult(item)}>
                       <Text style={[styles.searchResultText, { color: colors.text }]}>{item.displayName || item.address || item.name}</Text>
                     </TouchableOpacity>
-                  )}
-                />
+                  )}  />
               )}
 
               <View style={[styles.modalMapContainer, { borderColor: colors.divider }]}>                
@@ -814,13 +795,11 @@ export default function ProfileSettingsPage({ navigation }) {
                   source={{
                     html: getLeafletMapHtml(
                       tempLocation.latitude ?? DEFAULT_REGION.latitude,
-                      tempLocation.longitude ?? DEFAULT_REGION.longitude
-                    ),
+                      tempLocation.longitude ?? DEFAULT_REGION.longitude ),
                   }}
                   style={styles.modalMap}
                   scrollEnabled={false}
-                  onMessage={handleWebViewMessage}
-                />
+                  onMessage={handleWebViewMessage}  />
               </View>
 
               <Text style={[styles.modalNote, { color: colors.text }]} numberOfLines={2}>
@@ -836,9 +815,8 @@ export default function ProfileSettingsPage({ navigation }) {
           </Modal>
 
         </ScrollView>
-
       </KeyboardAvoidingView>
-      <Bottombar />
+      <Bottombar/>
     </SafeAreaView>
   );
 }
@@ -868,10 +846,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
     overflow: "hidden",
   },
-  picker: {
-    height: 50,
-    width: "100%",
-  },
+  picker: { height: 50, width: "100%" },
   pickerItem: {
     fontSize: 14,
     fontFamily: "Medium",
@@ -971,11 +946,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 12,
   },
-  searchResultText: {
-    fontSize: 16,
-    fontFamily: "Medium",
-    lineHeight: Math.round(16 * 1.4),
-  },
+  searchResultText: { fontSize: 16, fontFamily: "Medium", lineHeight: Math.round(16 * 1.4) },
   modalMapContainer: {
     flex: 1,
     borderWidth: 1,

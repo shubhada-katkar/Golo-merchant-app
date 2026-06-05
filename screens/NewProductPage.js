@@ -327,14 +327,7 @@ const saveProduct = async () => {
                 onChangeText={(text) => setForm({ ...form, description: text })}
               />
 
-              <Text style={[styles.text, { color: colors.text }]}>Category</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Uses your store sub-category"
-                value={merchantStoreSubCategory}
-                editable={false}
-                selectTextOnFocus={false}
-              />
+
 
               <Text style={[styles.text, { color: colors.text }]}>Price*</Text>
               <TextInput
