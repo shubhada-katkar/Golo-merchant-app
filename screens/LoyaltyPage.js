@@ -201,9 +201,6 @@ export default function ({ navigation }) {
                                                 </Text>
                                             ) : null}
                                             <View style={styles.statsRow}>
-                                                <Text style={[styles.detailText, { color: colors.subText || "#6b7280" }]}>
-                                                    Redeemed {customer.offerCount || 0} {customer.offerCount === 1 ? 'offer' : 'offers'}
-                                                </Text>
                                                 {formattedDate ? (
                                                     <Text style={[styles.detailText, { color: colors.subText || "#6b7280" }]}>
                                                         {"  •  "}Last: {formattedDate}

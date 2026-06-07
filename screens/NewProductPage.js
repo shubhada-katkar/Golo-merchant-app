@@ -25,6 +25,7 @@ export default function NewProductPage({ navigation, route }) {
   const [merchantStoreSubCategory, setMerchantStoreSubCategory] = useState("");
 
   const [image, setImage] = useState(null);
+  const [imageRemoved, setImageRemoved] = useState(false);
 
   const initialForm = {
     price: "",
@@ -76,6 +77,7 @@ export default function NewProductPage({ navigation, route }) {
         editProduct.image ||
         null;
       setImage(typeof imageUrl === "string" ? imageUrl : null);
+      setImageRemoved(false);
     }
     return () => {
       showSub.remove();
@@ -100,6 +102,7 @@ export default function NewProductPage({ navigation, route }) {
 
     if (!result.canceled) {
       setImage(result.assets[0].uri);
+      setImageRemoved(false);
     }
   };
 
@@ -147,7 +150,11 @@ const saveProduct = async () => {
         imageSourceUrl = image;
       }
 
-      const productImages = imageSourceUrl ? [imageSourceUrl] : undefined;
+      const productImages = imageSourceUrl
+        ? [imageSourceUrl]
+        : isEdit && imageRemoved
+        ? []
+        : undefined;
       const productCategory = merchantStoreSubCategory;
 
       const createJsonPayload = {
@@ -156,7 +163,7 @@ const saveProduct = async () => {
         category: productCategory,
         regularPrice: Number(form.price),
         stockQuantity,
-        ...(productImages ? { productImages } : {}),
+        ...(productImages !== undefined ? { productImages } : {}),
       };
 
       const updateJsonPayload = {
@@ -169,7 +176,7 @@ const saveProduct = async () => {
         category: productCategory,
         price: Number(form.price),
         stockQuantity,
-        ...(productImages ? { images: productImages } : {}),
+        ...(productImages !== undefined ? { images: productImages } : {}),
       };
 
       const merchantUpdatePayload = {
@@ -178,6 +185,7 @@ const saveProduct = async () => {
         category: productCategory,
         price: Number(form.price),
         stockQuantity,
+        ...(productImages !== undefined ? { images: productImages } : {}),
       };
 
       const stripUnsupportedFields = (payload) => {
@@ -244,6 +252,7 @@ const saveProduct = async () => {
   const clearAllFields = () => {
     setForm(initialForm);
     setImage(null);
+    setImageRemoved(false);
   };
 
   return (
@@ -288,12 +297,23 @@ const saveProduct = async () => {
                 <Text>Upload Image</Text>
               </TouchableOpacity>
 
-              <View style={styles.card1}>
+              <View style={[styles.card1, styles.imageContainer]}>
                 {image ? (
-                  <Image
-                    source={{ uri: image }}
-                    style={{ width: 150, height: 150, borderRadius: 10 }}
-                  />
+                  <>
+                    <Image
+                      source={{ uri: image }}
+                      style={{ width: 150, height: 150, borderRadius: 10 }}
+                    />
+                    <TouchableOpacity
+                      style={styles.removeIcon}
+                      onPress={() => {
+                        setImage(null);
+                        setImageRemoved(true);
+                      }}
+                    >
+                      <MaterialIcons name="close" size={18} color="#fff" />
+                    </TouchableOpacity>
+                  </>
                 ) : (
                   <Image
                     source={require("../assets/profile.png")}
@@ -403,6 +423,17 @@ const styles = StyleSheet.create({
     width: "48%",
     alignItems: "center",
     justifyContent: "center",
+  },
+  imageContainer: {
+    position: "relative",
+  },
+  removeIcon: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    borderRadius: 12,
+    padding: 4,
   },
   text: {
     fontSize: 16,

@@ -1,7 +1,6 @@
 import React, { useState, useContext, useEffect, useRef } from "react";
 import { View, TouchableOpacity, Text, TextInput, StyleSheet, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { ThemeContext } from "../theme/ThemeContext";
 import { Dimensions } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -282,7 +281,7 @@ export default function Login({ navigation, route }) {
     <SafeAreaView style={{ flex: 1 }}>
       <View style={{ flex: 1, backgroundColor: "#f5b849" }} />
       <View style={{ flex: 1, backgroundColor: "#ffffff" }} />
-
+ 
       <View style={styles.centerContainer}>
 
         {!forgotMode && (
@@ -330,6 +329,13 @@ export default function Login({ navigation, route }) {
                   </TouchableOpacity>
                 )}
               </View>
+
+              <TouchableOpacity onPress={() => {
+                setForgotMode(true);
+                setPassword("");
+              }} style={{ alignSelf: "flex-end" }}>
+                <Text style={styles.link}>Forgot Password?</Text>
+              </TouchableOpacity>
 
               <TouchableOpacity
                 onPress={handleLogin}
@@ -454,18 +460,6 @@ export default function Login({ navigation, route }) {
                 <Text style={styles.link}>Register Here</Text>
               </TouchableOpacity>
             </View>
-
-            <View style={{ alignItems: "center", flexDirection: "row", marginTop: 10 }}>
-              <Text style={{ fontSize: 16,
-                fontFamily:"Medium", lineHeight:Math.round(16*1.5)
-               }}>Forgot Password?</Text>
-              <TouchableOpacity onPress={() => {
-                setForgotMode(true);
-                setPassword("");
-              }}>
-                <Text style={styles.link}>Click Here</Text>
-              </TouchableOpacity>
-            </View>
           </>
 
         ) : (
@@ -482,12 +476,10 @@ export default function Login({ navigation, route }) {
         )}
       </View>
     </SafeAreaView>
-  );
-}
+  ); }
 
 const { width, height } = Dimensions.get("window");
 const styles = StyleSheet.create({
-
   card: {
     backgroundColor: "#ffffff",
     width: width * 0.85,
@@ -498,13 +490,11 @@ const styles = StyleSheet.create({
     borderWidth: 0.5,
     borderColor: "#000000"
   },
-
   text: {
     fontSize: width * 0.048,
     fontFamily:"Medium", 
     lineHeight:Math.round(width * 0.048 * 1.5)
   },
-
   input: {
     borderRadius: 10,
     paddingHorizontal: 12,
@@ -513,7 +503,6 @@ const styles = StyleSheet.create({
     borderColor: "#000000",
     fontFamily:"Medium"
   },
-
   otpInput: {
     borderRadius: 10,
     paddingHorizontal: 12,
@@ -524,7 +513,6 @@ const styles = StyleSheet.create({
     borderColor: "#000000",
     fontFamily:"Medium",
   },
-
   button: {
     backgroundColor: "#157a4f",
     borderRadius: 10,
@@ -532,13 +520,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 10,
   },
-
   verifybutton: {
     backgroundColor: "#157a4f",
     padding: 12,
     borderRadius: 12,
   },
-
   link: {
     fontSize: 16,
     color: "#4caf50",

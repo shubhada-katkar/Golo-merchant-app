@@ -152,11 +152,6 @@ export default function Notifications({ navigation }) {
                                      }}>
                                         {formatTime(item.createdAt)}
                                     </Text>
-                                    <Text style={{ fontSize: 12, color: colors.text, opacity: 0.7,
-                                        fontFamily: "Medium", lineHeight: Math.round(12 * 1.5)
-                                     }}>
-                                        {item.type || "order"}
-                                    </Text>
                                 </View>
                             </View>
                         </View>

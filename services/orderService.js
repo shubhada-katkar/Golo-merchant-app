@@ -31,6 +31,87 @@ export const fetchVoucherDetails = async (voucherId, token) => {
 /**
  * Fetch customer profile by userId to get phone and other details
  */
+const normalizeText = (value) => String(value || "").trim().toLowerCase();
+
+const parseDate = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const isSameCustomerName = (orderName, voucherName) => {
+  const normalizedOrderName = normalizeText(orderName);
+  const normalizedVoucherName = normalizeText(voucherName);
+  return normalizedOrderName && normalizedOrderName === normalizedVoucherName;
+};
+
+const findBestOrderVoucherMatch = (order, vouchers) => {
+  const orderName =
+    order?.customerName || order?.user?.name || order?.customer?.name || "";
+  const orderTime =
+    parseDate(order?.claimedAt || order?.createdAt || order?.placedAt || order?.timestamp);
+
+  if (!orderName) {
+    return null;
+  }
+
+  let bestMatch = null;
+  let bestScore = -1;
+
+  vouchers.forEach((voucher) => {
+    const voucherName = voucher?.userName || voucher?.customerName || voucher?.user?.name || "";
+    if (!isSameCustomerName(orderName, voucherName)) {
+      return;
+    }
+
+    let score = 1;
+    const voucherTime = parseDate(voucher?.claimedAt || voucher?.createdAt || voucher?.updatedAt);
+    if (orderTime && voucherTime) {
+      const delta = Math.abs(orderTime - voucherTime);
+      if (delta <= 5 * 60 * 1000) {
+        score += 2;
+      } else if (delta <= 15 * 60 * 1000) {
+        score += 1;
+      }
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = voucher;
+    }
+  });
+
+  return bestMatch;
+};
+
+const fetchMerchantVouchers = async (token, status = "pending", page = 1, limit = 100) => {
+  if (!BASE_URL || !token) {
+    return [];
+  }
+
+  const path = status === "history" ? "/vouchers/merchant/history" : "/vouchers/merchant/pending";
+  const url = `${BASE_URL}${path}?page=${page}&limit=${limit}`;
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      console.warn(`Failed to fetch merchant vouchers (${status}):`, response.status);
+      return [];
+    }
+
+    const payload = await response.json();
+    return Array.isArray(payload?.data) ? payload.data : [];
+  } catch (error) {
+    console.error(`Error fetching merchant vouchers (${status}):`, error);
+    return [];
+  }
+};
+
 export const fetchCustomerProfile = async (userId, token) => {
   try {
     if (!BASE_URL || !userId || !token) {
@@ -84,9 +165,32 @@ export const enrichOrderDetails = async (order, token) => {
       enrichedOrder.discount = voucherDetails.discount;
       // Ensure voucherId is set from fetched details
       enrichedOrder.voucherId = voucherDetails.voucherId || enrichedOrder.voucherId;
+      enrichedOrder.voucher = enrichedOrder.voucher || voucherDetails;
       console.log('[enrichOrderDetails] Enriched order with voucher:', enrichedOrder.voucherId);
     } else {
       console.warn('[enrichOrderDetails] Failed to fetch voucher details for:', enrichedOrder.voucherId);
+    }
+  }
+
+  // If order details still lack offerTitle, attempt to match a merchant voucher by customer.
+  if (!enrichedOrder.offerTitle) {
+    const pendingVouchers = await fetchMerchantVouchers(token, 'pending');
+    let matchedVoucher = findBestOrderVoucherMatch(enrichedOrder, pendingVouchers);
+
+    if (!matchedVoucher) {
+      const historyVouchers = await fetchMerchantVouchers(token, 'history');
+      matchedVoucher = findBestOrderVoucherMatch(enrichedOrder, historyVouchers);
+    }
+
+    if (matchedVoucher) {
+      enrichedOrder.offerTitle =
+        matchedVoucher.offerTitle ||
+        matchedVoucher.title ||
+        matchedVoucher.bannerTitle ||
+        matchedVoucher.offer?.title;
+      enrichedOrder.voucherId = enrichedOrder.voucherId || matchedVoucher.voucherId || matchedVoucher._id;
+      enrichedOrder.voucher = matchedVoucher;
+      console.log('[enrichOrderDetails] Matched order to merchant voucher for offer title:', enrichedOrder.voucherId);
     }
   }
 

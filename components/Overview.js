@@ -6,7 +6,6 @@ import { ThemeContext } from "../theme/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { BASE_URL } from "../config";
-import Orders from "./Orders";
 
 export default function Overview() {
 
@@ -167,7 +166,7 @@ export default function Overview() {
 
             const fetchReviews = async () => {
                 try {
-                    const token = await AsyncStorage.getItem("merchantToken");
+                    const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
                     if (!token) return;
 
                     setReviewsLoading(true);
@@ -180,7 +179,11 @@ export default function Overview() {
                     const data = await res.json();
                     if (!active) return;
 
-                    const list = Array.isArray(data?.data) ? data.data : [];
+                    const list = Array.isArray(data?.data)
+                        ? data.data
+                        : Array.isArray(data)
+                        ? data
+                        : [];
                     setReviews(list.slice(0, 2));
                 } catch (error) {
                     console.log("Overview review fetch error:", error);

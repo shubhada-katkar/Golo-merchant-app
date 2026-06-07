@@ -212,33 +212,13 @@ export default function Expire() {
                         <View style={styles.image} />
                     )}
 
-                    <View style={{ flex: 1, paddingHorizontal: 10 }}>
-                        <View style={styles.rowBetween}>
+                    <View style={{ flex: 1, paddingHorizontal: 10, justifyContent:"center"
+                     }}>
                             <Text style={{ fontSize: 18, fontFamily: "Medium",
-                                lineHeight: Math.round(18 * 1.5)
+                                lineHeight: Math.round(18 * 1.5), width: "70%"
                             }}>
                                 {title}
                             </Text>
-                            <View style={styles.actionRow}>
-                                <TouchableOpacity
-                                    onPress={() =>
-                                        navigation.navigate("AddOfferPage", {
-                                            offerData: item
-                                        })
-                                    }
-                                    style={styles.actionButton}
-                                >
-                                    <AntDesign name="edit" size={18} color="black" />
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    onPress={() => confirmDeleteOffer(item)}
-                                    style={styles.actionButton}
-                                    disabled={deletingOfferId === getOfferId(item)}
-                                >
-                                    <MaterialIcons name="delete-outline" size={19} color={deletingOfferId === getOfferId(item) ? "#999" : "#ef4d4d"} />
-                                </TouchableOpacity>
-                            </View>
-                        </View>
 
                         {validTo && (
                             <Text style={{ fontSize: 12, marginTop: 3,
@@ -248,6 +228,19 @@ export default function Expire() {
                             </Text>
                         )}
                     </View>
+
+                <View style={styles.actionRow}>
+                    <TouchableOpacity onPress={() => navigation.navigate("AddOfferPage", { offerData: item }) }
+                        style={styles.actionButton} >
+                        <AntDesign name="edit" size={18} color="black" />
+                        </TouchableOpacity>
+                                
+                    <TouchableOpacity onPress={() => confirmDeleteOffer(item)}
+                        style={styles.actionButton}  disabled={deletingOfferId === getOfferId(item)}  >
+                        <MaterialIcons name="delete-outline" size={19} color={deletingOfferId === getOfferId(item) ? "#999" : "#ef4d4d"} />
+                        </TouchableOpacity>
+                </View>
+
                 </View>
             </View>
         );
@@ -300,7 +293,7 @@ const styles = StyleSheet.create({
     },
     actionRow: {
         flexDirection: "row",
-        alignItems: "center",
+        flexShrink: 0,
     },
     actionButton: {
         padding: 4,

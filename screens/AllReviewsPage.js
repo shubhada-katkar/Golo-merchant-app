@@ -25,7 +25,7 @@ export default function AllReviewsPage({ navigation }) {
 
       const loadReviews = async () => {
         try {
-          const token = await AsyncStorage.getItem("merchantToken");
+          const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
           if (!token) return;
 
           setLoading(true);
@@ -38,7 +38,11 @@ export default function AllReviewsPage({ navigation }) {
           const data = await response.json();
           if (!active) return;
 
-          const list = Array.isArray(data?.data) ? data.data : [];
+          const list = Array.isArray(data?.data)
+            ? data.data
+            : Array.isArray(data)
+            ? data
+            : [];
           setReviews(list);
         } catch (error) {
           console.log("AllReviewsPage fetch error:", error);

@@ -1,5 +1,7 @@
-import React, { useState, useEffect, useContext, useCallback } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Alert, ActivityIndicator } from "react-native";
+import React, { useState, useEffect, useContext, useCallback, useRef } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Alert, ActivityIndicator,
+  KeyboardAvoidingView, Platform
+ } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -17,6 +19,7 @@ const formatDateTime = (value) => {
 };
 
 export default function OrderDetailPage() {
+  const scrollViewRef = useRef(null);
   const { colors } = useContext(ThemeContext);
   const navigation = useNavigation();
   const route = useRoute();
@@ -52,7 +55,18 @@ export default function OrderDetailPage() {
     }
   }, []);
 
-  const offerName = order?.offerTitle || order?.offerName || order?.title || order?.name || order?.voucher?.offerTitle || "Offer details not available";
+  const offerName =
+    order?.offerTitle ||
+    order?.offerName ||
+    order?.title ||
+    order?.name ||
+    order?.voucher?.offerTitle ||
+    order?.voucher?.offer?.title ||
+    order?.voucher?.title ||
+    order?.voucher?.name ||
+    order?.offer?.title ||
+    order?.offer?.bannerTitle ||
+    "Offer details not available";
   const claimedAt = order?.claimedAt || order?.createdAt || order?.placedAt || order?.timestamp;
   const customerName = order?.customerName || order?.user?.name || order?.customer?.name || "Customer";
   const customerPhone = order?.customerPhone || order?.phone || order?.user?.phone || order?.customer?.phone || order?.contactNumber || "Phone not available";
@@ -246,8 +260,8 @@ export default function OrderDetailPage() {
   }, [navigation, redeemVoucher]);
 
   return (
-     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-                <Topbar />
+         <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+                <Topbar/>
 
         <View style={styles.row1}>
             <TouchableOpacity onPress={() => navigation.navigate("HomePage")}> 
@@ -268,7 +282,15 @@ export default function OrderDetailPage() {
 
         <View style={{ height: 1, backgroundColor: colors.divider, marginBottom: 10 }} />
 
-        <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 100 }]}> 
+        <KeyboardAvoidingView
+  style={{ flex: 1 }}
+  behavior={Platform.OS === "ios" ? "padding" : "height"}
+>
+  <ScrollView
+  ref={scrollViewRef}
+    contentContainerStyle={[styles.content, { paddingBottom: 100 }]}
+    keyboardShouldPersistTaps="handled"
+  > 
 
         <View style={styles.card}>
           <Text style={styles.label}>Offer Name</Text>
@@ -298,8 +320,11 @@ export default function OrderDetailPage() {
             <Text style={styles.actionText}>Scan QR</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.actionButton, {backgroundColor:'#116aab'}]} onPress={() => {
+          <TouchableOpacity style={[styles.actionButton, {backgroundColor:'#f5b849'}]} onPress={() => {
             setShowCodeInput(true);
+            setTimeout(() => {
+              scrollViewRef.current?.scrollToEnd({ animated: true });
+            }, 300);
           }}>
             <Text style={styles.actionText}>Enter Alphanumeric Code</Text>
           </TouchableOpacity>
@@ -359,11 +384,12 @@ export default function OrderDetailPage() {
         )}
 
       </ScrollView>
+      </KeyboardAvoidingView>
                 <SafeAreaView edges={["bottom"]}
                     style={{ width: "100%", bottom: 0, position: "absolute" }}>
                     <Bottombar />
-                </SafeAreaView>
-                </SafeAreaView>
+                </SafeAreaView>        
+      </SafeAreaView>
   );
 }
 

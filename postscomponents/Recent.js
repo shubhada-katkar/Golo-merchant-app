@@ -206,13 +206,22 @@ export default function Recent() {
                         <View style={styles.image} />
                     )}
 
-                    <View style={{ flex: 1, paddingHorizontal: 10 }}>
-                        <View style={styles.rowBetween}>
+                    <View style={{ flex: 1, paddingHorizontal: 10, justifyContent:"center" }}>
                             <Text style={{ fontSize: 18, fontFamily: "Medium",
-                                lineHeight: Math.round(18 * 1.5), width: "60%",
+                                lineHeight: Math.round(18 * 1.5), width: "70%",
                             }} numberOfLines={1} ellipsizeMode="tail">
                                 {title}
                             </Text>
+
+                        {validTo && (
+                            <Text style={{ fontSize: 12, marginTop: 3,
+                                fontFamily:"Medium", lineHeight: Math.round(12 * 1.5)
+                             }}>
+                                Expires On: {new Date(validTo).toDateString()}
+                            </Text>
+                        )}
+                    </View>
+
                             <View style={styles.actionRow}>
                                 <TouchableOpacity
                                     onPress={() =>
@@ -231,17 +240,8 @@ export default function Recent() {
                                 >
                                     <MaterialIcons name="delete-outline" size={19} color={deletingOfferId === getOfferId(item) ? "#999" : "#ef4d4d"} />
                                 </TouchableOpacity>
-                            </View>
                         </View>
 
-                        {validTo && (
-                            <Text style={{ fontSize: 12, marginTop: 3,
-                                fontFamily:"Medium", lineHeight: Math.round(12 * 1.5)
-                             }}>
-                                Expires On: {new Date(validTo).toDateString()}
-                            </Text>
-                        )}
-                    </View>
                 </View>
             </View>
         );
@@ -293,7 +293,6 @@ const styles = StyleSheet.create({
     },
     actionRow: {
         flexDirection: "row",
-        alignItems: "center",
         flexShrink: 0,
     },
     actionButton: {
