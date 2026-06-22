@@ -151,7 +151,7 @@ export default function ProfilePage({ navigation }) {
 return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
          <LinearGradient
-            colors={["#f8a812", "#fad081", "#fffbf4"]}
+            colors={["#f8a812", "#fad081", "#f8f6f265"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 0, y: 1 }}
             style={{height: 200, position: "absolute", top: 0, left: 0, right: 0, zIndex: 0}}
@@ -172,16 +172,10 @@ return (
 
         {/* Banner + Avatar */}
         <View style={styles.bannerContainer}>
-            <View style={styles.banner} />
-            <View style={styles.avatarWrapper}>
                 <Image source={profileImage} style={styles.image} />
-            </View>
-        </View>
-
         {/* Name + meta */}
-        <View style={styles.nameBlock}>
+            <View style={styles.nameBlock}>
             <Text style={[styles.shopName, { color: colors.text }]}>{shopName}</Text>
-            <View style={styles.metaRow}>
             </View>
         </View>
 
@@ -269,11 +263,11 @@ return (
 
 const styles = StyleSheet.create({
     image: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
-        borderWidth: 3,
-        borderColor: "#fff",
+        width: 120,
+        height: 120,
+        borderRadius: 60,
+        borderWidth: 2,
+        borderColor: "#b1b1b1",
     },
     row1: {
         alignItems: "center",
@@ -282,32 +276,17 @@ const styles = StyleSheet.create({
         paddingHorizontal: 14,
     },
     bannerContainer: {
-        height: 130,
-        position: "relative",
-    },
-    banner: {
-        height: 70,
-        backgroundColor: "#e0e0e0",
-    },
-    avatarWrapper: {
-        position: "absolute",
-        bottom: 0,
-        left: 24,
+        flexDirection: "row",
+        alignItems: "center",
+        padding:26,
     },
     nameBlock: {
         paddingHorizontal: 24,
-        paddingTop: 8,
-        paddingBottom: 4,
     },
     shopName: {
         fontSize: 22,
         fontFamily: "Medium",
-    },
-    metaRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        marginTop: 4,
-        gap: 8,
+        lineHeight:Math.round(22*1.5)
     },
     menuContainer: {
         paddingHorizontal: 16,

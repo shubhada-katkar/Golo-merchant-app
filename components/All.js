@@ -6,7 +6,7 @@ import { Entypo, MaterialIcons, Feather } from "@expo/vector-icons";
 import { fmtAgo } from "../utils/timeFormatter";
 import {LinearGradient} from "expo-linear-gradient";
 
-export default function All({ orders = [], onStatusChange }) {
+export default function All({ orders = [], onStatusChange, onViewOrder }) {
   const { colors } = useContext(ThemeContext);
 
   // Tick state to force periodic re-render so relative times update in real-time
@@ -106,7 +106,7 @@ export default function All({ orders = [], onStatusChange }) {
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginVertical: 8, alignSelf:"flex-end" }}>
                     <LinearGradient colors={["#fc9312","#ffb937", "#fad99c"]} start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }} style={styles.button}>
-                    <TouchableOpacity > 
+                    <TouchableOpacity onPress={() => onViewOrder?.(order)}> 
                       <Text style={styles.acceptedButtonText}>Accepted</Text>
                     </TouchableOpacity>
                     </LinearGradient>
@@ -116,7 +116,10 @@ export default function All({ orders = [], onStatusChange }) {
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginVertical: 8, alignSelf:"flex-end" }}>
                     <LinearGradient colors={["#106440", "#50a180","#56d6a1"]} start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }} style={styles.button}>
-                    <TouchableOpacity style={{ flexDirection: "row", gap: 6 }}> 
+                    <TouchableOpacity
+                      onPress={() => onViewOrder?.(order)}
+                      style={{ flexDirection: "row", gap: 6 }}
+                    > 
                       <Feather name="check-circle" size={16} color="#ffffff" 
                       style={{ top:2}} />
                       <Text style={styles.completedButtonText}>Completed</Text>

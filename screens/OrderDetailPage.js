@@ -73,6 +73,13 @@ export default function OrderDetailPage() {
   const customerPhone = order?.customerPhone || order?.phone || order?.user?.phone || order?.customer?.phone || order?.contactNumber || "Phone not available";
   const orderId = order?._id || order?.id || order?.orderNumber || "N/A";
   const orderRecordId = order?._id || order?.id || null;
+  const orderStatus = String(order?.status || order?.orderStatus || "").toLowerCase();
+  const voucherStatus = String(order?.voucher?.status || "").toLowerCase();
+  const isOrderRedeemed =
+    orderStatus === "completed" ||
+    orderStatus === "redeemed" ||
+    voucherStatus === "redeemed" ||
+    Boolean(order?.redeemedAt || order?.voucher?.redeemedAt);
 
   const resolveVoucherIdFromOrder = (orderObj) => {
     const candidate = orderObj?.voucherId || orderObj?.voucher?.voucherId || orderObj?.voucher?.id || orderObj?.voucher?._id;
@@ -81,6 +88,13 @@ export default function OrderDetailPage() {
   };
 
   const orderVoucherId = resolveVoucherIdFromOrder(order);
+
+  useEffect(() => {
+    if (isOrderRedeemed) {
+      setShowCodeInput(false);
+      setCodeValue("");
+    }
+  }, [isOrderRedeemed]);
 
   const parseVoucherIdFromQrString = (qrString) => {
     if (!qrString) return null;
@@ -329,29 +343,31 @@ export default function OrderDetailPage() {
             </View>
           </View>
 
-        <View style={{flexDirection:"row",marginTop:8, alignItems:"center", justifyContent:"space-between"}}>
+        {!isOrderRedeemed && (
+          <View style={{flexDirection:"row",marginTop:8, alignItems:"center", justifyContent:"space-between"}}>
 
-          <TouchableOpacity style={styles.actionButton} onPress={() => {
-            setShowCodeInput(false);
-            navigation.navigate("ScanQRCodePage", { onScanned: handleQRCodeScanned });
-          }}>
-            <AntDesign name="qrcode" size={20} color="white"/>
-            <Text style={styles.actionText}>Scan QR</Text>
-          </TouchableOpacity>
+            <TouchableOpacity style={styles.actionButton} onPress={() => {
+              setShowCodeInput(false);
+              navigation.navigate("ScanQRCodePage", { onScanned: handleQRCodeScanned });
+            }}>
+              <AntDesign name="qrcode" size={20} color="white"/>
+              <Text style={styles.actionText}>Scan QR</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.actionButton, {backgroundColor:'#f5b849'}]} onPress={() => {
-            setShowCodeInput(true);
-            setTimeout(() => {
-              scrollViewRef.current?.scrollToEnd({ animated: true });
-            }, 300);
-          }}>
-            <Ionicons name="ticket-outline" size={20} color="white"/>
-            <Text style={styles.actionText}>Enter Code</Text>
-          </TouchableOpacity>
-        </View>
+            <TouchableOpacity style={[styles.actionButton, {backgroundColor:'#f5b849'}]} onPress={() => {
+              setShowCodeInput(true);
+              setTimeout(() => {
+                scrollViewRef.current?.scrollToEnd({ animated: true });
+              }, 300);
+            }}>
+              <Ionicons name="ticket-outline" size={20} color="white"/>
+              <Text style={styles.actionText}>Enter Code</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Inline Code Input Section */}
-        {showCodeInput && (
+        {showCodeInput && !isOrderRedeemed && (
           <View style={styles.codeInputSection}>
             <Text style={styles.codeInputLabel}>Enter verification code</Text>
             <TextInput 

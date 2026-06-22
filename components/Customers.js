@@ -7,43 +7,9 @@ export default function Customers() {
         <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
 
             <View style={{ flexDirection: "row", paddingHorizontal: 18, paddingVertical: 18 }}>
-                <View style={styles.card2}>
-                    <Text style={{ fontSize: 18, paddingHorizontal: 10,
-                        fontFamily:"Medium", lineHeight: Math.round(18 * 1.5)
-                     }}>Device Type</Text>
-                    <Text style={{ paddingHorizontal: 10, color: "#727272",
-                        fontSize: 14, fontFamily:"Medium", lineHeight: Math.round(14 * 1.5)
-                     }}>What Customers Use</Text>
-
-                    <Image source={require("../assets/graph.png")}
-                        style={{ height: 220, width: 220, alignSelf: "center" }} />
-
-                    <View style={{ marginTop: 10, flexDirection: "row", backgroundColor: "black", height: 1 }} />
-
-                    <View style={{paddingTop:10,paddingHorizontal:10,gap:10}}>
-                        <View style={{ flexDirection: "row",alignItems:"center" }}>
-                            <FontAwesome name="circle" size={22} color="#4caf50"/>
-                            <Text  style={{paddingLeft:6,fontSize:14,fontFamily:"Medium",lineHeight: Math.round(14 * 1.5)}}>Mobile</Text>
-                        </View>
-
-                        <View style={{ flexDirection: "row",alignItems:"center" }}>
-                            <FontAwesome name="circle" size={22} color="#f9a641" />
-                            <Text  style={{paddingLeft:6,fontSize:14,fontFamily:"Medium",lineHeight: Math.round(14 * 1.5)}}>Computer</Text>
-                        </View>
-
-                        <View style={{ flexDirection: "row",alignItems:"center" }}>
-                            <FontAwesome name="circle" size={22} color="#c5c5c5" />
-                            <Text  style={{paddingLeft:6,fontSize:14,fontFamily:"Medium",lineHeight: Math.round(14 * 1.5)}}>Tablet</Text>
-                        </View>
-                    </View>
-                </View>
-            </View>
-
-            <View style={{ flexDirection: "row", paddingHorizontal: 18, paddingVertical: 18 }}>
                 <View style={styles.card3}>
                     <Text style={{ fontSize: 18, paddingHorizontal: 10,
-                        lineHeight: Math.round(18 * 1.5), fontFamily:"Medium"
-                     }}>Age and Gender</Text>
+                        lineHeight: Math.round(18 * 1.5), fontFamily:"Medium" }}>Age and Gender</Text>
 
                     <View style={{ flexDirection: "row" }}>
                         <Text style={{ paddingHorizontal: 10, color: "#727272",

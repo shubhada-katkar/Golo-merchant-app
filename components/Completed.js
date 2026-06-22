@@ -5,7 +5,7 @@ import { useContext } from "react";
 import { ThemeContext } from "../theme/ThemeContext";
 import {LinearGradient} from "expo-linear-gradient";
 
-export default function Completed({ orders = [] }) {
+export default function Completed({ orders = [], onViewOrder }) {
   const { colors } = useContext(ThemeContext);
   const [nowTick, setNowTick] = useState(Date.now());
 
@@ -77,7 +77,10 @@ export default function Completed({ orders = [] }) {
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginVertical: 8, alignSelf:"flex-end" }}>
                   <LinearGradient colors={["#106440", "#50a180","#56d6a1"]} start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }} style={styles.button}>
-                  <TouchableOpacity style={{flexDirection: "row", alignItems: "center", gap: 6}}> 
+                  <TouchableOpacity
+                    onPress={() => onViewOrder?.(order)}
+                    style={{flexDirection: "row", alignItems: "center", gap: 6}}
+                  > 
                     <Feather name="check-circle" size={16} color="#ffffff" />
                     <Text style={styles.buttonText}>Completed</Text>
                   </TouchableOpacity>

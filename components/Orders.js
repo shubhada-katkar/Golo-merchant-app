@@ -190,9 +190,9 @@ export default function Orders() {    const navigation = useNavigation();    con
                 </View>
             ) : (
                 <>
-                    {activeTab == "All" && <All orders={orders} onStatusChange={updateOrderStatus} onRefresh={fetchOrders} onDelete={deleteOrder} />}
+                    {activeTab == "All" && <All orders={orders} onStatusChange={updateOrderStatus} onViewOrder={(order) => navigation.navigate("OrderDetailPage", { order })} onRefresh={fetchOrders} onDelete={deleteOrder} />}
                     {activeTab == "Accepted" && <Accepted orders={acceptedOrders} onRefresh={fetchOrders} onComplete={(order) => navigation.navigate("OrderDetailPage", { order })} onDelete={deleteOrder} />}
-                    {activeTab == "Completed" && <Completed orders={completedOrders} onRefresh={fetchOrders} onDelete={deleteOrder} />}
+                    {activeTab == "Completed" && <Completed orders={completedOrders} onViewOrder={(order) => navigation.navigate("OrderDetailPage", { order })} onRefresh={fetchOrders} onDelete={deleteOrder} />}
                 </>
             )}
 
