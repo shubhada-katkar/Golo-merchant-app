@@ -2,8 +2,9 @@ import React from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
 import { useContext, useState, useEffect } from "react";
 import { ThemeContext } from "../theme/ThemeContext";
-import { Entypo, FontAwesome5, MaterialCommunityIcons, Feather } from "@expo/vector-icons";
+import { MaterialIcons } from "@expo/vector-icons";
 import { fmtAgo } from "../utils/timeFormatter";
+import {LinearGradient} from "expo-linear-gradient";
 
 export default function Accepted({ orders = [], onComplete}) {
   const { colors } = useContext(ThemeContext);
@@ -22,28 +23,64 @@ export default function Accepted({ orders = [], onComplete}) {
           const total = Number(order?.totalAmount || order?.total || 0);
           const itemCount = order?.items?.length || order?.products?.length || 0;
           const customerName = order?.customerName || order?.user?.name || "Customer";
+          const offerName =
+            order?.offerTitle ||
+            order?.offerName ||
+            order?.title ||
+            order?.name ||
+            order?.voucher?.offerTitle ||
+            order?.voucher?.offer?.title ||
+            order?.voucher?.title ||
+            order?.voucher?.name ||
+            order?.offer?.title ||
+            order?.offer?.bannerTitle ||
+            "Offer details not available";
+          const customerPhone =
+            order?.customerPhone ||
+            order?.phone ||
+            order?.user?.phone ||
+            order?.customer?.phone ||
+            order?.contactNumber ||
+            "Phone not available";
           return (
             <View key={id} style={styles.card2}>
+
+              <View style={{ flexDirection: "row", justifyContent: "space-between" ,
+                alignItems: "center" }} >
+                <View style={{ flexDirection: "row", gap: 5 }}>
+                  <MaterialIcons name="account-circle" size={20} color="#f9a641"
+                  style={{borderWidth: 0.5, borderColor: "#000000", borderRadius: 20}}/>
+                  <Text style={{ fontSize: 13, fontFamily:"Medium",
+                      lineHeight: Math.round(13 * 1.5)
+                   }}>{customerName}</Text>
+                </View>
               <Text style={{ fontSize: 12, fontFamily:"Medium",
-                lineHeight: Math.round(12 * 1.5)
+                lineHeight: Math.round(12 * 1.5), color: "#5f5f5f"
               }}
               >Purchased {fmtAgo(order?.placedAt || order?.createdAt)}</Text>
+              </View>
 
               <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1,
                 marginVertical: 4
                }} />
 
-                <View style={{ flexDirection: "row", gap: 5 }}>
-                  <MaterialCommunityIcons name="account" size={20} />
-                  <Text style={{ fontSize: 13, fontFamily:"Medium",
-                      lineHeight: Math.round(13 * 1.5)
-                   }}>{customerName}</Text>
+                <View style={styles.metaBlock}>
+                  <Text style={styles.metaLabel}>Offer Claimed</Text>
+                  <Text style={styles.metaValue}>{offerName}</Text>
+                </View>
+
+                <View style={styles.metaBlock}>
+                  <Text style={styles.metaLabel}>Phone</Text>
+                  <Text style={styles.metaValue}>{customerPhone}</Text>
                 </View>
 
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginVertical: 8, alignSelf:"flex-end" }}>
-                  <TouchableOpacity style={[styles.button, { backgroundColor: "#f5b849" }]} onPress={() => onComplete?.(order)}>
+                  <LinearGradient colors={["#fc9312","#ffb937", "#fad99c"]} start={{ x: 0, y: 0 }}
+                   end={{ x: 1, y: 1 }} style={styles.button}>
+                  <TouchableOpacity onPress={() => onComplete?.(order)}>
                     <Text style={styles.buttonText}>Complete Order</Text>
                   </TouchableOpacity>
+                  </LinearGradient>
                 </View>
 
             </View>
@@ -57,7 +94,7 @@ export default function Accepted({ orders = [], onComplete}) {
 
 const styles = StyleSheet.create({
   colcontainer: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 10,
     gap: 12
   },
@@ -65,7 +102,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderColor: "black",
     minHeight: 100,
-    borderWidth: 1,
     shadowColor: "#413f4f",
     elevation: 10,
     backgroundColor: "white",
@@ -85,5 +121,23 @@ const styles = StyleSheet.create({
     fontFamily:"Medium",
     lineHeight: Math.round(14 * 1.5),
     fontSize: 14
+  },
+  metaBlock: {
+    marginTop: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6
+  },
+  metaLabel: {
+    fontSize: 12,
+    color: "#5f5f5f",
+    fontFamily: "Medium",
+    lineHeight: Math.round(12 * 1.5),
+  },
+  metaValue: {
+    fontSize: 12,
+    color: "#000000",
+    fontFamily: "Medium",
+    lineHeight: Math.round(12 * 1.5),
   },
 });

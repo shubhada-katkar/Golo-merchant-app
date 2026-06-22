@@ -1,5 +1,5 @@
 import React, { useState, useContext, useCallback } from "react";
-import { View, TouchableOpacity, Text, StyleSheet, Image } from "react-native";
+import { View, TouchableOpacity, Text, StyleSheet, Image, Switch, ScrollView, Alert } from "react-native";
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -8,9 +8,70 @@ import { ThemeContext } from "../theme/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { BASE_URL } from "../config";
+import { LinearGradient } from "expo-linear-gradient";
 
 export default function ProfilePage({ navigation }) {
-    const { colors } = useContext(ThemeContext);
+        const { theme, colors, toggleTheme } = useContext(ThemeContext);
+        const [loadingLogout, setLoadingLogout] = useState(false);
+    
+        // ================= LOGOUT =================
+        const handleLogout = async () => {
+          Alert.alert("Confirm Logout", "Are you sure you want to logout?", [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Logout",
+              style: "destructive",
+              onPress: async () => {
+                try {
+                  setLoadingLogout(true);
+
+                  const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+
+                  try {
+                    if (token) {
+                      const logoutHeaders = {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                      };
+
+                      let res = await fetch(`${BASE_URL}/users/logout`, {
+                        method: "POST",
+                        headers: logoutHeaders,
+                        body: JSON.stringify({ refreshToken: null }),
+                      });
+
+                      if (!res.ok && res.status === 404) {
+                        await fetch(`${BASE_URL}/users/logout`, {
+                          method: "POST",
+                          headers: logoutHeaders,
+                          body: JSON.stringify({ refreshToken: null }),
+                        });
+                      }
+                    }
+                  } catch (logoutError) {
+                    console.log("Logout API error:", logoutError);
+                  }
+
+                  await AsyncStorage.multiRemove([
+                    "merchantToken",
+                    "merchantData",
+                    "merchantId",
+                    "accessToken",
+                    "user",
+                    "refreshToken",
+                  ]);
+
+                  navigation.reset({ index: 0, routes: [{ name: "Login" }] });
+                } catch (err) {
+                  Alert.alert("Logout failed", "Please try again");
+                } finally {
+                  setLoadingLogout(false);
+                }
+              },
+            },
+          ]);
+        };
+
     const [shopName, setShopName] = useState("Shop Name");
     const [profileImage, setProfileImage] = useState(require("../assets/profile.png"));
 
@@ -87,93 +148,219 @@ export default function ProfilePage({ navigation }) {
         }, [])
     );
 
-    return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-            <Topbar />
+return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+         <LinearGradient
+            colors={["#f8a812", "#fad081", "#fffbf4"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={{height: 200, position: "absolute", top: 0, left: 0, right: 0, zIndex: 0}}
+            />
+         <Topbar />
 
-            <View style={styles.row1}>
-                <TouchableOpacity onPress={() => navigation.navigate("HomePage")}>
-                    <MaterialIcons name="arrow-back-ios" size={26} color={colors.text} style={{ padding: 10 }} />
-                </TouchableOpacity>
-                <Text style={{ fontSize: 20, paddingLeft: 5, color: colors.text,
-                    lineHeight: Math.round(20 * 1.2), fontFamily: "Medium", flex: 1
-                 }}>Profile</Text>
-            </View>
+        <View style={styles.row1}>
+            <TouchableOpacity onPress={() => navigation.goBack()}>
+                <MaterialIcons name="arrow-back-ios" size={26} color={colors.text} style={{ padding: 10 }} />
+            </TouchableOpacity>
+            <Text style={{ fontSize: 20, paddingLeft: 5, color: colors.text,
+                lineHeight: Math.round(20 * 1.2), fontFamily: "Medium", flex: 1
+             }}>Profile</Text>
+        </View>
 
-            <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1, color: colors.divider }} />
+        <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1 }} />
+        <ScrollView contentContainerStyle={{ paddingBottom: 90 }} showsVerticalScrollIndicator={false}>
 
-            <View style={styles.row2}>
+        {/* Banner + Avatar */}
+        <View style={styles.bannerContainer}>
+            <View style={styles.banner} />
+            <View style={styles.avatarWrapper}>
                 <Image source={profileImage} style={styles.image} />
-                <Text style={{ fontSize: 24, paddingHorizontal: 16, color: colors.text,
-                    lineHeight: Math.round(24 * 1.2), fontFamily: "SemiBold", flex: 1
-                 }}>{shopName}</Text>
+            </View>
+        </View>
+
+        {/* Name + meta */}
+        <View style={styles.nameBlock}>
+            <Text style={[styles.shopName, { color: colors.text }]}>{shopName}</Text>
+            <View style={styles.metaRow}>
+            </View>
+        </View>
+
+        {/* Menu */}
+        <View style={styles.menuContainer}>
+
+            <Text style={[styles.sectionHeader, { color: colors.text }]}>GENERAL SETTINGS</Text>
+
+            <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]} onPress={() => navigation.navigate("ProfileSettingsPage")}>
+                <View style={styles.iconCircle}>
+                    <MaterialCommunityIcons name="account-cog-outline" size={20} color="#157a4f" />
+                </View>
+                <View style={styles.menuText}>
+                    <Text style={[styles.menuTitle, { color: colors.text }]}>Profile Settings</Text>
+                    <Text style={[styles.menuSub, { color: colors.subText || "#888" }]}>Manage your business information</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color={colors.subText || "#aaa"} />
+            </TouchableOpacity>
+
+            <Text style={[styles.sectionHeader, { color: colors.text, marginTop: 18 }]}>REWARDS & SUPPORT</Text>
+
+            <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]} onPress={() => navigation.navigate("LoyaltyPage")}>
+                <View style={styles.iconCircle}>
+                    <MaterialCommunityIcons name="trophy-outline" size={20} color="#157a4f" />
+                </View>
+                <View style={styles.menuText}>
+                    <Text style={[styles.menuTitle, { color: colors.text }]}>Loyalty Rewards</Text>
+                    <Text style={[styles.menuSub, { color: colors.subText || "#888" }]}>View your current program status</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color={colors.subText || "#aaa"} />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]}>
+                <View style={styles.iconCircle}>
+                    <AntDesign name="question-circle" size={20} color="#157a4f" />
+                </View>
+                <View style={styles.menuText}>
+                    <Text style={[styles.menuTitle, { color: colors.text }]}>Help Center</Text>
+                    <Text style={[styles.menuSub, { color: colors.subText || "#888" }]}>FAQs and customer support</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color={colors.subText || "#aaa"} />
+            </TouchableOpacity>
+
+            {/* Dark Mode row */}
+            <View style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]}>
+                <View style={styles.iconCircle}>
+                    <MaterialCommunityIcons name="weather-night" size={20} color="#157a4f" />
+                </View>
+                <View style={styles.menuText}>
+                    <Text style={[styles.menuTitle, { color: colors.text }]}>Dark Mode</Text>
+                </View>
+                <Switch
+                    value={theme === "dark"}
+                    onValueChange={toggleTheme}
+                    thumbColor={theme === "dark" ? "#157a4f" : "#f4f3f4"}
+                    trackColor={{ false: "#ccc", true: "#141414" }}
+                    ios_backgroundColor="#ccc"
+                />
             </View>
 
-            <View style={{ paddingTop: 30 }}>
-                <TouchableOpacity style={styles.items} onPress={() => navigation.navigate("SettingsPage")}>
-                    <Feather name="settings" size={22} color={colors.text} />
-                    <Text style={[styles.text, { color: colors.text }]}>Settings</Text>
-                </TouchableOpacity>
+            {/* Divider before Sign Out */}
+            <View style={[styles.divider, { backgroundColor: colors.divider || "#eee" }]} />
 
-                <TouchableOpacity style={styles.items}>
-                    <AntDesign name="question-circle" size={22} color={colors.text} />
-                    <Text style={[styles.text, { color: colors.text }]}>Help Center</Text>
-                </TouchableOpacity>
+            <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]} onPress={handleLogout} disabled={loadingLogout}>
+                <View style={[styles.iconCircle, { backgroundColor: "#fff0f0" }]}>
+                    <MaterialIcons name="logout" size={20} color="#ff6b6b" />
+                </View>
+                <View style={styles.menuText}>
+                    <Text style={[styles.menuTitle, { color: "#ff6b6b" }]}>
+                        {loadingLogout ? "Logging out..." : "Sign Out"}
+                    </Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#ff6b6b" />
+            </TouchableOpacity>
 
-                <TouchableOpacity style={styles.items} onPress={() => navigation.navigate("LoyaltyPage")}>
-                    <MaterialCommunityIcons name="trophy-outline" size={22} color={colors.text} />
-                    <Text style={[styles.text, { color: colors.text }]}>Loyality Rewards</Text>
-                </TouchableOpacity>
+        </View>
+        </ScrollView>
 
-                <TouchableOpacity style={styles.items} onPress={() => navigation.navigate("ProfileSettingsPage")}>
-                    <MaterialCommunityIcons name="account-cog-outline" size={24} color={colors.text} />
-                    <Text style={[styles.text, { color: colors.text }]}>Profile Settings</Text>
-                </TouchableOpacity>
-            </View>
-
-            <SafeAreaView edges={["bottom"]} style={{ width: "100%", bottom: 0, position: "absolute" }}>
-                <Bottombar />
-            </SafeAreaView>
+        <SafeAreaView edges={["bottom"]} style={{ width: "100%", bottom: 0, position: "absolute" }}>
+            <Bottombar />
         </SafeAreaView>
-    );
+    </SafeAreaView>
+);
 }
 
 const styles = StyleSheet.create({
     image: {
-        width: 90,
-        height: 90,
-        borderRadius: 45
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        borderWidth: 3,
+        borderColor: "#fff",
     },
     row1: {
         alignItems: "center",
         flexDirection: "row",
         paddingVertical: 8,
-        paddingHorizontal: 14
+        paddingHorizontal: 14,
     },
-    row2: {
+    bannerContainer: {
+        height: 130,
+        position: "relative",
+    },
+    banner: {
+        height: 70,
+        backgroundColor: "#e0e0e0",
+    },
+    avatarWrapper: {
+        position: "absolute",
+        bottom: 0,
+        left: 24,
+    },
+    nameBlock: {
+        paddingHorizontal: 24,
+        paddingTop: 8,
+        paddingBottom: 4,
+    },
+    shopName: {
+        fontSize: 22,
+        fontFamily: "Medium",
+    },
+    metaRow: {
         flexDirection: "row",
-        paddingHorizontal: 30,
         alignItems: "center",
-        paddingTop: 30
+        marginTop: 4,
+        gap: 8,
     },
-    switch: {
-        backgroundColor: "#c0bdbd",
-        borderRadius: 14,
-        justifyContent: "center",
-        alignSelf: "flex-start",
-        paddingHorizontal: 22,
-        paddingVertical: 6
+    menuContainer: {
+        paddingHorizontal: 16,
     },
-    items: {
+    sectionHeader: {
+        fontSize: 11,
+        fontFamily: "Medium",
+        letterSpacing: 0.8,
+        opacity: 0.5,
+        marginBottom: 8,
+        marginLeft: 4,
+        lineHeight:Math.round(11*1.5)
+    },
+    menuItem: {
         flexDirection: "row",
-        paddingHorizontal: 40,
-        paddingVertical: 12,
-        alignItems: "center"
+        alignItems: "center",
+        paddingVertical: 13,
+        paddingHorizontal: 14,
+        borderRadius: 12,
+        marginBottom: 8,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 1,
     },
-    text: {
-        fontSize: 18,
-        paddingHorizontal: 8,
-        lineHeight: Math.round(18 * 1.2),
-        fontFamily: "Medium"
+    iconCircle: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: "#e8f5ee",
+        alignItems: "center",
+        justifyContent: "center",
+        marginRight: 12,
+    },
+    menuText: {
+        flex: 1,
+    },
+    menuTitle: {
+        fontSize: 15,
+        fontFamily: "Medium",
+        lineHeight:Math.round(15*1.5)
+    },
+    menuSub: {
+        fontSize: 12,
+        marginTop: 1,
+        fontFamily: "Medium",
+        opacity: 0.7,
+        lineHeight:Math.round(12*1.5)
+    },
+    divider: {
+        height: 1,
+        marginVertical: 8,
+        marginHorizontal: 4,
     },
 });

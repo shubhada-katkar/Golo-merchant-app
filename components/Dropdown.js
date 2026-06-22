@@ -106,14 +106,14 @@ export default function Dropdown({ BASE_URL, token, onChange, value: parentValue
             multiple
             mode="BADGE"
 
-            showBadgeCloseIcon
+            showBadgeCloseIcon={true}
             badgeColors={["#E5E7EB"]}
             badgeTextStyle={{ color: "#000", fontFamily: "Medium",
-                fontSize: 13, lineHeight: Math.round(13 * 1.5)
+                fontSize: 13, lineHeight: Math.round(13 * 1.5), paddingVertical:4
              }}
             badgeStyle={{
                 paddingHorizontal: 10,
-                borderRadius: 8
+                borderRadius: 8,
             }}
 
             listMode="FLATLIST"

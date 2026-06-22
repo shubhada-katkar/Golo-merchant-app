@@ -17,40 +17,55 @@ export default function Bottombar(){
 
             <TouchableOpacity style={[styles.bar ]} onPress={()=>navigation.navigate("HomePage")}>
                 <MaterialCommunityIcons name="view-dashboard-outline" size={24}
-                color={currentRoute === "HomePage" ? "#157a4f" : "black"}/>
-                <Text style={{textAlign:"auto",fontSize:11,color:currentRoute === "HomePage" ? "#157a4f":"black",
+                color={currentRoute === "HomePage" ? "#f9a641" : "black"}/>
+                <Text style={{textAlign:"auto",fontSize:11,color:currentRoute === "HomePage" ? "#f9a641":"black",
                     fontFamily : "Medium", lineHeight: Math.round(11*1.5)
                 }}>Dashboard</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.bar} onPress={()=>navigation.navigate("PostsPage")}>
                 <MaterialCommunityIcons name="account-group-outline" size={24}
-                color={currentRoute === "PostsPage" ? "#157a4f" : "black"}/>
-                <Text style={{textAlign:"auto",fontSize:11,color:currentRoute === "PostsPage" ? "#157a4f" : "black",
+                color={currentRoute === "PostsPage" ? "#f9a641" : "black"}/>
+                <Text style={{textAlign:"auto",fontSize:11,color:currentRoute === "PostsPage" ? "#f9a641" : "black",
                     fontFamily : "Medium", lineHeight: Math.round(11*1.5)
                 }}>Posts</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.bar} >
-                <FontAwesome name="plus-square-o" size={24} onPress={()=>navigation.navigate("AddOfferPage")}
-                color= {currentRoute === "AddOfferPage" ? "#157a4f" : "black"}/>
-                <Text style={{textAlign:"auto",fontSize:11,color:currentRoute === "AddOfferPage" ? "#157a4f" : "black",
-                    fontFamily : "Medium", lineHeight: Math.round(11*1.5)
-                }}>Add Offer</Text>
-            </TouchableOpacity>
+           <View style={styles.centerContainer}>
+  <TouchableOpacity  onPress={() => navigation.navigate("AddOfferPage")}
+    style={[styles.addButton, 
+        {backgroundColor:currentRoute==="AddOfferPage" ? "#f9a641" :"#4caf50"}
+    ]} >
+    <MaterialCommunityIcons
+      name="plus"
+      size={32}
+      color={currentRoute==="AddOfferPage" ? "#ffffff" : "black"}
+    />
+  </TouchableOpacity>
+
+  <Text
+    style={{
+      fontSize: 11,
+      color: currentRoute === "AddOfferPage" ? "#f9a641" : "black",
+      fontFamily: "Medium",
+    }}
+  >
+    Add Offer
+  </Text>
+</View>
 
             <TouchableOpacity style={styles.bar} onPress={()=>navigation.navigate("ProductListPage")}>
                 <MaterialCommunityIcons name="format-list-checkbox" size={24}
-                color= {currentRoute === "ProductListPage" ? "#157a4f" : "black"}/>
-                <Text style={{textAlign:"auto",fontSize:11,color:currentRoute === "ProductListPage" ? "#157a4f" : "black",
+                color= {currentRoute === "ProductListPage" ? "#f9a641" : "black"}/>
+                <Text style={{textAlign:"auto",fontSize:11,color:currentRoute === "ProductListPage" ? "#f9a641" : "black",
                     fontFamily : "Medium", lineHeight: Math.round(11*1.5)
                 }}>Product List</Text>
             </TouchableOpacity>
 
                 <TouchableOpacity style={styles.bar} onPress={()=>navigation.navigate("ProfilePage")}>
                 <MaterialCommunityIcons name="account-circle-outline" size={24} 
-                color={currentRoute === "ProfilePage" ? "#157a4f" : "black"}/>
-                <Text style={{textAlign:"auto",fontSize:11,color:currentRoute === "ProfilePage" ? "#157a4f" : "black",
+                color={currentRoute === "ProfilePage" ? "#f9a641" : "black"}/>
+                <Text style={{textAlign:"auto",fontSize:11,color:currentRoute === "ProfilePage" ? "#f9a641" : "black",
                     fontFamily : "Medium", lineHeight: Math.round(11*1.5)
                 }}>Profile</Text>
                 </TouchableOpacity>
@@ -74,4 +89,23 @@ const styles=StyleSheet.create({
         alignItems:"center",
         flexDirection: "column", 
     },
+     centerContainer:{
+        flexDirection:"column",
+        justifyContent:"center",
+        alignSelf:"center",
+        alignItems:"center",
+     },
+addButton: {
+  width: 60,
+  height: 60,
+  borderRadius: 30,
+
+  justifyContent: "center",
+  alignItems: "center",
+
+  borderWidth: 3,
+  borderColor: "#d1d1d1",
+
+  marginTop: -30, // lifts button above bar
+},
 })

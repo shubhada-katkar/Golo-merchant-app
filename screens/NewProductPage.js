@@ -13,6 +13,7 @@ import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL } from "../config";
 import { uploadImageToCloudinary } from "../services/cloudinaryService";
+import { LinearGradient } from "expo-linear-gradient";
 
 export default function NewProductPage({ navigation, route }) {
   const { colors } = useContext(ThemeContext);
@@ -24,8 +25,7 @@ export default function NewProductPage({ navigation, route }) {
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [merchantStoreSubCategory, setMerchantStoreSubCategory] = useState("");
 
-  const [image, setImage] = useState(null);
-  const [imageRemoved, setImageRemoved] = useState(false);
+  const [selectedImages, setSelectedImages] = useState([]);
 
   const initialForm = {
     price: "",
@@ -69,15 +69,21 @@ export default function NewProductPage({ navigation, route }) {
         stockQuantity: String(editProduct.stockQuantity ?? editProduct.stock ?? ""),
       });
 
-      const imageUrl =
-        editProduct.productImages?.[0] ||
-        editProduct.images?.[0] ||
+      const existingImages = [
+        ...(Array.isArray(editProduct.productImages) ? editProduct.productImages : []),
+        ...(Array.isArray(editProduct.images) ? editProduct.images : []),
+      ];
+      const fallbackImage =
         editProduct.image?.url ||
         editProduct.image?.imageUrl ||
         editProduct.image ||
         null;
-      setImage(typeof imageUrl === "string" ? imageUrl : null);
-      setImageRemoved(false);
+      const imageUris = existingImages.length
+        ? existingImages
+        : typeof fallbackImage === "string"
+        ? [fallbackImage]
+        : [];
+      setSelectedImages(imageUris.map((uri) => ({ uri })));
     }
     return () => {
       showSub.remove();
@@ -94,16 +100,22 @@ export default function NewProductPage({ navigation, route }) {
     }
 
     let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
+      mediaTypes: "images",
+      allowsMultipleSelection: true,
+      selectionLimit: 10,
       quality: 1,
     });
 
     if (!result.canceled) {
-      setImage(result.assets[0].uri);
-      setImageRemoved(false);
+      const pickedImages = result.assets.map((asset) => ({ uri: asset.uri }));
+      setSelectedImages((currentImages) => [...currentImages, ...pickedImages]);
     }
+  };
+
+  const removeSelectedImage = (indexToRemove) => {
+    setSelectedImages((currentImages) =>
+      currentImages.filter((_, index) => index !== indexToRemove)
+    );
   };
 
 const saveProduct = async () => {
@@ -137,24 +149,34 @@ const saveProduct = async () => {
 
       const method = isEdit ? "PUT" : "POST";
 
-      let imageSourceUrl;
-      if (typeof image === "string" && !/^https?:\/\//i.test(image)) {
-        const uploadResult = await uploadImageToCloudinary(image, "golo/product-images");
+      const uploadedImages = [];
+      for (const selectedImage of selectedImages) {
+        const imageUri = selectedImage?.uri;
+        if (!imageUri) continue;
+
+        if (/^https?:\/\//i.test(imageUri)) {
+          uploadedImages.push(imageUri);
+          continue;
+        }
+
+        const uploadResult = await uploadImageToCloudinary(imageUri, "golo/product-images");
         if (!uploadResult.success) {
           alert(uploadResult.message || "Failed to upload image. Please try again.");
           return;
         }
-        imageSourceUrl = uploadResult.url;
-        setImage(uploadResult.url);
-      } else if (typeof image === "string" && /^https?:\/\//i.test(image)) {
-        imageSourceUrl = image;
+        uploadedImages.push(uploadResult.url);
       }
 
-      const productImages = imageSourceUrl
-        ? [imageSourceUrl]
-        : isEdit && imageRemoved
-        ? []
-        : undefined;
+      if (uploadedImages.length) {
+        setSelectedImages(uploadedImages.map((uri) => ({ uri })));
+      }
+
+      const productImages =
+        uploadedImages.length > 0
+          ? uploadedImages
+          : isEdit
+          ? []
+          : undefined;
       const productCategory = merchantStoreSubCategory;
 
       const createJsonPayload = {
@@ -251,11 +273,10 @@ const saveProduct = async () => {
 
   const clearAllFields = () => {
     setForm(initialForm);
-    setImage(null);
-    setImageRemoved(false);
+    setSelectedImages([]);
   };
 
-  return (
+return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       {/* Detect taps outside */}
       <TouchableWithoutFeedback
@@ -267,6 +288,12 @@ const saveProduct = async () => {
           style={{ flex: 1 }}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
+        <LinearGradient
+             colors={["#f8a812", "#fad081", "#fffbf4"]}
+             start={{ x: 0, y: 0 }}
+             end={{ x: 0, y: 1 }}
+             style={{height: 220, position: "absolute", top: 0, left: 0, right: 0, zIndex: 0}}
+        />
           <Topbar />
                       <View style={styles.row1}>
               <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -284,51 +311,49 @@ const saveProduct = async () => {
               </Text>
             </View>
 
-            <View style={{ flexDirection: "row", backgroundColor: "black", height: 1 }} />
+            <View style={styles.divider} />
           <ScrollView
-            contentContainerStyle={{ paddingBottom: isKeyboardVisible ? bottomPadding + 140 : bottomPadding, flexGrow: 1 }}
+            contentContainerStyle={{ paddingBottom: 100 }}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             keyboardDismissMode="on-drag"
           >
-            <View style={styles.row2}>
-              <TouchableOpacity style={styles.card1} onPress={pickImage}>
-                <Feather name="upload" size={30} color="#157a4f" />
-                <Text>Upload Image</Text>
-              </TouchableOpacity>
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>Product Details</Text>
 
-              <View style={[styles.card1, styles.imageContainer]}>
-                {image ? (
-                  <>
-                    <Image
-                      source={{ uri: image }}
-                      style={{ width: 150, height: 150, borderRadius: 10 }}
-                    />
-                    <TouchableOpacity
-                      style={styles.removeIcon}
-                      onPress={() => {
-                        setImage(null);
-                        setImageRemoved(true);
-                      }}
-                    >
-                      <MaterialIcons name="close" size={18} color="#fff" />
-                    </TouchableOpacity>
-                  </>
-                ) : (
-                  <Image
-                    source={require("../assets/profile.png")}
-                    style={{ width: 150, height: 150 }}
-                  />
+              <View style={styles.imageUploadCard}>
+                {selectedImages.length > 0 && (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.selectedImagesScroll}
+                    contentContainerStyle={styles.selectedImagesContent}
+                  >
+                    {selectedImages.map((selectedImage, index) => (
+                      <View key={`${selectedImage.uri}-${index}`} style={styles.selectedImageWrap}>
+                        <Image source={{ uri: selectedImage.uri }} style={styles.selectedImage} />
+                        <TouchableOpacity
+                          style={styles.removeImageButton}
+                          onPress={() => removeSelectedImage(index)}
+                        >
+                          <Feather name="x" size={14} color="#fff" />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </ScrollView>
                 )}
+
+                <TouchableOpacity style={styles.imageDropZone} onPress={pickImage}>
+                  <View style={styles.imagePlaceholder}>
+                    <Feather name="upload" size={28} color="#157a4f" />
+                    <Text style={styles.imagePlaceholderText}>Upload Image</Text>
+                  </View>
+                </TouchableOpacity>
               </View>
-            </View>
 
-            <View style={{ paddingHorizontal: 18 }}>
-              <Text style={{ fontSize: 18, color: colors.text,
-                  fontFamily:"Medium", lineHeight: Math.round(18 * 1.5)
-               }}>Product Details</Text>
-
-              <Text style={[styles.text, { color: colors.text }]}>Product Name*</Text>
+              <Text style={[styles.text, { color: colors.text }]}>
+                Product Name<Text style={styles.requiredStar}>*</Text>
+              </Text>
               <TextInput
                 style={styles.input}
                 placeholder="Enter product name"
@@ -347,47 +372,52 @@ const saveProduct = async () => {
                 onChangeText={(text) => setForm({ ...form, description: text })}
               />
 
+              <View style={[styles.row, { marginTop: 16 }]}>
+                <View style={styles.halfField}>
+                  <Text style={[styles.text, { color: colors.text, paddingTop: 0 }]}>
+                    Price<Text style={styles.requiredStar}>*</Text>
+                  </Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter price"
+                    keyboardType="numeric"
+                    value={form.price}
+                    onChangeText={(text) => {
+                      setForm({ ...form, price: text });
+                    }}
+                  />
+                </View>
 
-
-              <Text style={[styles.text, { color: colors.text }]}>Price*</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter price"
-                keyboardType="numeric"
-                value={form.price}
-                onChangeText={(text) => {
-                  setForm({ ...form, price: text });
-                }}
-              />
-
-              <Text style={[styles.text, { color: colors.text }]}>Stock Quantity</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter stock quantity"
-                keyboardType="numeric"
-                value={form.stockQuantity}
-                onChangeText={(text) => setForm({ ...form, stockQuantity: text })}
-              />
+                <View style={styles.halfField}>
+                  <Text style={[styles.text, { color: colors.text, paddingTop: 0 }]}>Stock Quantity</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter stock quantity"
+                    keyboardType="numeric"
+                    value={form.stockQuantity}
+                    onChangeText={(text) => setForm({ ...form, stockQuantity: text })}
+                  />
+                </View>
+              </View>
             </View>
 
-           <View style={{ paddingTop: 30, paddingHorizontal: 16}} >
-  <TouchableOpacity
-    style={[styles.button, { opacity: isSaving ? 0.6 : 1 }]}
-    onPress={saveProduct}
-    disabled={isSaving} >
-    <Text style={{ fontSize: 16, fontFamily:"Medium", lineHeight: Math.round(18 * 1.5) }}>
-      {isSaving ? "Processing..." : "Save Product"}
-    </Text>
-  </TouchableOpacity>
-</View>
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
+                style={[styles.updateButton, { opacity: isSaving ? 0.6 : 1 }]}
+                onPress={saveProduct}
+                disabled={isSaving}
+              >
+                <MaterialIcons name="check-circle" size={20} color="#fff" />
+                <Text style={styles.buttonText}>
+                  {isSaving ? "Processing..." : isEdit ? "Update" : "Save Product"}
+                </Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              onPress={clearAllFields}
-            >
-              <Text style={{ fontSize: 16, alignSelf: "center", color: "red", paddingTop: 20,
-                fontFamily:"Medium", lineHeight: Math.round(16 * 1.5)
-               }}>Clear All</Text>
-            </TouchableOpacity>
+              <TouchableOpacity style={styles.discardButton} onPress={clearAllFields}>
+                <MaterialIcons name="cancel" size={20} color="#fff" />
+                <Text style={styles.buttonText}>Discard</Text>
+              </TouchableOpacity>
+            </View>
 
           </ScrollView>
         </KeyboardAvoidingView>
@@ -409,57 +439,150 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 14,
   },
-  row2: {
-    paddingVertical: 30,
-    paddingHorizontal: 10,
-    flexDirection: "row",
-    justifyContent: "space-around",
+  divider: {
+    height: 1,
+    backgroundColor: "#1b1b1b",
   },
-  card1: {
+  card: {
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    marginHorizontal: 16,
+    marginTop: 16,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    color: "#157a4f",
+    fontFamily: "Medium",
+    lineHeight: Math.round(16 * 1.5),
+    marginBottom: 12,
+  },
+  imageUploadCard: {
+    width: "100%",
+    minHeight: 200,
+    borderRadius: 12,
     backgroundColor: "#f3f1ec",
-    borderWidth: 1,
+    marginBottom: 8,
+    padding: 12,
+  },
+  selectedImagesScroll: {
+    minHeight: 85,
+    marginBottom: 12,
+  },
+  selectedImagesContent: {
+    gap: 14,
+    paddingTop: 6,
+    paddingBottom: 2,
+    paddingRight: 4,
+  },
+  selectedImageWrap: {
+    width: 80,
+    height: 80,
+  },
+  selectedImage: {
+    width: "100%",
+    height: "100%",
     borderRadius: 10,
-    minHeight: 180,
-    width: "48%",
+  },
+  removeImageButton: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#e0473e",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#f3f1ec",
+  },
+  imageDropZone: {
+    flex: 1,
+    minHeight: 150,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: "#c7c4bf",
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
   },
-  imageContainer: {
-    position: "relative",
-  },
-  removeIcon: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    borderRadius: 12,
-    padding: 4,
-  },
+  imagePlaceholder: {
+  flex: 1,
+  width: "100%",
+  height: "100%",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 8,
+},
+imagePlaceholderText: {
+  color: "#157a4f",
+  fontSize: 14,
+  fontFamily: "Medium",
+},
   text: {
-    fontSize: 16,
+    fontSize: 14,
     paddingTop: 16,
-      fontFamily:"Medium",
-      lineHeight: Math.round(16 * 1.5)
+    fontFamily: "Medium",
+    lineHeight: Math.round(14 * 1.5),
+  },
+  requiredStar: {
+    color: "#e74c3c",
   },
   input: {
-    backgroundColor: "#dad8d8",
+    backgroundColor: "#f0eeea",
     borderRadius: 10,
-    borderColor: "#6b6a6a",
+    borderColor: "#d8d6d2",
     borderWidth: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     fontSize: 14,
-    fontFamily:"Medium",
+    fontFamily: "Medium",
+    marginTop: 8,
   },
-  button: {
-    backgroundColor: "#f5b849",
+  row: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  halfField: {
+    flex: 1,
+  },
+  buttonRow: {
+    flexDirection: "row",
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingTop: 24,
+  },
+  updateButton: {
+    flex: 1,
+    flexDirection: "row",
+    backgroundColor: "#1e9e5c",
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    padding: 6,
-    borderColor: "#b9b9b9",
-    borderWidth: 1,
+    paddingVertical: 14,
+    gap: 8,
+  },
+  discardButton: {
+    flex: 1,
+    flexDirection: "row",
+    backgroundColor: "#e0473e",
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    gap: 8,
+  },
+  buttonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontFamily: "Medium",
+    lineHeight: Math.round(16 * 1.5),
   },
 });
-
-

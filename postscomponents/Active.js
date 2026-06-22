@@ -212,15 +212,15 @@ export default function Active() {
                     )}
 
                     <View style={{ flex: 1, paddingHorizontal: 10 , justifyContent:"center" }}>
-                            <Text style={{ fontSize: 18, fontFamily: "Medium",
-                                lineHeight: Math.round(18 * 1.5), width: "70%",
+                            <Text style={{ fontSize: 16, fontFamily: "Medium",
+                                lineHeight: Math.round(16 * 1.5), width: "80%",
                             }}>
                                 {title}
                             </Text>
 
                         {validTo && (
                             <Text style={{ fontSize: 12, marginTop: 3,
-                                fontFamily:"Medium", lineHeight: Math.round(12 * 1.5)
+                                fontFamily:"Medium", lineHeight: Math.round(12 * 1.5), color:"#157a4f"
                              }}>
                                 Expires On: {new Date(validTo).toDateString()}
                             </Text>
@@ -246,7 +246,7 @@ export default function Active() {
     };
 
     return (
-        <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <View style={{ flex: 1 }}>
             <FlatList
                 data={offers}
                 keyExtractor={(item) => item._id || item.offerId || item.requestId || String(item.id || Math.random())}
@@ -270,17 +270,15 @@ export default function Active() {
 const styles = StyleSheet.create({
     card2: {
         borderRadius: 10,
-        minHeight: 120,
-        borderWidth: 1,
         elevation: 5,
         backgroundColor: "white",
         justifyContent: "center",
-        paddingHorizontal: 10,
+        padding: 10,
         marginBottom: 18
     },
     image: {
-        width: 100,
-        height: 100,
+        width: 90,
+        height: 90,
         backgroundColor: "#b8b8b8",
         borderRadius: 14
     },

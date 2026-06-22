@@ -7,6 +7,7 @@ import Accepted from "../components/Accepted";
 import Completed  from "../components/Completed";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL as CONFIG_BASE_URL } from "../config";
+import { enrichOrderDetails } from "../services/orderService";
 
 export default function Orders() {    const navigation = useNavigation();    const [activeTab, setactiveTab] = useState("All");
     const [orders, setOrders] = useState([]);
@@ -38,7 +39,12 @@ export default function Orders() {    const navigation = useNavigation();    con
                 : Array.isArray(data?.data)
                 ? data.data
                 : data?.orders || [];
-            setOrders(list);
+
+            const enrichedList = await Promise.all(
+                list.map((order) => enrichOrderDetails(order, token).catch(() => order))
+            );
+
+            setOrders(enrichedList);
         } catch (error) {
             console.log("Orders fetch error:", error);
             setOrders([]);
@@ -150,31 +156,31 @@ export default function Orders() {    const navigation = useNavigation();    con
     return (
         <View style={{flex:1}}>
 
-            <View style={{ paddingHorizontal: 20, paddingVertical: 14 }}>
+            <View style={{ paddingVertical: 12 }}>
                 <View style={styles.card1}>
-                        <Text style={{ fontSize: 19, fontFamily:"Medium",
-                            lineHeight: Math.round(19 * 1.5)
-                         }}>Total Orders</Text>
-                    <Text style={{fontSize:14, fontFamily:"Medium",
+                    <Text style={{ fontSize: 18, fontFamily:"Medium",
+                            lineHeight: Math.round(18 * 1.5)
+                     }}>Total Orders</Text>
+                    <Text style={{fontSize:14, fontFamily:"Bold",
                         lineHeight: Math.round(14 * 1.5), color:"#157a4f"
-                    }}>{totalCount} Orders</Text>                        
-                </View>
+                    }}>{totalCount} Orders</Text>     
+                    </View>                   
             </View>
 
             <View style={styles.row1}>
                 <TouchableOpacity onPress={() => setactiveTab("All")}
                     style={[styles.row1button, activeTab == "All" && styles.ActiveTab]}>
-                    <Text style={styles.row1text}>All</Text>
+                    <Text style={[styles.row1text, activeTab == "All" && styles.ActiveTabText]}>All</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity onPress={() => setactiveTab("Accepted")}
                     style={[styles.row1button, activeTab == "Accepted" && styles.ActiveTab]}>
-                    <Text style={styles.row1text}>Accepted</Text>
+                    <Text style={[styles.row1text, activeTab == "Accepted" && styles.ActiveTabText]}>Accepted</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity onPress={() => setactiveTab("Completed")}
                     style={[styles.row1button, activeTab == "Completed" && styles.ActiveTab]}>
-                    <Text style={styles.row1text}>Completed</Text>
+                    <Text style={[styles.row1text, activeTab == "Completed" && styles.ActiveTabText]}>Completed</Text>
                 </TouchableOpacity>
             </View>
 
@@ -193,23 +199,13 @@ export default function Orders() {    const navigation = useNavigation();    con
         </View>
     );
 }
-
 const styles = StyleSheet.create({
     card1: {
-        borderRadius: 10,
-        borderColor: "black",
-        minHeight: 80,
-        borderWidth: 1,
-        shadowColor: "#413f4f",
-        elevation: 10,
-        backgroundColor: "white",
-        shadowOpacity: 0.25,
-        shadowRadius: 5,
-        shadowOffset: { width: 2, height: 4 },
-        paddingHorizontal: 16,
+        minHeight: 50,
+        paddingHorizontal: 22,
         justifyContent: "space-between",
         flexDirection: "row",
-        alignItems: "center",     
+        alignItems: "center",   
     },
     row1: {
         flexDirection: "row",
@@ -227,14 +223,17 @@ const styles = StyleSheet.create({
     row1button: {
         flex:1,
         borderRadius: 20,
-        backgroundColor: "#a5a4a4",
+        backgroundColor: "#bebebe",
         paddingVertical: 6,
         alignItems: "center",
         justifyContent:"center"
     },
     ActiveTab: {
-        backgroundColor: "#818181",
+        backgroundColor: "#ffffff",
         borderWidth: 2,
-        borderColor: "#535353",
+        borderColor: "#157a4f",
+    },
+    ActiveTabText: {
+        color: "#157a4f",
     }
 })

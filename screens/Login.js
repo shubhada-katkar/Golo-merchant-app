@@ -123,8 +123,6 @@ export default function Login({ navigation, route }) {
         Alert.alert("Login Failed", data.message || "Invalid credentials");
         return;
       }
-      Alert.alert("Login Successful");
-
       // Token validation
       const token = data?.data?.accessToken || data?.token;
       const merchant = data?.data?.user || data?.merchant;

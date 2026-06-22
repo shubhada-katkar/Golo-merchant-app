@@ -1,11 +1,12 @@
 import React, { useState, useContext, useCallback } from "react";
 import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from "react-native";
-import { Entypo, FontAwesome5, Octicons, AntDesign, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Octicons, AntDesign, MaterialIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { ThemeContext } from "../theme/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { BASE_URL } from "../config";
+import { enrichOrderDetails } from "../services/orderService";
 
 export default function Overview() {
 
@@ -153,12 +154,23 @@ export default function Overview() {
                     const token = await AsyncStorage.getItem("merchantToken");
                     if (!token) return;
 
-                    const res = await fetch(`${BASE_URL}/orders/merchant?status=pending&page=1&limit=2`, {
+                    let res = await fetch(`${BASE_URL}/orders/merchant?page=1&limit=2`, {
                         headers: { Authorization: `Bearer ${token}` },
                     });
+
+                    if (!res.ok && res.status === 404) {
+                        res = await fetch(`${BASE_URL}/api/orders/merchant?page=1&limit=2`, {
+                            headers: { Authorization: `Bearer ${token}` },
+                        });
+                    }
+
                     let data = await res.json();
                     const list = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : data?.orders || [];
-                    if (active) setRecentOrders(list.slice(0, 2));
+                    const slicedOrders = list.slice(0, 2);
+                    const enrichedOrders = await Promise.all(
+                        slicedOrders.map((order) => enrichOrderDetails(order, token).catch(() => order))
+                    );
+                    if (active) setRecentOrders(enrichedOrders);
                 } catch (error) {
                     console.log("Overview recent orders fetch error:", error);
                 }
@@ -206,44 +218,54 @@ export default function Overview() {
         }, [])
     );
 
-    return (
-        <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
+return (
+        <ScrollView contentContainerStyle={{ paddingBottom: 60 }}
+        style={{ backgroundColor: "transparent" }}>
 
             {/* ===== PROFILE HEADER ===== */}
-            <View style={{ flexDirection: "row", paddingHorizontal: 18, paddingVertical: 8, alignItems: "center" }}>
-                <Image source={profileImage} style={{ height: 80, width: 80, borderRadius: 45 }} />
+            <View style={[styles.profileCard, { marginTop: 16 }]}>
+                <Image source={profileImage} style={{ height: 90, width: 90, borderRadius: 46 }} />
 
-                <View style={{ flexDirection: "column", paddingHorizontal: 10 }}>
+                <View style={{ flexDirection: "column", paddingHorizontal: 14 }}>
                     <Text style={{ fontSize: 20, color: colors.text,
                         fontFamily: "Medium", lineHeight: Math.round(20 * 1.5)
                      }}>
                         {shopName}
                     </Text>
+                
+                  <View style={{ flexDirection:"row", alignItems: "center", gap:8}}>
+                    <Text style={{ fontSize: 12, color: "#9ca3af",
+                        fontFamily: "Medium", lineHeight: Math.round(12 * 1.5),
+                        letterSpacing: 0.8, textTransform: "uppercase"
+                     }}>
+                        Total Customers
+                    </Text>
 
-                    <Text style={{ fontSize: 18, color: colors.text,
-                        fontFamily: "Medium", lineHeight: Math.round(18 * 1.5)
+                    <Text style={{ fontSize: 14, color: colors.text,
+                        fontFamily: "Medium", lineHeight: Math.round(14 * 1.3)
                      }}>
                         {uniqueClaimedCustomers}
                     </Text>
 
-                    <Text style={{ fontSize: 12, color: "#969494",
-                        fontFamily: "Medium", lineHeight: Math.round(12 * 1.5)
-                     }}>
-                        Total Customers
-                    </Text>
+                    </View>
                 </View>
             </View>
 
-            <View style={{ flexDirection: "row", paddingHorizontal: 18 }}>
+            <View style={{ flexDirection: "row", paddingHorizontal: 16 }}>
                 <View style={styles.graph}>
                     <View style={{ flexDirection: "row", alignContent: "center", justifyContent: "space-between" }}>
                         <View style={{ flexDirection: "row", alignItems: "center" }}>
-                            <Text style={{ fontSize: 16, fontFamily: "Medium", lineHeight: Math.round(16 * 1.5) }}>
+                            <Text style={{ fontSize: 14, fontFamily: "Medium", lineHeight: Math.round(14 * 1.5) }}>
                                 Shop Visits
                             </Text>
-                            <Octicons name="graph" size={20} color="green" style={{ paddingLeft: 8 }} />
+                            <Octicons name="graph" size={16} color="green" style={{ paddingLeft: 8 }} />
                         </View>
-                        <Text style={{ fontSize: 12, color: "#6b7280", fontFamily: "Medium" }}>Live</Text>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                            <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: "#ef4444" }} />
+                            <Text style={{ fontSize: 12, color: "#ef4444", fontFamily: "Medium", lineHeight: Math.round(12 * 1.5) }}>
+                                Live
+                            </Text>
+                        </View>
                     </View>
 
                     {/* Bar chart with Y axis (numbers) and X axis (dates) */}
@@ -252,7 +274,7 @@ export default function Overview() {
                             const vals = visitsTrend.values.map(v => Number(v || 0));
                             const max = Math.max(...vals, 1);
                             const chartHeight = 120;
-                            const steps = 4; // number of ticks on Y axis
+                            const steps = 3; // number of ticks on Y axis
 
                             return (
                                 <View style={{ marginTop: 12 }}>
@@ -322,21 +344,67 @@ export default function Overview() {
                         const placed = o.placedAt || o.createdAt || o.placedAt;
                         const customer = o.customerName || o.userName || o.userEmail || (o.user && o.user.name) || "Customer";
                         const offer = o.offerTitle || o.offerName || o.voucher?.offerTitle || o.offer?.title || "Offer";
+                        const offerType = o.offerType || o.voucher?.offerType || o.offer?.type || "";
+                        const status = String(o?.status || o?.orderStatus || o?.voucher?.status || "").toLowerCase();
+                        const statusLabel = status ? status.charAt(0).toUpperCase() + status.slice(1) : "Unknown";
+                        const initials = customer.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
                         return (
-                            <TouchableOpacity key={idx} style={[styles.card2, styles.orderCard]} onPress={() => navigation.navigate("OrderDetailPage", { order: o })}>
-                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 10 }}>
-                                    <Text style={{ paddingTop: 4, color: '#4b5563', fontSize:12,
-                                        lineHeight: Math.round(12 * 1.5), fontFamily: "Medium"
-                                     }}>{offer}</Text>
-                                    <Text style={{ fontSize: 12, color: '#000000', 
-                                        lineHeight: Math.round(12 * 1.5), fontFamily: "Medium"
-                                     }}>{timeAgo(placed)}</Text>
+                            <TouchableOpacity key={idx} style={[styles.card2, styles.orderCard, { backgroundColor: "#ffffff"}]} onPress={() => navigation.navigate("OrderDetailPage", { order: o })}>
+                                {/* Customer row with avatar */}
+                                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingBottom: 8 }}>
+                                    <View style={styles.avatarCircle}>
+                                        <Text style={styles.avatarText}>{initials}</Text>
+                                    </View>
+                                    <View style={{ flex: 1, paddingLeft: 10 }}>
+                                        <Text style={{ color: '#111827', fontSize: 14,
+                                            lineHeight: Math.round(14 * 1.5), fontFamily: "Medium"
+                                        }}>{customer}</Text>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                                            <MaterialIcons name="access-time" size={12} color="#999999" />
+                                            <Text style={{ fontSize: 12, color: '#999999', fontFamily: "Medium", lineHeight: Math.round(12 * 1.5) }}>
+                                                Purchased {timeAgo(placed)}
+                                            </Text>
+                                        </View>
+                                    </View>
                                 </View>
 
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap:5, paddingHorizontal: 10}}>
-                                    <MaterialCommunityIcons name="account" size={18} color="#157a4f" />
-                                <Text style={{ paddingTop: 8, fontSize: 13, color: '#157a4f', fontFamily: 'Medium' }}>{customer}</Text>
+                                <View style={{ height: 1, backgroundColor: '#919191', marginHorizontal: 10, marginTop: 8 }} />
+
+                            <View style={styles.metaBlock}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <MaterialIcons name="punch-clock" size={14} color="#106440" />
+                                    <Text style={styles.metaLabel}>Order Status</Text>
+                               </View>
+                                    <Text style={[styles.metaValue, { color: status === "completed" ? "#106440" : status === "accepted" ? "#157a4f" : "#6b7280" }]}>{statusLabel}</Text>
+                            </View>
+
+                                {/* Offer Name row */}
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 10, paddingTop: 8 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                        <MaterialIcons name="shopping-cart" size={14} color="#da9412" />
+                                        <Text style={{ color: "#5f5f5f", fontSize: 12, fontFamily: "Medium", lineHeight: Math.round(12 * 1.5) }}>
+                                            Offer Name
+                                        </Text>
+                                    </View>
+                                    <Text style={{ fontSize: 12, color: '#da9412', fontFamily: "Medium", fontWeight: "600", lineHeight: Math.round(12 * 1.5), maxWidth: '60%' }} numberOfLines={1} ellipsizeMode="tail">
+                                        {offer}
+                                    </Text>
                                 </View>
+
+                                {/* Offer Type row */}
+                                {offerType ? (
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 10, paddingTop: 4, paddingBottom: 4 }}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                            <MaterialIcons name="local-offer" size={15} color="#9ca3af" />
+                                            <Text style={{ color: '#6b7280', fontSize: 12, fontFamily: "Medium", lineHeight: Math.round(12 * 1.5) }}>
+                                                Offer Type
+                                            </Text>
+                                        </View>
+                                        <Text style={{ fontSize: 12, color: '#157a4f', fontFamily: "Medium", fontWeight: "600", lineHeight: Math.round(12 * 1.5) }}>
+                                            {offerType}
+                                        </Text>
+                                    </View>
+                                ) : null}
                             </TouchableOpacity>
                         );
                     })
@@ -348,7 +416,7 @@ export default function Overview() {
                     </View>
                 )}
 
-                    <Text style={[styles.text, { color: colors.text }]}>Reviews</Text>                   
+                    <Text style={[styles.text, { color: colors.text }]}>Reviews</Text>
 
                 {reviewsLoading ? (
                     <View style={styles.card2}>
@@ -358,22 +426,27 @@ export default function Overview() {
                     reviews.map((item, index) => {
                         const rating = resolveRating(item);
                         return (
-                            <View key={index} style={styles.card2}>
-                                <View style={{ flexDirection: 'row', paddingTop: 10, paddingHorizontal: 10 }}>
+                            <View key={index} style={[styles.card2, styles.reviewCard]}>
+                                <View style={{ flexDirection: 'row', paddingTop: 10, paddingHorizontal: 10,
+                                    justifyContent:"space-between", alignItems: "center"
+                                }}>
+                                <Text style={{ fontSize:12, fontFamily: "Medium", lineHeight: Math.round(12 * 1.5), color:"#157a4f"
+                                 }}>
+                                    {item.userName || item.userEmail || "Customer"}
+                                </Text>
+
+                                <View style={{ flexDirection: 'row', alignItems: "center" }}>
                                     {Array.from({ length: 5 }).map((_, starIndex) => (
                                         <AntDesign
                                             key={starIndex}
                                             name="star"
                                             size={18}
-                                            color={starIndex < rating ? "yellow" : "#d1d5db"}
+                                            color={starIndex < rating ? "#f5de0b" : "#dadada"}
                                         />
                                     ))}
                                 </View>
-                                <Text style={{ paddingTop: 10, paddingHorizontal: 10,
-                                    fontSize:12, fontFamily: "Medium", lineHeight: Math.round(12 * 1.5), color:"#157a4f"
-                                 }}>
-                                    {item.userName || item.userEmail || "Customer"}
-                                </Text>
+                                </View>
+
                                 <Text style={{ paddingHorizontal: 10, paddingTop: 4, color: "#4b5563",
                                     fontSize: 12, fontFamily: "Medium", lineHeight: Math.round(12 * 1.5)
                                  }}>
@@ -399,8 +472,8 @@ export default function Overview() {
                         style={styles.seeAllButton}
                         onPress={() => navigation.navigate("AllReviewsPage")}
                     >
-                        <Text style={[styles.seeAllText, { color: colors.text }]}>See all</Text>
-                        <AntDesign name="right" size={16} color={colors.text} />
+                        <Text style={styles.seeAllText}>See More</Text>
+                        <AntDesign name="right" size={14} color="#ec9831" />
                     </TouchableOpacity>
 
                 {/*Last Box*/}
@@ -408,16 +481,15 @@ export default function Overview() {
                     <View style={styles.lastbox}>
                         <LinearGradient colors={["#f7ad24", "#f8c15b", "#fae4ba"]}
                             style={{ height: 120, borderRadius: 10, padding: 14 }} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-                            <Text style={{ fontSize: 18, fontFamily:"Medium",
-                                lineHeight: Math.round(18 * 1.5)
+                            <Text style={{ fontSize: 12, fontFamily:"Medium",
+                                lineHeight: Math.round(12 * 1.5)
                              }}>See Your Shop As Customer</Text>
                             <Text style={{ fontSize: 12,
                                 fontFamily: "Medium", lineHeight: Math.round(12 * 1.5)
-                             }}>Open the customer app to see your shop exactly how
-                                customers see it.
+                             }}>Open Customer App to See How Customer{"\n"}View Your Profile
                             </Text>
-                            <Text style={{ fontSize: 12,
-                                fontFamily: "Medium", lineHeight: Math.round(12 * 1.5)
+                            <Text style={{ fontSize: 16, fontFamily: "Medium",
+                                lineHeight: Math.round(16 * 1.5)
                              }}>Tap to explore!</Text>
                         </LinearGradient>
                     </View>
@@ -429,6 +501,22 @@ export default function Overview() {
 }
 
 const styles = StyleSheet.create({
+    profileCard: {
+        flexDirection: "row",
+        marginHorizontal: 16,
+        marginVertical: 12,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        alignItems: "center",
+        backgroundColor: "white",
+        borderRadius: 12,
+        elevation: 6,
+        shadowColor: "#413f4f",
+        shadowRadius: 8,
+        shadowOffset: { height: 3, width: 2 },
+        shadowOpacity: 0.18,
+        zIndex: 10
+    },
     graph: {
         flex: 1,
         borderRadius: 10,
@@ -452,7 +540,6 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         borderColor: "black",
         minHeight: 80,
-        borderWidth: 1,
         shadowColor: "#413f4f",
         elevation: 10,
         backgroundColor: "white",
@@ -462,9 +549,9 @@ const styles = StyleSheet.create({
         padding: 4,
     },
     columncontainer: {
-        paddingHorizontal: 22,
+        paddingHorizontal: 16,
         gap: 10,
-        top:10
+        top: 10
     },
     smallcardtext: {
         fontSize: 14,
@@ -472,35 +559,74 @@ const styles = StyleSheet.create({
         fontFamily: "Medium",
         lineHeight: Math.round(14 * 1.5)
     },
+    metaBlock: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingHorizontal:10,
+        top:2,
+        justifyContent:"space-between"
+    },
+    metaLabel: {
+        fontSize: 12,
+        color: "#5f5f5f",
+        fontFamily: "Medium",
+        lineHeight: Math.round(12 * 1.5),
+    },
+    metaValue: {
+        fontSize: 12,
+        color: "#111827",
+        fontFamily: "Medium",
+        lineHeight: Math.round(12 * 1.5),
+    },
     card2: {
         borderRadius: 10,
         borderColor: "black",
         minHeight: 80,
         shadowOffset: { height: 4, width: 3 },
-        borderWidth: 1,
         shadowColor: "#413f4f",
         shadowOpacity: 0.25,
         shadowRadius: 5,
         shadowOffset: { width: 2, height: 4 },
         elevation: 10,
         backgroundColor: "white",
-        paddingVertical: 5,
+        paddingVertical: 8,
+    },
+    reviewCard: {
+        borderWidth: 1,
+        borderColor: "#157a4f",
+        elevation: 4,
     },
     orderCard: {
-        paddingVertical: 8,
+        paddingVertical: 16,
         marginVertical: 6,
         paddingBottom: 12,
+    },
+    avatarCircle: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        backgroundColor: "#dbf5e9",
+        alignItems: "center",
+        justifyContent: "center",
+        borderWidth: 1,
+    },
+    avatarText: {
+        fontSize: 15,
+        fontFamily: "Medium",
+        color: "#157a4f",
+        lineHeight: Math.round(15 * 1.5),
     },
     seeAllButton: {
         flexDirection: "row",
         alignItems: "center",
-        gap: 6,
-        justifyContent:"center"
+        gap: 4,
+        justifyContent: "center",
     },
     seeAllText: {
         fontSize: 14,
         fontFamily: "Medium",
         lineHeight: Math.round(14 * 1.5),
+        color: "#f9a641"
     },
     reviewDate: {
         paddingHorizontal: 10,
@@ -512,7 +638,7 @@ const styles = StyleSheet.create({
     },
     lastbox: {
         borderRadius: 10,
-        height: 110,
+        height: 80,
         shadowOffset: { height: 4, width: 3 },
         shadowColor: "#413f4f",
         elevation: 10,

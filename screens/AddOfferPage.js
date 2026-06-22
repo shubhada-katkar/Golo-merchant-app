@@ -18,6 +18,7 @@ import { Alert } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { uploadImageToCloudinary } from "../services/cloudinaryService";
 import { BASE_URL } from "../config";
+import { LinearGradient } from "expo-linear-gradient";
 
 const parseResponseSafely = async (response) => {
     const responseText = await response.text();
@@ -489,6 +490,12 @@ export default function AddOfferPage({ navigation, route }) {
 
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+                    <LinearGradient
+                        colors={["#f8a812", "#fad081", "#fffbf4"]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 0, y: 1 }}
+                        style={{height: 200, position: "absolute", top: 0, left: 0, right: 0, zIndex: 0}}
+                    />
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                 <KeyboardAvoidingView
                     style={{ flex: 1 }}
@@ -499,7 +506,7 @@ export default function AddOfferPage({ navigation, route }) {
                         <TouchableOpacity onPress={() => navigation.goBack()}>
                             <MaterialIcons name="arrow-back-ios" size={26} color={colors.text} style={{ padding: 10 }} />
                         </TouchableOpacity>
-                        <Text style={{ fontSize: 20, paddingLeft: 5, color: colors.text,
+                        <Text style={{ fontSize: 20, color: colors.text,
                             lineHeight: Math.round(20 * 1.5), fontFamily: "Medium"
                          }}>
                             {offerData ? "Edit Offer" : "Add Offer"}
@@ -527,21 +534,13 @@ export default function AddOfferPage({ navigation, route }) {
                         </View>
                     )}
 
+                    <ScrollView contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 100 }} keyboardShouldPersistTaps="handled">
+
                     {selectedIds.length > 0 && (
                         <TouchableOpacity
                             onPress={() => setShowOffers(!showOffers)}
-                            style={{
-                                marginHorizontal: 16,
-                                marginTop: 12,
-                                padding: 6,
-                                borderRadius: 10,
-                                borderColor: "#000000",
-                                borderWidth: 1,
-                                backgroundColor: "#f8f6f2",
-                                alignItems: "center"
-                            }}>
-                            <Text style={{ fontSize: 14, lineHeight: Math.round(14 * 1.5), 
-                                fontFamily: "Medium" }}>
+                            style={styles.viewSelectedBtn}>
+                            <Text style={styles.viewSelectedText}>
                                 {showOffers ? "Hide Selected Products" : "View Selected Products"}
                             </Text>
                         </TouchableOpacity>
@@ -552,16 +551,6 @@ export default function AddOfferPage({ navigation, route }) {
                             <OfferScroll products={selectedProducts} offerType={offerType} />
                         </View>
                     )}
-
-                    <ScrollView contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 80 }} keyboardShouldPersistTaps="handled">
-                        <Text style={[styles.text, { color: colors.text }]}>Offer Title</Text>
-                        <TextInput
-                            placeholder="Enter Offer Title"
-                            style={styles.input}
-                            value={title}
-                            onChangeText={setTitle}
-                        />
-
 
                         <Text style={[styles.text, { color: colors.text }]}>Offer Image</Text>
 
@@ -593,6 +582,14 @@ export default function AddOfferPage({ navigation, route }) {
                                 </>
                             )}
                         </TouchableOpacity>
+                       
+                        <Text style={[styles.text, { color: colors.text }]}>Offer Title</Text>
+                        <TextInput
+                            placeholder="Enter Offer Title"
+                            style={styles.input}
+                            value={title}
+                            onChangeText={setTitle}
+                        />
 
                         <Text style={[styles.text, { color: colors.text }]}>Offer Type</Text>
                         <TouchableOpacity
@@ -650,28 +647,30 @@ export default function AddOfferPage({ navigation, route }) {
 
                         <Text style={[styles.text, { color: colors.text }]}>Offer Validity</Text>
                         <View style={{ flexDirection: "row", gap: 10 }}>
-                            <View style={styles.dateBox}>
-                                <TextInput
-                                    placeholder="From"
-                                    value={fromDate ? fromDate.toLocaleDateString() : ""}
-                                    editable={false}
-                                    style={[styles.input, { flex: 1 }]}
-                                />
-                                <TouchableOpacity onPress={() => { setActiveField("from"); setShowPicker(true); }}>
-                                    <Ionicons name="calendar-outline" size={22} />
-                                </TouchableOpacity>
+                                                  <TouchableOpacity
+                            style={styles.dateCard}
+                            onPress={() => { setActiveField("from"); setShowPicker(true); }}
+                        >
+                            <Ionicons name="calendar-outline" size={20} color="#157a4f" />
+                            <View style={{ marginLeft: 8 }}>
+                                <Text style={styles.dateLabel}>STARTS</Text>
+                                <Text style={styles.dateValue}>
+                                    {fromDate ? fromDate.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "Select date"}
+                                </Text>
                             </View>
-                            <View style={styles.dateBox}>
-                                <TextInput
-                                    placeholder="To"
-                                    value={toDate ? toDate.toLocaleDateString() : ""}
-                                    editable={false}
-                                    style={[styles.input, { flex: 1 }]}
-                                />
-                                <TouchableOpacity onPress={() => { setActiveField("to"); setShowPicker(true); }}>
-                                    <Ionicons name="calendar-outline" size={22} />
-                                </TouchableOpacity>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.dateCard}
+                            onPress={() => { setActiveField("to"); setShowPicker(true); }}
+                        >
+                            <Ionicons name="calendar-outline" size={20} color="#157a4f" />
+                            <View style={{ marginLeft: 8 }}>
+                                <Text style={styles.dateLabel}>ENDS</Text>
+                                <Text style={styles.dateValue}>
+                                    {toDate ? toDate.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "Select date"}
+                                </Text>
                             </View>
+                        </TouchableOpacity>
                         </View>
 
                         {showPicker && (
@@ -737,12 +736,22 @@ export default function AddOfferPage({ navigation, route }) {
                                 onPress={handleSubmit}
                                 disabled={isSaving || isDeleting || isBannerUploading}
                             >
+                                <MaterialIcons name="check-circle" size={20} color="#fff" />
                                 <Text style={{ color: "#fff", fontSize: 15,
                                     fontFamily: "Medium", lineHeight: Math.round(15 * 1.5)
                                  }}>
-                                    {isBannerUploading ? "Uploading banner..." : isSaving ? (offerData ? "Updating..." : "Saving...") : offerData ? "Update Offer" : "Add Offer"}
+                                    {isBannerUploading ? "Uploading Offer..." : isSaving ? (offerData ? "Updating..." : "Saving...") : offerData ? "Update Offer" : "Add Offer"}
                                 </Text>
                             </TouchableOpacity>
+
+                            
+                        {!offerData && 
+                        <TouchableOpacity style={[styles.rowButton, {backgroundColor:"#e93c3c"}]}
+                        onPress={clearAllFields} >
+                             <MaterialIcons name="cancel" size={20} color="#fff" />
+                            <Text style={{ color: "white", fontSize: 15, fontFamily: "Medium", lineHeight: Math.round(15 * 1.5) }}>Discard</Text>
+                        </TouchableOpacity>
+                        }
 
                             {offerData && (
                                 <TouchableOpacity
@@ -758,10 +767,6 @@ export default function AddOfferPage({ navigation, route }) {
 
                         </View>
 
-                        <TouchableOpacity onPress={clearAllFields} style={{ marginTop: 12, alignItems: "center" }}>
-                            <Text style={{ color: "red", fontSize: 15, fontFamily: "Medium", lineHeight: Math.round(15 * 1.5) }}>Clear All</Text>
-                        </TouchableOpacity>
-
                     </ScrollView>
                 </KeyboardAvoidingView>
             </TouchableWithoutFeedback>
@@ -774,21 +779,20 @@ export default function AddOfferPage({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-    row1: { alignItems: "center", flexDirection: "row", paddingVertical: 8, paddingHorizontal: 14 },
+    row1: { alignItems: "center", flexDirection: "row", paddingVertical: 6, paddingHorizontal: 10 },
     text: { fontSize: 16, paddingTop:20, fontFamily: "Medium", lineHeight: Math.round(16 * 1.5) },
-    input: { fontSize: 14, backgroundColor: "#ccc", padding: 10, borderRadius: 10, fontFamily: "Medium" },
+    input: { fontSize: 14, backgroundColor: "#e6e6e6", padding: 10, borderRadius: 10, fontFamily: "Medium" },
     button: { backgroundColor: "#f5b849", borderRadius: 10, alignItems: "center", justifyContent: "center", padding: 6, borderColor: "#b9b9b9", borderWidth: 1, marginTop: 20 },
     dateBox: { flex: 1, flexDirection: "row", alignItems: "center", backgroundColor: "#ccc", borderRadius: 10, paddingHorizontal: 10 },
     rowButton: {
-        flex: 1,
-        backgroundColor: "#f5b849",
+        width:"48%",
+        backgroundColor: "#157a4f",
         borderRadius: 10,
         alignItems: "center",
         justifyContent: "center",
         paddingVertical: 12,
-        marginHorizontal: 5,
-        borderColor: "#b9b9b9",
-        borderWidth: 1,
+        flexDirection:"row",
+        gap:4
     },
     card1: {
         backgroundColor: "#f3f1ec",
@@ -811,5 +815,46 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
         paddingVertical: 8,
+    },
+        viewSelectedBtn: {
+        marginTop: 12,
+        padding: 12,
+        borderRadius: 10,
+        borderColor: "#157a4f",
+        borderWidth: 1.5,
+        backgroundColor: "#fff",
+        alignItems: "center",
+    },
+    viewSelectedText: {
+        fontSize: 14,
+        lineHeight: Math.round(14 * 1.5),
+        fontFamily: "Medium",
+        color: "#157a4f",
+    },
+        dateBox: { flex: 1, flexDirection: "row", alignItems: "center", backgroundColor: "#fff", borderRadius: 10, paddingHorizontal: 10, borderWidth: 1, borderColor: "#e0e0e0" },
+    dateCard: {
+        flex: 1,
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: "#e6e6e6",
+        borderRadius: 10,
+        paddingVertical: 12,
+        paddingHorizontal: 12,
+        borderWidth: 1,
+        borderColor: "#e0e0e0",
+    },
+    dateLabel: {
+        fontSize: 10,
+        fontFamily: "Medium",
+        color: "#5e5e5e",
+        letterSpacing: 0.5,
+        lineHeight:Math.round(10*1.5)
+    },
+    dateValue: {
+        fontSize: 13,
+        fontFamily: "Medium",
+        color: "#111",
+        marginTop: 2,
+        lineHeight:Math.round(13*1.5)
     },
 });

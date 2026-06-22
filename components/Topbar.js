@@ -12,7 +12,7 @@ export default function Topbar() {
     const currentRoute = route.name;
     const {colors} = useContext(ThemeContext);
     return (
-        <View style={{ flexDirection: "row", paddingHorizontal: 12, paddingVertical: 10, alignItems: "center",backgroundColor: colors.background }}>
+        <View style={{ flexDirection: "row", paddingHorizontal: 12, paddingVertical: 10, alignItems: "center" }}>
 
             <Image source={require('../assets/logo.png')}
                 style={{ height: 48, width: 48, resizeMode: "contain" }} />

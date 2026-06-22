@@ -9,14 +9,21 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons, } from "@expo/vector-icons";
 import { useContext } from "react";
 import { ThemeContext } from "../theme/ThemeContext";
-
+import { LinearGradient } from "expo-linear-gradient";
 
 export default function ProfilePage({ navigation }) {
     const [activeTab, setactiveTab] = useState("Recent");
     const { colors } = useContext(ThemeContext);
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView style={{ flex: 1 }}>
+                    <LinearGradient
+                        colors={["#f8a812", "#fad081", "#fffbf4"]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 0, y: 1 }}
+                        style={{height: 250, position: "absolute", top: 0, left: 0, right: 0, zIndex: 0}}
+                    />
+            <View style={{ zIndex: 1 }}>
             <Topbar />
 
             <View style={styles.row1}>
@@ -25,27 +32,28 @@ export default function ProfilePage({ navigation }) {
                 </TouchableOpacity>
                 <Text style={{ fontSize: 20, paddingLeft: 5, color: colors.text,
                     fontFamily:"Medium", lineHeight: Math.round(20 * 1.5)
-                 }}>Posts</Text>
+                 }}>Offers</Text>
             </View>
 
             <View style={styles.row2}>
                 <TouchableOpacity onPress={() => setactiveTab("Recent")}
                     style={[styles.row2button, activeTab == "Recent" && styles.ActiveTab]}>
-                    <Text style={styles.row2text}>Recent</Text>
+                    <Text style={[styles.row2text, activeTab == "Recent" && styles.ActiveTabText]}>Recent</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity onPress={() => setactiveTab("Active")}
                     style={[styles.row2button, activeTab == "Active" && styles.ActiveTab]}>
-                    <Text style={styles.row2text}>Active</Text>
+                    <Text style={[styles.row2text, activeTab == "Active" && styles.ActiveTabText]}>Active</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity onPress={() => setactiveTab("Expire")}
                     style={[styles.row2button, activeTab == "Expire" && styles.ActiveTab]}>
-                    <Text style={styles.row2text}>Expire</Text>
+                    <Text style={[styles.row2text, activeTab == "Expire" && styles.ActiveTabText]}>Expire</Text>
                 </TouchableOpacity>
             </View>
 
             <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1, marginTop: 5 }} />
+</View>
 
             {activeTab == "Recent" && <Recent />}
 
@@ -66,33 +74,36 @@ const styles = StyleSheet.create({
     row1: {
         alignItems: "center",
         flexDirection: "row",
-        paddingVertical: 8,
-        paddingHorizontal: 14
+        paddingVertical: 6,
+        paddingHorizontal: 10
     },
     row2: {
         flexDirection: "row",
         paddingHorizontal: 10,
-        gap: 5
+        justifyContent: "space-between",
+        paddingBottom: 6
+
     },
     row2text: {
         fontSize: 14,
         color: "white",
-        paddingVertical: 2,
         fontFamily:"Medium", 
         lineHeight: Math.round(14 * 1.5)
     },
     row2button: {
-        flex: 1,
         borderRadius: 20,
-        backgroundColor: "#a5a4a4",
-        paddingVertical: 6,
-        width: "28%",
+        backgroundColor: "#b4b4b4",
+        paddingVertical: 8,
+        width: "32%",
         alignItems: "center",
-        justifyContent: "center"
+        justifyContent: "center",
     },
     ActiveTab: {
-        backgroundColor: "#818181",
+        backgroundColor: "#ffffff",
         borderWidth: 2,
-        borderColor: "#535353",
-    }
+        borderColor: "#157a4f",
+    },
+    ActiveTabText: {
+        color: "#157a4f",
+    },
 })

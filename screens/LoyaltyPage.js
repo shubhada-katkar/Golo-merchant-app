@@ -1,18 +1,20 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
-import { View, ScrollView, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image } from "react-native";
+import { View, ScrollView, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, TextInput } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { ThemeContext } from "../theme/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL } from "../config";
+import { LinearGradient } from "expo-linear-gradient";
 
 export default function ({ navigation }) {
     const { colors } = useContext(ThemeContext);
     const [customers, setCustomers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [searchQuery, setSearchQuery] = useState("");
 
     const fetchLoyaltyData = async () => {
         setLoading(true);
@@ -118,6 +120,25 @@ export default function ({ navigation }) {
         );
     }, [customers]);
 
+    const filteredCustomers = useMemo(() => {
+        const query = searchQuery.trim().toLowerCase();
+        if (!query) return aggregatedCustomers;
+
+        return aggregatedCustomers.filter((customer) => {
+            const haystack = [
+                customer.userName,
+                customer.userEmail,
+                customer.customerId,
+                customer.merchantPoints,
+            ]
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase();
+
+            return haystack.includes(query);
+        });
+    }, [aggregatedCustomers, searchQuery]);
+
     const topCustomerIds = useMemo(() => {
         if (!aggregatedCustomers?.length) return [];
         return aggregatedCustomers.slice(0, 3).map((customer) => customer.customerId);
@@ -129,110 +150,121 @@ export default function ({ navigation }) {
         return () => clearInterval(interval);
     }, []);
 
-    return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-            <Topbar />
+ return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: "transparent" }}>
+        <LinearGradient
+            colors={["#f8a812", "#fad081", "#fffbf4"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={{ height: 220, position: "absolute", top: 0, left: 0, right: 0, zIndex: 0 }}
+        />
 
-            <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
-                <View style={styles.row1}>
-                    <TouchableOpacity style={{ padding: 10 }} onPress={() => navigation.goBack()}>
-                        <MaterialIcons name="arrow-back-ios" size={26} color={colors.text} />
-                    </TouchableOpacity>
-                    <Text style={[styles.pageTitle, { color: colors.text }]}>Loyalty Rewards</Text>
-                </View>
+        <Topbar />
 
-                <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1 }} />
+        <View style={styles.row1}>
+            <TouchableOpacity style={{ padding: 10 }} onPress={() => navigation.goBack()}>
+                <MaterialIcons name="arrow-back-ios" size={26} color={colors.text} />
+            </TouchableOpacity>
+            <Text style={[styles.pageTitle, { color: colors.text }]}>Loyalty Rewards</Text>
+        </View>
 
-                <View style={styles.summaryRow}>
-                    <Text style={[styles.summaryText, { color: colors.text }]}>Active Customers</Text>
-                    <Text style={[styles.summaryText, { color: colors.text }]}>Loyalty points</Text>
-                </View>
+        <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1 }} />
 
-                <View style={styles.row2}>
-                    {loading ? (
-                        <View style={styles.loaderWrapper}>
-                            <ActivityIndicator size="large" color={colors.primary || "#000"} />
-                            <Text style={[styles.statusText, { color: colors.text }]}>Loading loyalty rewards...</Text>
-                        </View>
-                    ) : error ? (
-                        <View style={styles.loaderWrapper}>
-                            <Text style={[styles.statusText, { color: colors.error || "#b00020" }]}>{error}</Text>
-                        </View>
-                    ) : customers.length === 0 ? (
-                        <View style={styles.loaderWrapper}>
-                            <Text style={[styles.statusText, { color: colors.text }]}>No loyalty customer records found yet.</Text>
-                        </View>
-                    ) : (
-                        aggregatedCustomers.map((customer, index) => {
-                            const merchantPoints = customer.merchantPoints || 0;
-                            const isTopCustomer = topCustomerIds.includes(customer.customerId);
-                            const formattedDate = customer.lastRedeemedAt
-                                ? new Date(customer.lastRedeemedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
-                                : null;
+        <ScrollView contentContainerStyle={{paddingBottom:90}} style={styles.container}>
+            <View style={styles.searchBox}>
+                <MaterialIcons name="search" size={20} color="#8e8e93" style={{ marginRight: 6 }} />
+                <TextInput
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    placeholder="Search Customer"
+                    placeholderTextColor="#8e8e93"
+                    style={styles.searchInput}
+                />
+            </View>
 
-                            // Create initial from name
-                            const initial = String(customer.userName || 'C').charAt(0).toUpperCase();
+            <View style={styles.row2}>
+                {loading ? (
+                    <View style={styles.loaderWrapper}>
+                        <ActivityIndicator size="large" color={colors.primary || "#000"} />
+                        <Text style={[styles.statusText, { color: colors.text }]}>Loading loyalty rewards...</Text>
+                    </View>
+                ) : error ? (
+                    <View style={styles.loaderWrapper}>
+                        <Text style={[styles.statusText, { color: colors.error || "#b00020" }]}>{error}</Text>
+                    </View>
+                ) : customers.length === 0 ? (
+                    <View style={styles.loaderWrapper}>
+                        <Text style={[styles.statusText, { color: colors.text }]}>No loyalty customer records found yet.</Text>
+                    </View>
+                ) : (
+                    filteredCustomers.map((customer, index) => {
+                        const merchantPoints = customer.merchantPoints || 0;
+                        const isTopCustomer = topCustomerIds.includes(customer.customerId);
+                        const initial = String(customer.userName || "C").charAt(0).toUpperCase();
+                        const isLast = index === filteredCustomers.length - 1;
 
-                            // Pick a dynamic beautiful HSL background color for avatar based on name hash
-                            let charCodeSum = 0;
-                            for (let i = 0; i < (customer.userName || '').length; i++) {
-                                charCodeSum += (customer.userName || '').charCodeAt(i);
-                            }
-                            const hue = charCodeSum % 360;
-                            const avatarBgColor = `hsl(${hue}, 65%, 45%)`;
-
-                            return (
-                                <View key={`${customer.customerId || index}-${index}`} style={[styles.card1, { borderColor: colors.divider || "#e5e7eb", backgroundColor: colors.card || "#ffffff" }]}>
-                                    <View style={styles.cardLeft}>
-                                        {customer.profilePhoto ? (
-                                            <Image source={{ uri: customer.profilePhoto }} style={styles.avatar} />
-                                        ) : (
-                                            <View style={[styles.avatarPlaceholder, { backgroundColor: avatarBgColor }]}>
-                                                <Text style={styles.avatarText}>{initial}</Text>
-                                            </View>
-                                        )}
-                                        <View style={styles.customerInfo}>
-                                            <Text style={[styles.customerName, { color: colors.text || "#111827" }]} numberOfLines={1}>
-                                                {customer.userName || 'Customer'}
-                                            </Text>
-                                            {customer.userEmail ? (
-                                                <Text style={[styles.customerEmail, { color: colors.subText || "#6b7280" }]} numberOfLines={1}>
-                                                    {customer.userEmail}
-                                                </Text>
-                                            ) : null}
-                                            <View style={styles.statsRow}>
-                                                {formattedDate ? (
-                                                    <Text style={[styles.detailText, { color: colors.subText || "#6b7280" }]}>
-                                                        {"  •  "}Last: {formattedDate}
-                                                    </Text>
-                                                ) : null}
-                                            </View>
-                                        </View>
+                        return (
+                            <View
+                                key={`${customer.customerId || index}-${index}`}
+                                style={[
+                                    styles.card1,
+                                    !isLast && { borderBottomWidth: 1, borderBottomColor: colors.divider || "#e5e7eb" },
+                                ]}
+                            >
+                                <View style={styles.cardLeft}>
+                                    <View style={styles.avatarCircle}>
+                                        <Text style={styles.avatarText}>{initial}</Text>
                                     </View>
-                                    <View style={styles.cardRight}>
-                                        <View style={[styles.pointsBadge, { backgroundColor: isTopCustomer ? "#fef3c7" : "#f3f4f6" }]}>
-                                            {isTopCustomer && (
-                                                <MaterialIcons name="star" size={14} color="#d97706" style={{ marginRight: 3 }} />
-                                            )}
-                                            <Text style={[styles.pointsLabel, { color: isTopCustomer ? "#d97706" : "#374151" }]}>
-                                                {merchantPoints} pts
+                                    <View style={styles.customerInfo}>
+                                        <Text
+                                            style={[
+                                                styles.customerName,
+                                                { color: isTopCustomer ? "#105c3b" : colors.text || "#111827" },
+                                            ]}
+                                            numberOfLines={1}
+                                        >
+                                            {customer.userName || "Customer"}
+                                        </Text>
+                                        {customer.userEmail ? (
+                                            <Text
+                                                style={[styles.customerEmail, { color: colors.subText || "#6b7280" }]}
+                                                numberOfLines={1}
+                                            >
+                                                {customer.userEmail}
                                             </Text>
-                                        </View>
+                                        ) : null}
                                     </View>
                                 </View>
-                            );
-                        })
-                    )}
-                </View>
-            </ScrollView>
 
-            <SafeAreaView edges={["bottom"]} style={{ width: "100%", bottom: 0, position: "absolute" }}>
-                <Bottombar />
-            </SafeAreaView>
+                        <View style={[ styles.pointsBadge, { backgroundColor: isTopCustomer ? "#f8d612" : "#f3f4f6" } ]}>
+                            <View style={{ flexDirection: "row", alignItems: "center" }}>
+                            {isTopCustomer && (
+                                <MaterialIcons name="star" size={14} color="#000000" style={{ marginRight: 4 }} /> )}
+
+                            <Text style={[ styles.pointsNumber,  { color: isTopCustomer ? "#000000" : "#374151" } ]} >
+                            {merchantPoints}
+                            </Text>
+                        </View>
+
+                         <Text style={[ styles.pointsLabel, { color: isTopCustomer ? "#000000" : "#6b7280" }]} >
+                         Points
+                         </Text>
+                 </View>
+                            </View>
+                        );
+                    })
+                )}
+            </View>
+        </ScrollView>
+
+        <SafeAreaView edges={["bottom"]} style={{ width: "100%", bottom: 0, position: "absolute" }}>
+            <Bottombar />
         </SafeAreaView>
-    );
+    </SafeAreaView>
+);
 }
 
+// ─── REPLACE StyleSheet ───────────────────────────────────────────────────────
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -248,34 +280,39 @@ const styles = StyleSheet.create({
         fontFamily: "Medium",
         lineHeight: Math.round(20 * 1.5),
     },
-    summaryRow: {
+    searchBox: {
         flexDirection: "row",
-        justifyContent: "space-between",
-        paddingHorizontal: 20,
-        paddingVertical: 16,
+        alignItems: "center",
+        backgroundColor: "white",
+        marginHorizontal: 14,
+        marginTop: 14,
+        marginBottom: 4,
+        borderRadius: 10,
+        borderWidth: 0.5,
+        borderColor: "#d1d5db",
+        paddingHorizontal: 10,
     },
-    summaryText: {
-        fontSize: 16,
+    searchInput: {
+        flex: 1,
+        fontSize: 14,
         fontFamily: "Medium",
-        lineHeight: Math.round(16 * 1.2),
     },
     row2: {
-        paddingHorizontal: 14,
+        marginHorizontal: 14,
+        marginTop: 10,
+        backgroundColor: "white",
+        borderRadius: 14,
+        borderWidth: 0.5,
+        borderColor: "#e5e7eb",
         paddingBottom: 120,
+        overflow: "hidden",
     },
     card1: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        padding: 16,
-        borderRadius: 14,
-        borderWidth: 1,
-        marginBottom: 12,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 2,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
     },
     cardLeft: {
         flexDirection: "row",
@@ -283,68 +320,55 @@ const styles = StyleSheet.create({
         flex: 1,
         marginRight: 10,
     },
-    cardRight: {
-        justifyContent: "center",
-        alignItems: "flex-end",
-    },
-    avatar: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-    },
-    avatarPlaceholder: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
+    avatarCircle: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        backgroundColor: "#b6dbc3",
         justifyContent: "center",
         alignItems: "center",
+        borderWidth:1,
+        borderColor:"#157a4f"
     },
     avatarText: {
-        color: "white",
+        color: "#157a4f",
         fontSize: 18,
-        fontWeight: "bold",
+        fontFamily:"Medium",
+        lineHeight:Math.round(18*1.5)
     },
     customerInfo: {
         marginLeft: 14,
         flex: 1,
     },
     customerName: {
-        fontSize: 16,
-        fontWeight: "bold",
+        fontSize: 14,
+        fontFamily:"Medium",
+        lineHeight:Math.round(14*1.5)
     },
     customerEmail: {
         fontSize: 12,
         marginTop: 2,
-    },
-    statsRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        marginTop: 4,
+        fontFamily:"Medium",
+        lineHeight:Math.round(12*1.5)
     },
     pointsBadge: {
-        flexDirection: "row",
         alignItems: "center",
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 999,
+        justifyContent: "center",
+        paddingHorizontal: 18,
+        paddingVertical: 8,
+        borderRadius: 10,
+        borderWidth:0.5
+    },
+    pointsNumber: {
+        fontSize: 16,
+        lineHeight: Math.round(16*1.5),
+        fontFamily:"Medium"
     },
     pointsLabel: {
-        fontSize: 14,
-        fontWeight: "bold",
-    },
-    detailText: {
-        fontSize: 12,
-    },
-    progressBarBackground: {
-        height: 8,
-        borderRadius: 999,
-        backgroundColor: "#e5e7eb",
-        overflow: "hidden",
-        marginTop: 12,
-    },
-    progressBarFill: {
-        height: "100%",
-        borderRadius: 999,
+        fontSize: 10,
+        marginTop: 1,
+        lineHeight:Math.round(10*1.5),
+        fontFamily:"Medium"
     },
     loaderWrapper: {
         padding: 24,

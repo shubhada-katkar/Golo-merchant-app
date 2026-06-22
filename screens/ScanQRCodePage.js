@@ -83,7 +83,7 @@ export default function ScanQRCodePage() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}> 
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <MaterialCommunityIcons name="arrow-left" size={24} color="white" />
+          <MaterialCommunityIcons name="arrow-left" size={30} color="#157a4f" />
         </TouchableOpacity>
         <Text style={[styles.title, { color: colors.text }]}>Scan QR Code</Text>
         <View style={{ width: 40 }} />
@@ -121,21 +121,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
-    zIndex: 2,
+    zIndex: 2,paddingVertical: 12,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: 35,
+    height: 35,
     borderRadius: 12,
-    backgroundColor: "#157a4f",
     alignItems: "center",
     justifyContent: "center",
   },
   title: {
     fontSize: 18,
     fontFamily: "Medium",
+    lineHeight: Math.round(18 * 1.5),
   },
   cameraContainer: {
     flex: 1,

@@ -10,6 +10,7 @@ import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { searchLocations, reverseGeocode } from "../app/services/leafletService";
+import { LinearGradient } from "expo-linear-gradient";
 
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
@@ -62,8 +63,10 @@ export default function ProfileSettingsPage({ navigation }) {
   const [shopName, setShopName] = useState("");
   const [storeCategory, setStoreCategory] = useState("");
   const [storeSubCategory, setStoreSubCategory] = useState("");
-  const [profileImage, setProfileImage] = useState(null);
-  const [profileImageError, setProfileImageError] = useState(false);
+  const [merchantImage, setMerchantImage] = useState(null);
+  const [merchantImageError, setMerchantImageError] = useState(false);
+  const [storeImage, setStoreImage] = useState(null);
+  const [storeImageError, setStoreImageError] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(false);
 
   const [storeAddress, setStoreAddress] = useState("");
@@ -245,22 +248,39 @@ export default function ProfileSettingsPage({ navigation }) {
       const mergedNumber = merchantData?.contactNumber || merchantData?.phone || "";
       const mergedCategory = merchantData?.storeCategory || userProfileData?.merchantProfile?.storeCategory || "";
       const mergedSubCategory = merchantData?.storeSubCategory || userProfileData?.merchantProfile?.storeSubCategory || "";
-      const mergedImage =
+      const mergedMerchantImage =
         merchantData?.profilePhoto ||
-        merchantData?.shopPhoto ||
         merchantData?.image ||
         merchantData?.profilePhotoUrl ||
         merchantData?.photo ||
         userProfileData?.merchantProfile?.profilePhoto ||
-        userProfileData?.merchantProfile?.shopPhoto ||
         userProfileData?.profilePhoto ||
+        null;
+      const mergedStoreImage =
+        merchantData?.shopPhoto ||
+        merchantData?.storePhoto ||
+        userProfileData?.merchantProfile?.shopPhoto ||
+        userProfileData?.merchantProfile?.storePhoto ||
         null;
       const mergedStoreAddress = merchantData?.storeLocation || merchantData?.address || "";
       const mergedLatitude = merchantData?.storeLocationLatitude ?? merchantData?.latitude ?? null;
       const mergedLongitude = merchantData?.storeLocationLongitude ?? merchantData?.longitude ?? null;
 
-      console.log("Loaded merchant profile:", { mergedName, mergedShopName, mergedEmail, mergedNumber, mergedCategory, mergedSubCategory, hasImage: !!mergedImage, mergedStoreAddress, mergedLatitude, mergedLongitude });
-      console.log("Raw profile image:", mergedImage);
+      console.log("Loaded merchant profile:", {
+        mergedName,
+        mergedShopName,
+        mergedEmail,
+        mergedNumber,
+        mergedCategory,
+        mergedSubCategory,
+        hasMerchantImage: !!mergedMerchantImage,
+        hasStoreImage: !!mergedStoreImage,
+        mergedStoreAddress,
+        mergedLatitude,
+        mergedLongitude,
+      });
+      console.log("Merged merchant image:", mergedMerchantImage);
+      console.log("Merged store image:", mergedStoreImage);
 
       setName(mergedName);
       setEmail(mergedEmail);
@@ -272,18 +292,29 @@ export default function ProfileSettingsPage({ navigation }) {
       setStoreLatitude(mergedLatitude);
       setStoreLongitude(mergedLongitude);
       
-      // Set profile image with proper normalization
-      if (mergedImage) {
-        const normalizedImage = normalizeImageUrl(mergedImage);
-        console.log("Normalized image URL:", normalizedImage);
-        if (normalizedImage) {
-          setProfileImage(normalizedImage);
-          setProfileImageError(false);
+      // Set images with proper normalization
+      if (mergedMerchantImage) {
+        const normalizedMerchantImage = normalizeImageUrl(mergedMerchantImage);
+        if (normalizedMerchantImage) {
+          setMerchantImage(normalizedMerchantImage);
+          setMerchantImageError(false);
         } else {
-          setProfileImage(null);
+          setMerchantImage(null);
         }
       } else {
-        setProfileImage(null);
+        setMerchantImage(null);
+      }
+
+      if (mergedStoreImage) {
+        const normalizedStoreImage = normalizeImageUrl(mergedStoreImage);
+        if (normalizedStoreImage) {
+          setStoreImage(normalizedStoreImage);
+          setStoreImageError(false);
+        } else {
+          setStoreImage(null);
+        }
+      } else {
+        setStoreImage(null);
       }
 
       if (mergedLatitude === null || mergedLongitude === null) {
@@ -464,7 +495,7 @@ export default function ProfileSettingsPage({ navigation }) {
   );
 
   // ================= IMAGE PICKER =================
-  const pickProfileImage = async () => {
+  const pickMerchantImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
       alert("Permission required!");
@@ -479,9 +510,30 @@ export default function ProfileSettingsPage({ navigation }) {
 
     if (!result.canceled) {
       const uri = result.assets[0].uri;
-      setProfileImage(uri);
-      setProfileImageError(false);
-      await uploadProfileImage(uri); // ✅ pass fresh URI
+      setMerchantImage(uri);
+      setMerchantImageError(false);
+      await uploadImageForField(uri, "profilePhoto");
+    }
+  };
+
+  const pickStoreImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      alert("Permission required!");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      const uri = result.assets[0].uri;
+      setStoreImage(uri);
+      setStoreImageError(false);
+      await uploadImageForField(uri, "shopPhoto");
     }
   };
 
@@ -532,7 +584,7 @@ export default function ProfileSettingsPage({ navigation }) {
     }
   };
 
-  const uploadProfileImage = async (imageUri) => {
+  const uploadImageForField = async (imageUri, fieldName) => {
     try {
       const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
       if (!token) return alert("Not authenticated");
@@ -542,16 +594,16 @@ export default function ProfileSettingsPage({ navigation }) {
         return alert(uploadResult.message || "Image upload failed");
       }
 
+      const payload = {};
+      payload[fieldName] = uploadResult.url;
+
       let res = await fetch(`${BASE_URL}/merchant/profile`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          profilePhoto: uploadResult.url,
-          shopPhoto: uploadResult.url,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -561,34 +613,36 @@ export default function ProfileSettingsPage({ navigation }) {
         return alert(data.message || "Image upload failed");
       }
 
-      // Backend returns { success: true, data: { merchant_object } }
-      const uploadedImageUrl = data?.data?.profilePhoto || data?.profilePhoto || uploadResult.url;
-      console.log("Profile photo updated, URL:", uploadedImageUrl);
-      
-      if (uploadedImageUrl) {
-        const normalizedImage = normalizeImageUrl(uploadedImageUrl);
-        console.log("Normalized uploaded image:", normalizedImage);
-        if (normalizedImage) {
-          setProfileImage(normalizedImage);
-          setProfileImageError(false);
-        }
-      }
-      
-      await loadProfile();
-      alert("Profile image updated");
+      const uploadedImageUrl = data?.data?.[fieldName] || data?.[fieldName] || uploadResult.url;
+      const normalizedImage = normalizeImageUrl(uploadedImageUrl);
 
+      if (fieldName === "profilePhoto") {
+        setMerchantImage(normalizedImage || imageUri);
+        setMerchantImageError(false);
+      } else if (fieldName === "shopPhoto") {
+        setStoreImage(normalizedImage || imageUri);
+        setStoreImageError(false);
+      }
+
+      await loadProfile();
+      alert(`${fieldName === "profilePhoto" ? "Merchant" : "Store"} image updated`);
     } catch (error) {
       console.log("Image upload error:", error);
       alert("Server error");
     }
   };
 
-  return (
+ return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"} >
-
+        <LinearGradient
+                        colors={["#f8a812", "#fad081", "#fffbf4"]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 0, y: 1 }}
+                        style={{height: 200, position: "absolute", top: 0, left: 0, right: 0, zIndex: 0}}
+                    />
         <Topbar />
 
         {/* HEADER */}
@@ -600,76 +654,103 @@ export default function ProfileSettingsPage({ navigation }) {
           </TouchableOpacity>
           <Text style={[styles.title, { color: colors.text }]}>Profile Settings</Text>
         </View>
+
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }}
           keyboardShouldPersistTaps="handled">
 
-          <View style={[styles.divider, { backgroundColor: colors.divider }]} />
+          {/* BANNER + PROFILE IMAGES */}
+<View style={styles.bannerContainer}>
+  {/* Store/Banner Image */}
+  <TouchableOpacity onPress={pickStoreImage}>
+    <View style={{ position: "relative" }}>
+      <Image
+        source={
+          !storeImage || storeImageError
+            ? require("../assets/profile.png")
+            : { uri: storeImage }
+        }
+        style={styles.storeImage}
+      />
+      <View style={styles.storeCameraIcon}>
+      <MaterialIcons name="camera-alt" size={16} color="#ffffff" /> 
+      </View>
+    </View>
+  </TouchableOpacity>
 
-          {/* IMAGE + SHOP NAME */}
-          <View style={styles.row2}>
-            <TouchableOpacity onPress={pickProfileImage}>
-              <View style={{ position: "relative" }}>
-                <Image
-                  source={
-                    !profileImage || profileImageError
-                      ? require("../assets/profile.png")
-                      : { uri: profileImage }
-                  }
-                  style={styles.profileImage}
-                  onError={(event) => {
-                    console.log("Profile image load failed:", event.nativeEvent?.error || event.nativeEvent);
-                    setProfileImageError(true);
-                  }}
-                />
-                <View style={styles.cameraIcon}>
-                  <MaterialIcons name="camera-alt" size={20} color="#ffffff" />
-                </View>
-              </View>
-            </TouchableOpacity>
+  {/* Profile Image Overlapping Banner */}
+  <TouchableOpacity
+    onPress={pickMerchantImage}
+    style={styles.profileImageWrap}
+  >
+    <Image
+      source={
+        !merchantImage || merchantImageError
+          ? require("../assets/profile.png")
+          : { uri: merchantImage }
+      }
+      style={styles.profileImage}
+    />
 
-            {/* Editable shop name */}
-            <TextInput
-              style={[styles.shopNameInput, { color: colors.text }]}
-              value={shopName}
-              onChangeText={setShopName}
-              placeholder="Store Name"
-              placeholderTextColor="#555"
-            />
-          </View>
+    <View style={styles.cameraIcon}>
+      <MaterialIcons name="camera-alt" size={16} color="#fff" />
+    </View>
+  </TouchableOpacity>
+</View>
 
-          {/* INPUT FIELDS */}
-          <View style={{ paddingHorizontal: 14 }}>
+          {/* PERSONAL INFORMATION CARD */}
+          <View style={styles.card}>
+            <View style={styles.cardHeaderRow}>
+              <MaterialIcons name="person" size={20} color="#157a4f" />
+              <Text style={styles.cardHeaderText}>PERSONAL INFORMATION</Text>
+            </View>
 
-            <Text style={[styles.text, { color: colors.text }]}>Your Name / Company Name</Text>
+            <Text style={styles.fieldLabel}>YOUR NAME / COMPANY NAME</Text>
             <TextInput
               style={styles.input}
               value={name}
               placeholder="Enter name"
-              placeholderTextColor="#555"
+              placeholderTextColor="#999"
               onChangeText={setName}
             />
 
-            <Text style={[styles.text, { color: colors.text }]}>Contact Number</Text>
+            <Text style={styles.fieldLabel}>CONTACT NUMBER</Text>
             <TextInput
               style={styles.input}
               value={number}
               keyboardType="numeric"
               placeholder="Enter number"
-              placeholderTextColor="#555"
+              placeholderTextColor="#999"
               onChangeText={setNumber}
             />
 
-            <Text style={[styles.text, { color: colors.text }]}>Email</Text>
+            <Text style={styles.fieldLabel}>EMAIL ADDRESS</Text>
             <TextInput
               style={styles.input}
               value={email}
               placeholder="Enter email"
-              placeholderTextColor="#555"
+              placeholderTextColor="#999"
               editable={false}
               selectTextOnFocus={false}
             />
+          </View>
 
-            <Text style={[styles.text, { color: colors.text }]}>Store Category</Text>
+          {/* STORE SPECIFICATIONS CARD */}
+          <View style={styles.card}>
+            <View style={styles.cardHeaderRow}>
+              <MaterialIcons name="store" size={20} color="#157a4f" />
+              <Text style={styles.cardHeaderText}>STORE SPECIFICATIONS</Text>
+            </View>
+
+            <Text style={styles.fieldLabel}>BUSINESS NAME</Text>
+            <TextInput
+              style={styles.input}
+              value={shopName}
+              onChangeText={setShopName}
+              placeholder="Store Name"
+              placeholderTextColor="#999"
+            />
+
+            <Text style={styles.fieldLabel}>STORE CATEGORY</Text>
             <View style={styles.pickerWrap}>
               <Picker
                 selectedValue={storeCategory}
@@ -695,7 +776,7 @@ export default function ProfileSettingsPage({ navigation }) {
               </Picker>
             </View>
 
-            <Text style={[styles.text, { color: colors.text }]}>Store Sub-category</Text>
+            <Text style={styles.fieldLabel}>STORE SUB-CATEGORY</Text>
             <View style={styles.pickerWrap}>
               <Picker
                 selectedValue={storeSubCategory}
@@ -720,9 +801,10 @@ export default function ProfileSettingsPage({ navigation }) {
             ) : null}
           </View>
 
-          <View style={{ paddingHorizontal: 14, marginTop: 20 }}>
-            <Text style={[styles.text, { color: colors.text }]}>Store Location</Text>
-            <View style={[styles.locationCard, { borderColor: colors.divider }]}>              
+          {/* STORE LOCATION */}
+          <View style={{ paddingHorizontal: 14, marginTop: 8 }}>
+            <Text style={[styles.sectionLabel, { color: colors.text }]}>Store Location</Text>
+            <View style={[styles.locationCard, { borderColor: colors.divider }]}>
               <View style={styles.locationPreviewMapContainer}>
                 <WebView
                   originWhitelist={['*']}
@@ -736,21 +818,24 @@ export default function ProfileSettingsPage({ navigation }) {
                   scrollEnabled={false} />
               </View>
             </View>
+
+            <TouchableOpacity style={styles.locationeditbox} onPress={openLocationModal}>
+              <Text style={[styles.locationPreviewText, { color: colors.text }]} numberOfLines={2}>
+                {storeAddress || "Tap to set your store location on map"}
+              </Text>
+              <Text style={[styles.locationPreviewAction, { color: colors.text }]}>Tap to edit location</Text>
+            </TouchableOpacity>
           </View>
 
-              <TouchableOpacity style={styles.locationeditbox} onPress={openLocationModal}>
-                <Text style={[styles.locationPreviewText, { color: colors.text }]} numberOfLines={2}>
-                  {storeAddress || "Tap to set your store location on map"}
-                </Text>
-                <Text style={[styles.locationPreviewAction, { color: colors.text }]}>Tap to edit location</Text>
-              </TouchableOpacity>
-
           {/* BUTTONS */}
-          <View style={{ padding: 20, gap: 15 }}>
-            <TouchableOpacity style={styles.button} onPress={saveProfile}>
-              <Text style={{ fontSize: 16, fontFamily: "Medium",
-                lineHeight: Math.round(16 * 1.4)
-               }}>Save Details</Text>
+          <View style={styles.buttonRow}>
+            <TouchableOpacity style={styles.updateButton} onPress={saveProfile}>
+              <MaterialIcons name="check-circle" size={18} color="#fff" />
+              <Text style={styles.updateButtonText}>Update</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.discardButton} onPress={() => navigation.goBack()}>
+              <MaterialIcons name="cancel" size={18} color="#fff" />
+              <Text style={styles.discardButtonText}>Discard</Text>
             </TouchableOpacity>
           </View>
 
@@ -824,26 +909,98 @@ export default function ProfileSettingsPage({ navigation }) {
 const styles = StyleSheet.create({
   row1: { flexDirection: "row", alignItems: "center", padding: 12 },
   title: { fontSize: 20, marginLeft: 6, lineHeight: Math.round(20 * 1.4), fontFamily: "Medium" },
-  divider: { height: 1 },
-  row2: { flexDirection: "row", alignItems: "center", padding: 14 },
-  profileImage: { width: 110, height: 110, borderRadius: 60 },
-  text: { fontSize: 16, marginTop: 18, lineHeight: Math.round(16 * 1.4), fontFamily: "Medium" },
+
+ 
+bannerContainer: {
+  width: "100%",
+  position: "relative",
+  marginBottom: 70, // space for overlap
+},
+
+storeImage: {
+  width: "100%",
+  height: 170,
+},
+
+profileImageWrap: {
+  position: "absolute",
+  left: 16,
+  bottom: -50, // pushes circle outside banner
+  zIndex: 10,
+},
+
+profileImage: {
+  width: 110,
+  height: 110,
+  borderRadius: 60,
+  borderWidth: 3,
+  borderColor: "#fff",
+},
+ 
+  cameraIcon: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    backgroundColor: "#949494",
+    padding: 5,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: "#ffffff",
+  },
+  storeCameraIcon: {
+    position: "absolute",
+    bottom: -16,
+    right: 14,
+    backgroundColor: "#949494",
+    padding: 5,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: "#ffffff",
+  },
+
+  card: {
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 14,
+    marginTop: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  cardHeaderRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 },
+  cardHeaderText: {
+    fontSize: 14,
+    fontFamily: "Medium",
+    color: "#157a4f",
+    letterSpacing: 0.5,
+    lineHeight:Math.round(14*1.5)
+  },
+  fieldLabel: {
+    fontSize: 11,
+    fontFamily: "Medium",
+    color: "#8a8a8a",
+    marginTop: 12,
+    marginBottom: 6,
+    letterSpacing: 0.4,
+    lineHeight:Math.round(11*1.5)
+  },
   input: {
-    backgroundColor: "#dad8d8",
+    backgroundColor: "#f0f0f0",
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#6b6a6a",
+    borderColor: "#e0e0e0",
     padding: 10,
     fontSize: 13,
     fontFamily: "Medium",
-    marginTop: 6,
   },
   pickerWrap: {
-    backgroundColor: "#dad8d8",
+    backgroundColor: "#f0f0f0",
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#6b6a6a",
-    marginTop: 6,
+    borderColor: "#e0e0e0",
     overflow: "hidden",
   },
   picker: { height: 50, width: "100%" },
@@ -852,27 +1009,18 @@ const styles = StyleSheet.create({
     fontFamily: "Medium",
     lineHeight: Math.round(14 * 1.5),
   },
-  button: {
-    backgroundColor: "#f5b849",
-    borderRadius: 10,
-    paddingVertical: 8,
-    alignItems: "center"
-  },
-  shopNameInput: {
-    fontSize: 24,
-    marginLeft: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#6b6a6a",
-    paddingVertical: 2,
-    minWidth: 140,
+
+  sectionLabel: {
+    fontSize: 16,
     fontFamily: "Medium",
+    lineHeight: Math.round(16 * 1.4),
+    marginBottom: 8,
   },
   locationCard: {
     borderWidth: 1,
     borderRadius: 14,
     overflow: "hidden",
-    marginTop: 10,
-    minHeight: 180,
+    minHeight: 160,
   },
   locationPreviewMapContainer: {
     width: "100%",
@@ -885,11 +1033,10 @@ const styles = StyleSheet.create({
   },
   locationeditbox: {
     padding: 12,
-    backgroundColor: "#dad8d8",
+    backgroundColor: "#f0f0f0",
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#6b6a6a",
-    marginHorizontal: 14,
+    borderColor: "#e0e0e0",
     marginTop: 10,
   },
   locationPreviewText: {
@@ -905,6 +1052,36 @@ const styles = StyleSheet.create({
     lineHeight: Math.round(13 * 1.4),
     fontWeight: "500",
   },
+
+  buttonRow: {
+    flexDirection: "row",
+    gap: 12,
+    paddingHorizontal: 20,
+    marginTop: 24,
+  },
+  updateButton: {
+    flex: 1,
+    flexDirection: "row",
+    backgroundColor: "#157a4f",
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  updateButtonText: { color: "#fff", fontSize: 15, fontFamily: "Medium", lineHeight:Math.round(15*1.5) },
+  discardButton: {
+    flex: 1,
+    flexDirection: "row",
+    backgroundColor: "#d32b2b",
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  discardButtonText: { color: "#fff", fontSize: 15, fontFamily: "Medium", lineHeight:Math.round(15*1.5) },
+
   modalContainer: {
     flex: 1,
     padding: 16,
@@ -984,12 +1161,4 @@ const styles = StyleSheet.create({
     fontFamily: "Medium",
     lineHeight: Math.round(14 * 1.4),
   },
-  cameraIcon: {
-    position: "absolute",
-    bottom: 4,
-    right: 12,
-    backgroundColor: "#949494",
-    padding: 5,
-    borderRadius: 20,
-  }
 });

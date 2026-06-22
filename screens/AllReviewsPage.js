@@ -6,7 +6,8 @@ import { ThemeContext } from "../theme/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL } from "../config";
 import Topbar from "../components/Topbar";
-import { MaterialIcons, AntDesign } from "@expo/vector-icons";
+import { MaterialIcons, AntDesign, MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 
 export default function AllReviewsPage({ navigation }) {
   const { colors } = useContext(ThemeContext);
@@ -60,6 +61,12 @@ export default function AllReviewsPage({ navigation }) {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}> 
+            <LinearGradient
+                colors={["#f8a812", "#fad081", "#fffbf4"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={{height: 220, position: "absolute", top: 0, left: 0, right: 0, zIndex: 0}}
+            />
       <Topbar />
        <View style={styles.row1}>
                     <TouchableOpacity style={{padding:10}} onPress={() => navigation.goBack()}>
@@ -86,6 +93,13 @@ export default function AllReviewsPage({ navigation }) {
             const rating = resolveRating(item);
             return (
               <View key={item._id || item.id || Math.random()} style={styles.reviewCard}>
+               
+                <View style={{flexDirection:"row", alignItems:"center", justifyContent:"space-between"}}>
+                <View style={{flexDirection:"row", gap:4, alignItems:"center"}}>
+                <MaterialCommunityIcons name="account-circle-outline" size={18} color="#157a4f"/> 
+                <Text style={styles.userName}>{item.userName || item.userEmail || "Customer"}</Text>
+                </View>
+                
                 <View style={styles.starRow}>
                   {Array.from({ length: 5 }).map((_, index) => (
                     <AntDesign
@@ -95,8 +109,10 @@ export default function AllReviewsPage({ navigation }) {
                       color={index < rating ? "yellow" : "#d1d5db"}
                     />
                   ))}
+               
                 </View>
-                <Text style={[styles.userName, { color: colors.text }]}> {item.userName || item.userEmail || "Customer"}</Text>
+                </View>
+
                 <Text style={[styles.reviewText, { color: colors.text }]}>{item.content || "No review content."}</Text>
                 {item.createdAt ? (
                   <Text style={styles.reviewDate}>{new Date(item.createdAt).toLocaleDateString()}</Text>
@@ -137,7 +153,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 18,
-    paddingBottom: 24,
+    paddingBottom: 90,
   },
   loadingBox: {
     paddingTop: 24,
@@ -156,24 +172,24 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     backgroundColor: "white",
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
     padding: 14,
     shadowColor: "#000",
     shadowOpacity: 0.06,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 },
     elevation: 3,
+    borderWidth:0.5,
+    borderColor:"#157a4f"
   },
   starRow: {
     flexDirection: "row",
     marginBottom: 10,
   },
   userName: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily:"Medium",
-    lineHeight: Math.round(16 * 1.5),
-    marginBottom: 8,
+    lineHeight: Math.round(14 * 1.5),
+    color:"#157a4f"
   },
   reviewText: {
     fontSize: 12,

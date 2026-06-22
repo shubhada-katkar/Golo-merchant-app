@@ -1,37 +1,36 @@
 import React from "react";
 import {
-  View, StyleSheet, Image, Text, FlatList, Dimensions,
+  View, StyleSheet, Image, Text,
 } from "react-native";
 
-const { width, height } = Dimensions.get("window");
-
-export default function OfferScroll({ products = [], discount }) {
+export default function OfferScroll({ products = [] }) {
   if (!products || products.length === 0) {
     return null;
   }
-  const getContainerHeight = () => {
-    if (products.length === 1) return height * 0.19;
-    if (products.length === 2) return height * 0.36;
-    if (products.length >= 3) return height * 0.53;
-    return 0;
-  };
 
-  const renderItem = ({ item }) => {
+  const renderItem = (item, index) => {
     const imageUri = item.image?.url || item.imageUrl || item.images?.[0] || "";
     const name = item.productname || item.name || item.productName || "Product";
     const originalPrice = Number(item.originalPrice ?? item.price ?? item.offerPrice ?? 0);
     const offerPrice = Number(item.offerPrice ?? item.price ?? item.originalPrice ?? 0);
     const hasDiscount = offerPrice !== originalPrice && originalPrice > 0;
+    const key = item._id || item.id || item.productId || `${name}-${index}`;
 
     return (
-      <View style={styles.card}>
-        <Image source={{ uri: imageUri }} style={styles.image} />
+      <View key={key} style={styles.card}>
+        {imageUri ? (
+          <Image source={{ uri: imageUri }} style={styles.image} />
+        ) : (
+          <View style={[styles.image, styles.imagePlaceholder]}>
+            <Text style={styles.imagePlaceholderText}>No Image</Text>
+          </View>
+        )}
 
         <View style={styles.textbox}>
-          <Text style={styles.text}>Name: {name}</Text>
-          <Text style={styles.text}>Price: ₹{offerPrice.toFixed(2)}</Text>
+          <Text style={styles.nameText} numberOfLines={2}>{name}</Text>
+          <Text style={styles.text}>Price: Rs. {offerPrice.toFixed(2)}</Text>
           {hasDiscount && (
-            <Text style={styles.text}>Original: ₹{originalPrice.toFixed(2)}</Text>
+            <Text style={styles.text}>Original: Rs. {originalPrice.toFixed(2)}</Text>
           )}
         </View>
       </View>
@@ -39,15 +38,10 @@ export default function OfferScroll({ products = [], discount }) {
   };
 
   return (
-    <View style={[styles.container, { height: getContainerHeight() }]}>
-      <FlatList
-        data={products}
-        keyExtractor={(item) => item._id || item.id || item.productId || String(item?.name || item?.productname || Math.random())}
-        renderItem={renderItem}
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator
-        nestedScrollEnabled
-      />
+    <View style={styles.container}>
+      <View style={styles.listContainer}>
+        {products.map(renderItem)}
+      </View>
     </View>
   );
 }
@@ -58,37 +52,56 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     borderWidth: 1,
     borderColor: "#ccc",
-    padding: 6,
+    paddingVertical: 10,
     marginVertical: 10,
   },
   listContainer: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    gap: 12,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    paddingHorizontal: 10,
   },
   card: {
-    flexDirection: "row",
+    flexBasis: "48%",
+    flexGrow: 1,
+    maxWidth: "48%",
     borderRadius: 15,
     borderColor: "#000000",
     borderWidth: 1,
-    minHeight: width * 0.3,
     padding: 10,
-    alignItems: "center",
     backgroundColor: "#f8f8f8",
   },
   image: {
     borderRadius: 12,
-    borderWidth: 1,
-    width: width * 0.35,
-    height: width * 0.25,
+    borderColor: "#d7d7d7",
+    width: "100%",
+    aspectRatio: 1.25,
+  },
+  imagePlaceholder: {
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#eeeeee",
+  },
+  imagePlaceholderText: {
+    color: "#777",
+    fontFamily: "Medium",
+    fontSize: 12,
+    lineHeight: Math.round(12 * 1.5),
   },
   textbox: {
-    paddingLeft: 12,
-    flex: 1,
+    paddingTop: 10,
+  },
+  nameText: {
+    fontSize: 14,
+    fontFamily: "Medium",
+    lineHeight: Math.round(14 * 1.5),
+    color: "#111",
+    marginBottom: 2,
   },
   text: {
-    fontSize: Math.min(width * 0.04, 14),
+    fontSize: 13,
     fontFamily: "Medium",
-    lineHeight: Math.round(Math.min(width * 0.04, 14) * 1.5),
+    lineHeight: Math.round(13 * 1.5),
+    color: "#333",
   },
 });

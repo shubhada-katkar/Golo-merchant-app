@@ -8,7 +8,7 @@ import Orders from "../components/Orders";
 import Customers from "../components/Customers.js";
 import { useContext } from "react";
 import { ThemeContext } from "../theme/ThemeContext";
-
+import {LinearGradient} from "expo-linear-gradient";
 
 export default function HomePage() {
     const [activeTab, setactiveTab] = useState("Overview");
@@ -16,6 +16,13 @@ export default function HomePage() {
 
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <LinearGradient
+            colors={["#f8a812", "#fad081", "#fffbf4"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={{height: 220, position: "absolute", top: 0, left: 0, right: 0, zIndex: 0}}
+        />
+            <View style={{ zIndex: 1 }}>
             <Topbar />
 
             <View style={styles.first}>
@@ -36,6 +43,7 @@ export default function HomePage() {
             </View>
 
             <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1 }} />
+            </View>
 
             {activeTab == "Overview" && <Overview />}
             {activeTab == "Orders" && <Orders />}
@@ -56,13 +64,13 @@ const styles = StyleSheet.create({
     text1: {
         fontSize: 16,
         fontFamily: "Medium",
-        lineHeight: Math.round(16 * 1.5)
+        lineHeight: Math.round(16 * 1.5),
     },
     ActiveTab: {
         height: 3,
-        backgroundColor: "#8a8989",
+        backgroundColor: "#157A4F",
         borderRadius: 10,
         alignSelf: "center",
-        width: "85%"
+        width: "85%",
     },
 })

@@ -5,8 +5,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ThemeContext } from "../theme/ThemeContext";
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
-import { MaterialIcons } from "@expo/vector-icons";
+import { AntDesign, MaterialIcons } from "@expo/vector-icons";
 import { BASE_URL as CONFIG_BASE_URL } from "../config";
+import { LinearGradient } from "expo-linear-gradient";
 
 export default function Notifications({ navigation }) {
     const { colors } = useContext(ThemeContext);
@@ -98,10 +99,17 @@ export default function Notifications({ navigation }) {
 
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+                    <LinearGradient
+                        colors={["#f8a812", "#fad081", "#fffbf4"]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 0, y: 1 }}
+                        style={{height: 220, position: "absolute", top: 0, left: 0, right: 0, zIndex: 0}}
+                    />
+            
             <Topbar />
 
             <View style={styles.row1}>
-                <TouchableOpacity onPress={() => navigation.navigate("HomePage")}> 
+                <TouchableOpacity onPress={() => navigation.goBack()}> 
                     <View style={{ justifyContent: 'center' }}>
                         <MaterialIcons
                             name="arrow-back-ios"
@@ -117,14 +125,14 @@ export default function Notifications({ navigation }) {
                  }}>Notifications</Text>
 
                 <TouchableOpacity onPress={clearNotifications} style={styles.deleteButton} disabled={clearing || loading || !notifications.length}>
-                    <MaterialIcons name="delete" size={22} color={colors.text} />
-                    <Text style={[styles.deleteText, { color: colors.text }]}>{clearing ? "Clearing" : "Delete"}</Text>
+                    <MaterialIcons name="delete" size={22} color="#a71818" />
+                    <Text style={styles.deleteText}>{clearing ? "Clearing" : "Delete"}</Text>
                 </TouchableOpacity>
             </View>
 
             <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1, color: colors.divider, marginTop: 10 }} />
 
-            <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
+            <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
                 {loading ? (
                     <View style={{ paddingTop: 20 }}>
                         <ActivityIndicator size="small" color={colors.text} />
@@ -134,28 +142,47 @@ export default function Notifications({ navigation }) {
                         <Text style={{ color: colors.text, fontSize: 16 }}>No notifications yet.</Text>
                     </View>
                 ) : (
-                    notifications.map((item, index) => (
-                        <View key={item._id || index} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.divider }] }>
+                    notifications.map((item, index) => {
+                        const title = item.senderName || item.title || item.adTitle || "Notification";
+                        const message = item.message || item.body || item.adTitle || "You have a new notification.";
+                        const dateLabel = formatTime(item.createdAt || item.timestamp || item.updatedAt);
+                        const initials = String(title)
+                            .split(" ")
+                            .filter(Boolean)
+                            .map((w) => w[0])
+                            .slice(0, 2)
+                            .join("")
+                            .toUpperCase();
 
-                            <View style={{ flex: 1, marginLeft: 12 }}>
-                                <Text style={{ fontSize: 16, fontFamily: "SemiBold", color: colors.text, lineHeight: Math.round(16 * 1.5) }}>
-                                    {item.senderName || "New Order"}
-                                </Text>
-                                <Text style={{ fontSize: 12, color: colors.text, marginTop: 4, lineHeight: Math.round(12 * 1.5),
-                                    fontFamily: "Medium"
-                                 }}>
-                                    {item.message || item.adTitle || "You have a new notification."}
-                                </Text>
-                                <View style={styles.notificationMeta}>
-                                    <Text style={{ fontSize: 12, color: colors.text, opacity: 0.7,
-                                        fontFamily: "Medium", lineHeight: Math.round(12 * 1.5)
-                                     }}>
-                                        {formatTime(item.createdAt)}
-                                    </Text>
+                        return (
+                            <View key={item._id || index} style={[styles.card2, styles.orderCard] }>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 10, paddingBottom: 8 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                        <View style={styles.avatarCircle}>
+                                            <Text style={styles.avatarText}>{initials}</Text>
+                                        </View>
+                                        <View>
+                                            <Text style={{ fontSize: 16, fontFamily: "SemiBold", color: colors.text, lineHeight: Math.round(16 * 1.5) }}>
+                                                {title}
+                                            </Text>
+                                            <Text style={{ fontSize: 12, color: colors.text, opacity: 0.7, fontFamily: "Medium", lineHeight: Math.round(12 * 1.5) }}>
+                                                {dateLabel}
+                                            </Text>
+                                        </View>
+                                    </View>
                                 </View>
+
+                                <View style={{ height: 0.5, backgroundColor: colors.divider, marginBottom: 8 }} />
+
+                                    <View style={{flexDirection:"row", alignItems:"center", gap:4}}>
+                                        <AntDesign name="message" size={12} color="#e4a24c"/>
+                                    <Text style={{ fontSize: 12, color: '#e4a24c', fontFamily: "Medium", lineHeight: Math.round(12 * 1.5)}} numberOfLines={1} ellipsizeMode="tail">
+                                        {message}
+                                    </Text>
+                                    </View>
                             </View>
-                        </View>
-                    ))
+                        );
+                    })
                 )}
             </ScrollView>
 
@@ -174,15 +201,56 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         paddingHorizontal: 14
     },
-    card: {
+    card2: {
+        borderRadius: 10,
+        borderColor: "black",
+        shadowOffset: { height: 4, width: 3 },
+        shadowColor: "#413f4f",
+        shadowOpacity: 0.25,
+        shadowRadius: 5,
+        shadowOffset: { width: 2, height: 4 },
+        elevation: 10,
+        backgroundColor: "white",
+    },
+    orderCard: {
+        padding: 10,
+        marginTop: 16,
+        marginHorizontal:16
+    },
+    avatarCircle: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        backgroundColor: "#dbf5e9",
+        alignItems: "center",
+        justifyContent: "center",
+        borderWidth: 1,
+        borderColor: "#157a4f",
+    },
+    avatarText: {
+        fontSize: 15,
+        fontFamily: "Medium",
+        color: "#157a4f",
+        lineHeight: Math.round(15 * 1.5),
+    },
+    metaBlock: {
+        marginTop: 8,
         flexDirection: "row",
         alignItems: "center",
-        padding: 12,
-        marginHorizontal: 10,
-        marginTop: 14,
-        borderRadius: 12,
-        borderRadius: 10,
-        borderWidth: 0.5
+        justifyContent: "space-between",
+        paddingHorizontal: 10,
+    },
+    metaLabel: {
+        fontSize: 12,
+        color: "#5f5f5f",
+        fontFamily: "Medium",
+        lineHeight: Math.round(12 * 1.5),
+    },
+    metaValue: {
+        fontSize: 12,
+        color: "#111827",
+        fontFamily: "Medium",
+        lineHeight: Math.round(12 * 1.5),
     },
 
 profileImage: {
@@ -193,7 +261,6 @@ profileImage: {
 notificationMeta: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 8,
 },
 deleteButton: {
     flexDirection: "row",
@@ -202,13 +269,14 @@ deleteButton: {
     paddingVertical: 6,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.12)",
+    borderColor: "#666666",
 },
 deleteText: {
     fontSize: 14,
     marginLeft: 6,
     fontFamily: "SemiBold",
     lineHeight: Math.round(16 * 1.5),
+    color:"#a71818"
 },
 emptyContainer: {
     padding: 20,

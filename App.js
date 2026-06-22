@@ -7,7 +7,6 @@ import HomePage from './screens/HomePage';
 import ProfilePage from "./screens/ProfilePage";
 import PostsPage from "./screens/PostsPage";
 import ProfileSettingsPage from "./screens/ProfileSettingsPage";
-import SettingsPage from "./screens/SettingsPage";
 import NewProductPage from "./screens/NewProductPage";
 import ProductListPage from "./screens/ProductListPage";
 import LoyaltyPage from "./screens/LoyaltyPage";
@@ -60,7 +59,6 @@ export default function App() {
     <Stack.Screen name="ProfilePage" component={ProfilePage} />  
     <Stack.Screen name="PostsPage" component={PostsPage}/>
     <Stack.Screen name="ProfileSettingsPage" component={ProfileSettingsPage}/>
-    <Stack.Screen name="SettingsPage" component={SettingsPage}/>
     <Stack.Screen name="NewProductPage" component={NewProductPage}/>
     <Stack.Screen name="ProductListPage" component={ProductListPage}/>
     <Stack.Screen name="LoyaltyPage" component={LoyaltyPage}/>

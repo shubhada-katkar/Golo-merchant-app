@@ -3,11 +3,12 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput } from "react-nativ
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { MaterialIcons } from "@expo/vector-icons";
+import { MaterialIcons, Feather } from "@expo/vector-icons";
 import { ThemeContext } from "../theme/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { BASE_URL } from "../config";
+import { LinearGradient } from "expo-linear-gradient";
 
 import Total from "../productlistcomponents/Total";
 
@@ -105,11 +106,15 @@ export default function ProductListPage({ navigation }) {
     }, [])
   );
 
-  // ================= DERIVED COUNTS (REAL TIME) =================
-  const totalCount = products.length;
-
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <LinearGradient
+                 colors={["#f8a812", "#fad081", "#fffbf4"]}
+                 start={{ x: 0, y: 0 }}
+                 end={{ x: 0, y: 1 }}
+                 style={{height: 220, position: "absolute", top: 0, left: 0, right: 0, zIndex: 0}}
+             />
+     
       <Topbar />
 
       {/* Header */}
@@ -128,19 +133,19 @@ export default function ProductListPage({ navigation }) {
           Product List
         </Text>
       </View>
-
       <View style={{ height: 1, backgroundColor: colors.divider }} />
 
       {/* Search */}
       <View style={styles.search}>
+      <Feather name="search" size={18} style={{top:-3}} color="#919191"/>
         <TextInput
           placeholder="Search product..."
           value={searchText}
           onChangeText={setSearchText}
-          style={{ fontSize: 16, fontFamily:"Medium", }}
+          style={{ fontSize: 14, fontFamily:"Medium", }}
         />
       </View>
-
+    
 <Total
   products={products}
   setProducts={setProducts}
@@ -161,19 +166,19 @@ const styles = StyleSheet.create({
   row1: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 14,
-  },
-  number: {
-    fontSize: 18,
-    color: "#303030",
-    lineHeight: Math.round(18 * 1.5),
-    fontFamily:"Medium",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
   },
   search: {
-    backgroundColor: "white",
-    margin: 10,
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    borderWidth: 0.5,
-  },
+        backgroundColor: "white",
+        marginHorizontal: 14,
+        marginTop: 10,
+        marginBottom: 6,
+        borderRadius: 10,
+        borderWidth: 0.5,
+        borderColor: "#d1d5db",
+        paddingHorizontal: 10,
+        flexDirection:"row",
+        alignItems:"center"
+    },
 });

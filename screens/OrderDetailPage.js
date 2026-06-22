@@ -10,7 +10,8 @@ import { enrichOrderDetails, fetchVoucherDetails } from "../services/orderServic
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
 import {ThemeContext} from "../theme/ThemeContext";
-import { MaterialIcons } from "@expo/vector-icons";
+import { MaterialCommunityIcons, MaterialIcons, AntDesign, Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 
 const formatDateTime = (value) => {
   const date = value ? new Date(value) : new Date();
@@ -261,10 +262,16 @@ export default function OrderDetailPage() {
 
   return (
          <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+                          <LinearGradient
+                              colors={["#f8a812", "#fad081", "#fffbf4"]}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 0, y: 1 }}
+                              style={{height: 200, position: "absolute", top: 0, left: 0, right: 0, zIndex: 0}}
+                          />
                 <Topbar/>
 
         <View style={styles.row1}>
-            <TouchableOpacity onPress={() => navigation.navigate("HomePage")}> 
+            <TouchableOpacity onPress={() => navigation.goBack()}> 
                     <View style={{ justifyContent: 'center' }}>
                         <MaterialIcons
                             name="arrow-back-ios"
@@ -282,41 +289,53 @@ export default function OrderDetailPage() {
 
         <View style={{ height: 1, backgroundColor: colors.divider, marginBottom: 10 }} />
 
-        <KeyboardAvoidingView
-  style={{ flex: 1 }}
-  behavior={Platform.OS === "ios" ? "padding" : "height"}
->
-  <ScrollView
-  ref={scrollViewRef}
-    contentContainerStyle={[styles.content, { paddingBottom: 100 }]}
-    keyboardShouldPersistTaps="handled"
-  > 
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"} >
+       <ScrollView ref={scrollViewRef}
+       contentContainerStyle={[styles.content, { paddingBottom: 100 }]}  keyboardShouldPersistTaps="handled" > 
 
-        <View style={styles.card}>
-          <Text style={styles.label}>Offer Name</Text>
-          <Text style={styles.value}>{offerName}</Text>
-        </View>
+          {/* Customer Info Card */}
+          <View style={styles.card}>
+            <View style={styles.sectionHeader}>
+              <MaterialCommunityIcons name="account" size={18} color="#157a4f" />
+              <Text style={styles.sectionTitle}>Customer Info</Text>
+            </View>
 
-        <View style={styles.card}>
-          <Text style={styles.label}>Claim Date & Time</Text>
-          <Text style={styles.value}>{formatDateTime(claimedAt)}</Text>
-        </View>
+            <Text style={styles.fieldLabel}>NAME</Text>
+            <View style={styles.fieldBox}>
+              <Text style={styles.fieldValue}>{customerName}</Text>
+            </View>
 
-        <View style={styles.card}>
-          <Text style={styles.label}>Customer Name</Text>
-          <Text style={styles.value}>{customerName}</Text>
-        </View>
+            <Text style={[styles.fieldLabel, { marginTop: 14 }]}>CONTACT NUMBER</Text>
+            <View style={styles.fieldBox}>
+              <Text style={styles.fieldValue}>{customerPhone}</Text>
+            </View>
+          </View>
 
-        <View style={styles.card}>
-          <Text style={styles.label}>Customer Phone</Text>
-          <Text style={styles.value}>{customerPhone}</Text>
-        </View>
+          {/* Offer Details Card */}
+          <View style={styles.card}>
+            <View style={styles.sectionHeader}>
+              <MaterialIcons name="local-offer" size={16} color="#157a4f" />
+              <Text style={styles.sectionTitle}>Offer Details</Text>
+            </View>
 
-        <View style={{marginTop:8}}>
+            <Text style={styles.fieldLabel}>OFFER NAME</Text>
+            <View style={styles.fieldBox}>
+              <Text style={styles.fieldValue}>{offerName}</Text>
+            </View>
+
+            <Text style={[styles.fieldLabel, { marginTop: 14 }]}>CLAIMED DATE AND TIME</Text>
+            <View style={styles.fieldBox}>
+              <Text style={styles.fieldValue}>{formatDateTime(claimedAt)}</Text>
+            </View>
+          </View>
+
+        <View style={{flexDirection:"row",marginTop:8, alignItems:"center", justifyContent:"space-between"}}>
+
           <TouchableOpacity style={styles.actionButton} onPress={() => {
             setShowCodeInput(false);
             navigation.navigate("ScanQRCodePage", { onScanned: handleQRCodeScanned });
           }}>
+            <AntDesign name="qrcode" size={20} color="white"/>
             <Text style={styles.actionText}>Scan QR</Text>
           </TouchableOpacity>
 
@@ -326,7 +345,8 @@ export default function OrderDetailPage() {
               scrollViewRef.current?.scrollToEnd({ animated: true });
             }, 300);
           }}>
-            <Text style={styles.actionText}>Enter Alphanumeric Code</Text>
+            <Ionicons name="ticket-outline" size={20} color="white"/>
+            <Text style={styles.actionText}>Enter Code</Text>
           </TouchableOpacity>
         </View>
 
@@ -397,7 +417,8 @@ const styles = StyleSheet.create({
   row1: {
         alignItems: "center",
         flexDirection: "row",
-        paddingHorizontal: 14
+        paddingHorizontal: 10,
+        paddingVertical: 6,
     },
   container: {
     flex: 1,
@@ -439,27 +460,50 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 3 },
     elevation: 4,
+  },  
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 14,
+    gap: 6,
   },
-  label: {
+  sectionTitle: {
     fontSize: 14,
-    color: "#666",
-    marginBottom: 6,
-    fontFamily:"Medium",
-    lineHeight: Math.round(14 * 1.5)
+    fontFamily: "SemiBold",
+    color: "#157a4f",
+    lineHeight: Math.round(14 * 1.4),
   },
-  value: {
-    fontSize: 14,
+  fieldLabel: {
+    fontSize: 12,
     fontFamily: "Medium",
-    lineHeight: Math.round(14 * 1.5),
-    color: "#222",
+    color: "#888",
+    letterSpacing: 0.6,
+    marginBottom: 6,
+    lineHeight: Math.round(12 * 1.5),
+  },
+  fieldBox: {
+    backgroundColor: "#f4f6f8",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  fieldValue: {
+    fontSize: 13,
+    fontFamily: "Medium",
+    color: "#1a1a1a",
+    lineHeight: Math.round(13 * 1.5),
   },
   actionButton: {
     backgroundColor: '#157a4f',
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 14,
     borderRadius: 10,
     marginBottom: 10,
     alignItems: 'center',
+    width:"48%",
+    flexDirection:"row",
+    gap:5,
+    justifyContent:"center",
   },
   actionText: {
     color: 'white',
@@ -474,13 +518,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#e5e7eb',
+    paddingHorizontal:12
   },
   codeInputLabel: {
     fontSize: 14,
     fontFamily: 'SemiBold',
-    marginBottom: 12,
-    color: '#111827',
+    color: "#157a4f",
     lineHeight: Math.round(14 * 1.5),
+    paddingBottom: 8,
   },
   codeInput: {
     borderWidth: 1,
@@ -499,16 +544,18 @@ const styles = StyleSheet.create({
   },
   codeButton: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cancelButton: {
     backgroundColor: '#e5e7eb',
+    paddingVertical:14
   },
   submitButton: {
     backgroundColor: '#157a4f',
+    paddingVertical:14
   },
   codeButtonText: {
     color: 'white',

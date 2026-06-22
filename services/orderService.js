@@ -166,6 +166,10 @@ export const enrichOrderDetails = async (order, token) => {
       // Ensure voucherId is set from fetched details
       enrichedOrder.voucherId = voucherDetails.voucherId || enrichedOrder.voucherId;
       enrichedOrder.voucher = enrichedOrder.voucher || voucherDetails;
+      // If voucher details include the claimant userId, copy it so we can fetch customer profile
+      if (!enrichedOrder.userId && (voucherDetails.userId || voucherDetails.user?._id || voucherDetails.user?._id)) {
+        enrichedOrder.userId = String(voucherDetails.userId || voucherDetails.user?._id || voucherDetails.user?._id);
+      }
       console.log('[enrichOrderDetails] Enriched order with voucher:', enrichedOrder.voucherId);
     } else {
       console.warn('[enrichOrderDetails] Failed to fetch voucher details for:', enrichedOrder.voucherId);
@@ -190,6 +194,10 @@ export const enrichOrderDetails = async (order, token) => {
         matchedVoucher.offer?.title;
       enrichedOrder.voucherId = enrichedOrder.voucherId || matchedVoucher.voucherId || matchedVoucher._id;
       enrichedOrder.voucher = matchedVoucher;
+      // If the matched merchant voucher contains the claimant user id, copy it for customer lookup
+      if (!enrichedOrder.userId && (matchedVoucher.userId || matchedVoucher.user?._id || matchedVoucher.user?._id)) {
+        enrichedOrder.userId = String(matchedVoucher.userId || matchedVoucher.user?._id || matchedVoucher.user?._id);
+      }
       console.log('[enrichOrderDetails] Matched order to merchant voucher for offer title:', enrichedOrder.voucherId);
     }
   }

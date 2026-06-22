@@ -1,12 +1,5 @@
 import React, { useState, useContext } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  FlatList,
-  Image,
-  Alert,
+import { View, Text, TouchableOpacity, StyleSheet, FlatList, Image, Alert,
 } from "react-native";
 import { ThemeContext } from "../theme/ThemeContext";
 import { AntDesign, MaterialIcons } from "@expo/vector-icons";
@@ -106,7 +99,7 @@ export default function Total({ products, setProducts, searchText,}) {
               {item.productname}
             </Text>
 
-            <View style={{ flexDirection: "row", gap: 12 }}>
+            <View style={{ flexDirection: "row", gap: 12, alignItems:"center" }}>
               <TouchableOpacity
                 disabled={deletingId === getProductId(item)}
                 onPress={() => confirmDelete(getProductId(item))}
@@ -117,7 +110,7 @@ export default function Total({ products, setProducts, searchText,}) {
                       ? "hourglass-empty"
                       : "delete-outline"
                   }
-                  size={24}
+                  size={22}
                   color="red"
                 />
               </TouchableOpacity>
@@ -127,17 +120,21 @@ export default function Total({ products, setProducts, searchText,}) {
                   navigation.navigate("NewProductPage", { product: item })
                 }
               >
-                <AntDesign name="edit" size={22} />
+                <AntDesign name="edit" size={20} />
               </TouchableOpacity>
             </View>
           </View>
 
+      <View style={{flexDirection:"row", alignItems:"center", gap:4}}>
+        <AntDesign name="tag" size={12} color="#157a4f"/>
           <Text style={{ fontFamily:"Medium", lineHeight: Math.round(14 * 1.5),
-            fontSize: 12,
+            fontSize: 12, color:"#157a4f"
            }}>
             Category: {item.category}
           </Text>
-          <Text numberOfLines={1} style={{ fontFamily:"Medium", lineHeight: Math.round(14 * 1.5),
+          </View>
+
+          <Text numberOfLines={1} style={{ fontFamily:"Medium", lineHeight: Math.round(12 * 1.5),
             fontSize: 12, ellipsizeMode: "tail"
            }}>
             Description: {item.description}
@@ -153,7 +150,7 @@ export default function Total({ products, setProducts, searchText,}) {
         data={filteredProducts}
         keyExtractor={(item) => getProductId(item)}
         renderItem={renderItem}
-        contentContainerStyle={{ padding: 14, paddingBottom: 80 }}
+        contentContainerStyle={{ padding: 14, paddingBottom: 90 }}
         ListEmptyComponent={
           <Text style={{ textAlign: "center", marginTop: 20, color: colors.text }}>
             No products available
@@ -191,10 +188,10 @@ const styles = StyleSheet.create({
   },
   addbuttton: {
     position: "absolute",
-    bottom: 70,
+    bottom: 80,
     right: 20,
-    width: 50,
-    height: 50,
+    width: 52,
+    height: 52,
     borderRadius: 30,
     backgroundColor: "#157a4f",
     justifyContent: "center",

@@ -8,8 +8,12 @@ export default function Customers() {
 
             <View style={{ flexDirection: "row", paddingHorizontal: 18, paddingVertical: 18 }}>
                 <View style={styles.card2}>
-                    <Text style={{ fontSize: 22, paddingHorizontal: 10 }}>Device Type</Text>
-                    <Text style={{ paddingHorizontal: 10, color: "#727272" }}>What Customers Use</Text>
+                    <Text style={{ fontSize: 18, paddingHorizontal: 10,
+                        fontFamily:"Medium", lineHeight: Math.round(18 * 1.5)
+                     }}>Device Type</Text>
+                    <Text style={{ paddingHorizontal: 10, color: "#727272",
+                        fontSize: 14, fontFamily:"Medium", lineHeight: Math.round(14 * 1.5)
+                     }}>What Customers Use</Text>
 
                     <Image source={require("../assets/graph.png")}
                         style={{ height: 220, width: 220, alignSelf: "center" }} />
@@ -19,17 +23,17 @@ export default function Customers() {
                     <View style={{paddingTop:10,paddingHorizontal:10,gap:10}}>
                         <View style={{ flexDirection: "row",alignItems:"center" }}>
                             <FontAwesome name="circle" size={22} color="#4caf50"/>
-                            <Text  style={{paddingLeft:6,fontSize:18}}>Mobile</Text>
+                            <Text  style={{paddingLeft:6,fontSize:14,fontFamily:"Medium",lineHeight: Math.round(14 * 1.5)}}>Mobile</Text>
                         </View>
 
                         <View style={{ flexDirection: "row",alignItems:"center" }}>
                             <FontAwesome name="circle" size={22} color="#f9a641" />
-                            <Text  style={{paddingLeft:6,fontSize:18}}>Computer</Text>
+                            <Text  style={{paddingLeft:6,fontSize:14,fontFamily:"Medium",lineHeight: Math.round(14 * 1.5)}}>Computer</Text>
                         </View>
 
                         <View style={{ flexDirection: "row",alignItems:"center" }}>
                             <FontAwesome name="circle" size={22} color="#c5c5c5" />
-                            <Text  style={{paddingLeft:6,fontSize:18}}>Tablet</Text>
+                            <Text  style={{paddingLeft:6,fontSize:14,fontFamily:"Medium",lineHeight: Math.round(14 * 1.5)}}>Tablet</Text>
                         </View>
                     </View>
                 </View>
@@ -97,7 +101,7 @@ const styles = StyleSheet.create({
         flex: 1,
         flexDirection: "column",
         borderRadius: 10,
-        minHeight: 260,
+        minHeight: 240,
         shadowColor: "#413f4f",
         elevation: 10,
         backgroundColor: "white",
