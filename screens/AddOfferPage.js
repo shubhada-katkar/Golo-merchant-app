@@ -491,7 +491,7 @@ export default function AddOfferPage({ navigation, route }) {
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
                     <LinearGradient
-                        colors={["#f8a812", "#fad081", "#fffbf4"]}
+                        colors={["#f8a812", "#fad081", "#f8f6f265"]}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 0, y: 1 }}
                         style={{height: 200, position: "absolute", top: 0, left: 0, right: 0, zIndex: 0}}

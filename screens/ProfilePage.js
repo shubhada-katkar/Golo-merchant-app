@@ -9,6 +9,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { BASE_URL } from "../config";
 import { LinearGradient } from "expo-linear-gradient";
+import { Linking } from "react-native";
 
 export default function ProfilePage({ navigation }) {
         const { theme, colors, toggleTheme } = useContext(ThemeContext);
@@ -208,7 +209,8 @@ return (
                 <Feather name="chevron-right" size={20} color={colors.subText || "#aaa"} />
             </TouchableOpacity>
 
-            <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]}>
+            <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]}
+            onPress={() => Linking.openURL("https://golo.co.in/merchant/help")}>
                 <View style={styles.iconCircle}>
                     <AntDesign name="question-circle" size={20} color="#157a4f" />
                 </View>
