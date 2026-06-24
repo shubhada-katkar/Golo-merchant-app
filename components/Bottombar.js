@@ -28,7 +28,7 @@ export default function Bottombar(){
                 color={currentRoute === "PostsPage" ? "#f9a641" : "black"}/>
                 <Text style={{textAlign:"auto",fontSize:11,color:currentRoute === "PostsPage" ? "#f9a641" : "black",
                     fontFamily : "Medium", lineHeight: Math.round(11*1.5)
-                }}>Posts</Text>
+                }}>Offers</Text>
             </TouchableOpacity>
 
            <View style={styles.centerContainer}>
