@@ -106,6 +106,11 @@ export default function ProductListPage({ navigation }) {
     }, [])
   );
 
+  const totalProductsCount = products.length;
+  const outOfStockCount = products.filter(
+    (item) => Number(item.stockQuantity) <= 0
+  ).length;
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <LinearGradient
@@ -134,6 +139,17 @@ export default function ProductListPage({ navigation }) {
         </Text>
       </View>
       <View style={{ height: 1, backgroundColor: colors.divider }} />
+
+      <View style={styles.statsRow}>
+        <View style={styles.statCard}>
+          <Text style={styles.statLabel}>Total Products</Text>
+          <Text style={styles.statValue}>{totalProductsCount}</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statLabel}>Out of Stock</Text>
+          <Text style={styles.statValue}>{outOfStockCount}</Text>
+        </View>
+      </View>
 
       {/* Search */}
       <View style={styles.search}>
@@ -181,4 +197,38 @@ const styles = StyleSheet.create({
         flexDirection:"row",
         alignItems:"center"
     },
+  statsRow: {
+    flexDirection: "row",
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 4,
+    gap: 12,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: "#ffffff",
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  statValue: {
+    fontSize: 22,
+    fontFamily: "Medium",
+    color: "#157a4f",
+    lineHeight: Math.round(22 * 1.5),
+  },
+  statLabel: {
+    fontSize: 14,
+    fontFamily: "Medium",
+    color: "#6b7280",
+    lineHeight: Math.round(14 * 1.5),
+  },
 });

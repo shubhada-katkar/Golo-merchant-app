@@ -154,7 +154,7 @@ export default function ProfileSettingsPage({ navigation }) {
     return `${BASE_URL.replace(/\/$/, "")}/${trimmed.replace(/^\//, "")}`;
   };
 
-  const getLeafletMapHtml = (latitude, longitude) => {
+  const getLeafletMapHtml = (latitude, longitude, locked = false) => {
     const safeLatitude = typeof latitude === "number" ? latitude : DEFAULT_REGION.latitude;
     const safeLongitude = typeof longitude === "number" ? longitude : DEFAULT_REGION.longitude;
 
@@ -166,6 +166,7 @@ export default function ProfileSettingsPage({ navigation }) {
     <style>
       html, body, #map { height: 100%; margin: 0; padding: 0; }
       .leaflet-container { touch-action: none; }
+      ${locked ? `.leaflet-container { pointer-events: none; }` : ``}
     </style>
   </head>
   <body>
@@ -174,12 +175,21 @@ export default function ProfileSettingsPage({ navigation }) {
     <script>
       const lat = ${safeLatitude};
       const lng = ${safeLongitude};
-      const map = L.map('map').setView([lat, lng], 15);
+      const locked = ${locked ? "true" : "false"};
+      const map = L.map('map', {
+        dragging: !locked,
+        touchZoom: !locked,
+        scrollWheelZoom: !locked,
+        doubleClickZoom: !locked,
+        boxZoom: !locked,
+        keyboard: !locked,
+        tap: !locked,
+      }).setView([lat, lng], 15);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors',
         maxZoom: 19,
       }).addTo(map);
-      const marker = L.marker([lat, lng], { draggable: true }).addTo(map);
+      const marker = L.marker([lat, lng], { draggable: !locked }).addTo(map);
       function sendLocation(latitude, longitude) {
         window.ReactNativeWebView.postMessage(JSON.stringify({
           type: 'locationChanged',
@@ -187,14 +197,16 @@ export default function ProfileSettingsPage({ navigation }) {
           longitude,
         }));
       }
-      marker.on('dragend', () => {
-        const position = marker.getLatLng();
-        sendLocation(position.lat, position.lng);
-      });
-      map.on('click', (event) => {
-        marker.setLatLng(event.latlng);
-        sendLocation(event.latlng.lat, event.latlng.lng);
-      });
+      if (!locked) {
+        marker.on('dragend', () => {
+          const position = marker.getLatLng();
+          sendLocation(position.lat, position.lng);
+        });
+        map.on('click', (event) => {
+          marker.setLatLng(event.latlng);
+          sendLocation(event.latlng.lat, event.latlng.lng);
+        });
+      }
       function handleNativeMessage(event) {
         try {
           const data = JSON.parse(event.data || event);
@@ -811,11 +823,13 @@ export default function ProfileSettingsPage({ navigation }) {
                   source={{
                     html: getLeafletMapHtml(
                       storeLatitude ?? DEFAULT_REGION.latitude,
-                      storeLongitude ?? DEFAULT_REGION.longitude
+                      storeLongitude ?? DEFAULT_REGION.longitude,
+                      true
                     ),
                   }}
                   style={styles.locationPreviewMap}
-                  scrollEnabled={false} />
+                  scrollEnabled={false}
+                  pointerEvents="none" />
               </View>
             </View>
 

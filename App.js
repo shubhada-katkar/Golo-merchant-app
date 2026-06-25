@@ -20,6 +20,8 @@ import AllReviewsPage from "./screens/AllReviewsPage";
 import ScanQRCodePage from "./screens/ScanQRCodePage";
 import Orders from "./components/Orders";
 import ResetPassword from "./screens/ResetPassword";
+import BannerPage from "./screens/BannerPage";
+import BannerList from "./screens/BannerList";
 import { useFonts } from "expo-font";
 
 SplashScreen.preventAutoHideAsync();
@@ -72,6 +74,8 @@ export default function App() {
     <Stack.Screen name="ScanQRCodePage" component={ScanQRCodePage}/>
     <Stack.Screen name="AllReviewsPage" component={AllReviewsPage}/>
     <Stack.Screen name="ResetPassword" component={ResetPassword}/>
+    <Stack.Screen name="BannerPage" component={BannerPage}/>
+    <Stack.Screen name="BannerList" component={BannerList}/>
       </Stack.Navigator>
     </NavigationContainer>
     </ThemeProvider>

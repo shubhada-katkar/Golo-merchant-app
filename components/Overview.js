@@ -1,5 +1,5 @@
 import React, { useState, useContext, useCallback } from "react";
-import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from "react-native";
+import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Linking, Platform } from "react-native";
 import { Octicons, AntDesign, MaterialIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { ThemeContext } from "../theme/ThemeContext";
@@ -65,6 +65,30 @@ export default function Overview() {
         const rating = Number(item?.rating ?? item?.stars ?? 0);
         if (!Number.isFinite(rating)) return 0;
         return Math.min(5, Math.max(0, rating));
+    };
+
+    const handleOpenCustomerApp = async () => {
+        const customerAppPackage = "com.shubhadakatkar.golocustomerapp";
+        const playStoreUrl = `https://play.google.com/store/apps/details?id=${customerAppPackage}`;
+
+        try {
+            if (Platform.OS !== "android") {
+                await Linking.openURL(playStoreUrl);
+                return;
+            }
+
+            const appIntentUrl = `intent://#Intent;package=${customerAppPackage};end`;
+            const canOpenApp = await Linking.canOpenURL(appIntentUrl);
+
+            if (canOpenApp) {
+                await Linking.openURL(appIntentUrl);
+            } else {
+                await Linking.openURL(playStoreUrl);
+            }
+        } catch (error) {
+            console.log("Open customer app error:", error);
+            await Linking.openURL(playStoreUrl);
+        }
     };
 
     // ✅ Fetch profile and latest merchant reviews every time screen opens
@@ -478,21 +502,23 @@ return (
 
                 {/*Last Box*/}
                 <View style={{ paddingVertical: 14 }}>
-                    <View style={styles.lastbox}>
-                        <LinearGradient colors={["#f7ad24", "#f8c15b", "#fae4ba"]}
-                            style={{ height: 120, borderRadius: 10, padding: 14 }} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-                            <Text style={{ fontSize: 12, fontFamily:"Medium",
-                                lineHeight: Math.round(12 * 1.5)
-                             }}>See Your Shop As Customer</Text>
-                            <Text style={{ fontSize: 12,
-                                fontFamily: "Medium", lineHeight: Math.round(12 * 1.5)
-                             }}>Open Customer App to See How Customer{"\n"}View Your Profile
-                            </Text>
-                            <Text style={{ fontSize: 16, fontFamily: "Medium",
-                                lineHeight: Math.round(16 * 1.5)
-                             }}>Tap to explore!</Text>
-                        </LinearGradient>
-                    </View>
+                    <TouchableOpacity activeOpacity={0.85} onPress={handleOpenCustomerApp}>
+                        <View style={styles.lastbox}>
+                            <LinearGradient colors={["#f7ad24", "#f8c15b", "#fae4ba"]}
+                                style={{ height: 120, borderRadius: 10, padding: 14 }} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                                <Text style={{ fontSize: 12, fontFamily:"Medium",
+                                    lineHeight: Math.round(12 * 1.5)
+                                }}>See Your Shop As Customer</Text>
+                                <Text style={{ fontSize: 12,
+                                    fontFamily: "Medium", lineHeight: Math.round(12 * 1.5)
+                                }}>Open Customer App to See How Customers View Your Profile
+                                </Text>
+                                <Text style={{ fontSize: 16, fontFamily: "Medium",
+                                    lineHeight: Math.round(16 * 1.5)
+                                }}>Tap to explore!</Text>
+                            </LinearGradient>
+                        </View>
+                    </TouchableOpacity>
                 </View>
 
             </View>

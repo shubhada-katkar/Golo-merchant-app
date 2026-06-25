@@ -14,7 +14,7 @@ import { AntDesign, MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL } from "../config";
 
-export default function Active() {
+export default function Active({ searchText = "" }) {
     const { colors } = useContext(ThemeContext);
     const navigation = useNavigation();
     const [offers, setOffers] = useState([]);
@@ -196,6 +196,13 @@ export default function Active() {
         }, [fetchOffers])
     );
 
+    const filteredOffers = offers.filter((item) => {
+        const query = searchText?.toLowerCase?.() || "";
+        const title = (item.offerTitle || item.bannerTitle || item.title || item.requestId || "").toString().toLowerCase();
+        const category = (item.category || item.bannerCategory || "").toString().toLowerCase();
+        return title.includes(query) || category.includes(query);
+    });
+
     const renderItem = ({ item }) => {
         const title = item.offerTitle || item.bannerTitle || item.title || item.requestId || "Untitled Offer";
         const discountLabel = item.discount || item.discountPercentage || item.bannerCategory || "N/A";
@@ -248,7 +255,7 @@ export default function Active() {
     return (
         <View style={{ flex: 1 }}>
             <FlatList
-                data={offers}
+                data={filteredOffers}
                 keyExtractor={(item) => item._id || item.offerId || item.requestId || String(item.id || Math.random())}
                 renderItem={renderItem}
                 contentContainerStyle={{ padding: 14, paddingBottom: 80 }}

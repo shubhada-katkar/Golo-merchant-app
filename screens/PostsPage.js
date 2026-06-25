@@ -1,19 +1,75 @@
-import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
+import React, { useState, useEffect, useCallback, useContext } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, TextInput } from "react-native";
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
 import Recent from "../postscomponents/Recent";
 import Expire from "../postscomponents/Expire";
 import Active from "../postscomponents/Active";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { MaterialIcons, } from "@expo/vector-icons";
-import { useContext } from "react";
+import { MaterialIcons, Feather } from "@expo/vector-icons";
 import { ThemeContext } from "../theme/ThemeContext";
 import { LinearGradient } from "expo-linear-gradient";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
+import { BASE_URL } from "../config";
 
 export default function ProfilePage({ navigation }) {
     const [activeTab, setactiveTab] = useState("Recent");
     const { colors } = useContext(ThemeContext);
+    const [searchText, setSearchText] = useState("");
+    const [totalOffers, setTotalOffers] = useState(0);
+    const [activeOffers, setActiveOffers] = useState(0);
+    const [expiredOffers, setExpiredOffers] = useState(0);
+
+    const normalizeOfferResults = (result) => {
+        if (Array.isArray(result)) return result;
+        if (result?.data && Array.isArray(result.data)) return result.data;
+        return [];
+    };
+
+    const isActiveOffer = (item) => {
+        const raw = item.endDate || item.validTo || item.expiresAt || item.endsAt || item.expiredAt;
+        if (!raw) return false;
+        const endDate = new Date(raw);
+        if (isNaN(endDate.getTime())) return false;
+        return endDate.getTime() > Date.now();
+    };
+
+    const fetchOfferSummary = useCallback(async () => {
+        const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+        if (!token) {
+            setTotalOffers(0);
+            setActiveOffers(0);
+            setExpiredOffers(0);
+            return;
+        }
+
+        try {
+            const response = await fetch(`${BASE_URL}/offers/my?page=1&limit=100`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const result = await response.json();
+            const offers = normalizeOfferResults(result);
+            setTotalOffers(offers.length);
+            setActiveOffers(offers.filter(isActiveOffer).length);
+            setExpiredOffers(offers.filter((item) => !isActiveOffer(item)).length);
+        } catch (error) {
+            console.log("Offer summary error:", error);
+            setTotalOffers(0);
+            setActiveOffers(0);
+            setExpiredOffers(0);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchOfferSummary();
+    }, [fetchOfferSummary]);
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchOfferSummary();
+        }, [fetchOfferSummary])
+    );
 
     return (
         <SafeAreaView style={{ flex: 1 }}>
@@ -35,31 +91,45 @@ export default function ProfilePage({ navigation }) {
                  }}>Offers</Text>
             </View>
 
+            
+            <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1, marginBottom: 10 }} />
+
+            <View style={styles.searchBar}>
+                <Feather name="search" size={18} color="#919191" />
+                <TextInput
+                    placeholder="Search offers..."
+                    value={searchText}
+                    onChangeText={setSearchText}
+                    style={styles.searchInput}
+                />
+            </View>
+
             <View style={styles.row2}>
                 <TouchableOpacity onPress={() => setactiveTab("Recent")}
                     style={[styles.row2button, activeTab == "Recent" && styles.ActiveTab]}>
+                    <Text style={[styles.tabCountText, activeTab == "Recent" && styles.ActiveTabText]}>{totalOffers}</Text>
                     <Text style={[styles.row2text, activeTab == "Recent" && styles.ActiveTabText]}>Recent</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity onPress={() => setactiveTab("Active")}
                     style={[styles.row2button, activeTab == "Active" && styles.ActiveTab]}>
+                    <Text style={[styles.tabCountText, activeTab == "Active" && styles.ActiveTabText]}>{activeOffers}</Text>
                     <Text style={[styles.row2text, activeTab == "Active" && styles.ActiveTabText]}>Active</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity onPress={() => setactiveTab("Expire")}
                     style={[styles.row2button, activeTab == "Expire" && styles.ActiveTab]}>
+                    <Text style={[styles.tabCountText, activeTab == "Expire" && styles.ActiveTabText]}>{expiredOffers}</Text>
                     <Text style={[styles.row2text, activeTab == "Expire" && styles.ActiveTabText]}>Expire</Text>
                 </TouchableOpacity>
             </View>
-
-            <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1, marginTop: 5 }} />
 </View>
 
-            {activeTab == "Recent" && <Recent />}
+            {activeTab == "Recent" && <Recent searchText={searchText} />}
 
-            {activeTab == "Active" && <Active />}
+            {activeTab == "Active" && <Active searchText={searchText} />}
 
-            {activeTab == "Expire" && <Expire />}
+            {activeTab == "Expire" && <Expire searchText={searchText} />}
 
             <SafeAreaView edges={["bottom"]}
                 style={{ width: "100%", bottom: 0, position: "absolute" }}>
@@ -81,14 +151,37 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         paddingHorizontal: 10,
         justifyContent: "space-between",
-        paddingBottom: 6
-
+        paddingBottom: 6,
+    },
+    searchBar: {
+        backgroundColor: "white",
+        marginHorizontal: 10,
+        marginBottom: 10,
+        borderRadius: 10,
+        borderWidth: 0.5,
+        borderColor: "#d1d5db",
+        paddingHorizontal: 10,
+        flexDirection: "row",
+        alignItems: "center",
+    },
+    searchInput: {
+        flex: 1,
+        marginLeft: 8,
+        fontSize: 14,
+        fontFamily: "Medium",
+        top:3
     },
     row2text: {
         fontSize: 14,
         color: "white",
         fontFamily:"Medium", 
         lineHeight: Math.round(14 * 1.5)
+    },
+    tabCountText: {
+        fontSize: 18,
+        color: "white",
+        fontFamily: "Medium",
+        lineHeight: Math.round(18 * 1.5),
     },
     row2button: {
         borderRadius: 20,

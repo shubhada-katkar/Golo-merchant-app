@@ -196,6 +196,19 @@ return (
                 <Feather name="chevron-right" size={20} color={colors.subText || "#aaa"} />
             </TouchableOpacity>
 
+            <Text style={[styles.sectionHeader, { color: colors.text, marginTop: 18 }]}>PROMOTE BANNER</Text>
+
+            <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]} onPress={() => navigation.navigate("BannerList")}>
+                <View style={styles.iconCircle}>
+                    <Feather name="list" size={20} color="#157a4f" />
+                </View>
+                <View style={styles.menuText}>
+                    <Text style={[styles.menuTitle, { color: colors.text }]}>Banners</Text>
+                    <Text style={[styles.menuSub, { color: colors.subText || "#888" }]}>Attract More Customers with Every Banner.</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color={colors.subText || "#aaa"} />
+            </TouchableOpacity>
+            
             <Text style={[styles.sectionHeader, { color: colors.text, marginTop: 18 }]}>REWARDS & SUPPORT</Text>
 
             <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]} onPress={() => navigation.navigate("LoyaltyPage")}>
