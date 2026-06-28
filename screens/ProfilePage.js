@@ -235,7 +235,7 @@ return (
             </TouchableOpacity>
 
             {/* Dark Mode row */}
-            <View style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]}>
+           {/* <View style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]}>
                 <View style={styles.iconCircle}>
                     <MaterialCommunityIcons name="weather-night" size={20} color="#157a4f" />
                 </View>
@@ -249,7 +249,7 @@ return (
                     trackColor={{ false: "#ccc", true: "#141414" }}
                     ios_backgroundColor="#ccc"
                 />
-            </View>
+            </View> */}
 
             {/* Divider before Sign Out */}
             <View style={[styles.divider, { backgroundColor: colors.divider || "#eee" }]} />
