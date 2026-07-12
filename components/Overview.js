@@ -1,12 +1,13 @@
 import React, { useState, useContext, useCallback } from "react";
 import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Linking, Platform } from "react-native";
-import { Octicons, AntDesign, MaterialIcons } from "@expo/vector-icons";
+import { Octicons, AntDesign, MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { ThemeContext } from "../theme/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { BASE_URL } from "../config";
 import { enrichOrderDetails } from "../services/orderService";
+import { textPresets } from '../theme/typography';
 
 export default function Overview() {
 
@@ -68,28 +69,16 @@ export default function Overview() {
     };
 
     const handleOpenCustomerApp = async () => {
-        const customerAppPackage = "com.shubhadakatkar.golocustomerapp";
-        const playStoreUrl = `https://play.google.com/store/apps/details?id=${customerAppPackage}`;
+    const customerAppScheme = "golo://";
+    const fallbackUrl = "https://drive.google.com/drive/folders/1x7QPqCVtgoZfIUd8iblraYAXdc4RWM5y";
 
-        try {
-            if (Platform.OS !== "android") {
-                await Linking.openURL(playStoreUrl);
-                return;
-            }
-
-            const appIntentUrl = `intent://#Intent;package=${customerAppPackage};end`;
-            const canOpenApp = await Linking.canOpenURL(appIntentUrl);
-
-            if (canOpenApp) {
-                await Linking.openURL(appIntentUrl);
-            } else {
-                await Linking.openURL(playStoreUrl);
-            }
-        } catch (error) {
-            console.log("Open customer app error:", error);
-            await Linking.openURL(playStoreUrl);
-        }
-    };
+    try {
+        await Linking.openURL(customerAppScheme);
+    } catch (error) {
+        console.log("Customer app not installed, opening Drive link:", error);
+        await Linking.openURL(fallbackUrl);
+    }
+};
 
     // ✅ Fetch profile and latest merchant reviews every time screen opens
     useFocusEffect(
@@ -251,22 +240,17 @@ return (
                 <Image source={profileImage} style={{ height: 90, width: 90, borderRadius: 46 }} />
 
                 <View style={{ flexDirection: "column", paddingHorizontal: 14 }}>
-                    <Text style={{ fontSize: 20, color: colors.text,
-                        fontFamily: "Medium", lineHeight: Math.round(20 * 1.5)
-                     }}>
+                    <Text style={{ ...textPresets.title }}>
                         {shopName}
                     </Text>
                 
                   <View style={{ flexDirection:"row", alignItems: "center", gap:8}}>
-                    <Text style={{ fontSize: 12, color: "#9ca3af",
-                        fontFamily: "Medium", lineHeight: Math.round(12 * 1.5),
-                        letterSpacing: 0.8, textTransform: "uppercase"
+                    <Text style={{  color: "#9ca3af", ...textPresets.label
                      }}>
                         Total Customers
                     </Text>
 
-                    <Text style={{ fontSize: 14, color: colors.text,
-                        fontFamily: "Medium", lineHeight: Math.round(14 * 1.3)
+                    <Text style={{ ...textPresets.label, color: "#157a4f"
                      }}>
                         {uniqueClaimedCustomers}
                     </Text>
@@ -279,14 +263,14 @@ return (
                 <View style={styles.graph}>
                     <View style={{ flexDirection: "row", alignContent: "center", justifyContent: "space-between" }}>
                         <View style={{ flexDirection: "row", alignItems: "center" }}>
-                            <Text style={{ fontSize: 14, fontFamily: "Medium", lineHeight: Math.round(14 * 1.5) }}>
+                            <Text style={{...textPresets.label }}>
                                 Shop Visits
                             </Text>
                             <Octicons name="graph" size={16} color="green" style={{ paddingLeft: 8 }} />
                         </View>
                         <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                             <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: "#ef4444" }} />
-                            <Text style={{ fontSize: 12, color: "#ef4444", fontFamily: "Medium", lineHeight: Math.round(12 * 1.5) }}>
+                            <Text style={{ ...textPresets.label, color: "#ef4444" }}>
                                 Live
                             </Text>
                         </View>
@@ -309,7 +293,9 @@ return (
                                                 const t = steps - i;
                                                 const value = Math.round((t / steps) * max);
                                                 return (
-                                                    <Text key={i} style={{ fontSize: 11, color: '#6b7280' }}>{value}</Text>
+                                                    <Text key={i} style={{  color: '#6b7280',
+                                                        ...textPresets.label
+                                                     }}>{value}</Text>
                                                 );
                                             })}
                                         </View>
@@ -347,7 +333,7 @@ return (
                                     <View style={{ flexDirection: 'row', marginTop: 6, paddingLeft: 40 }}>
                                         {visitsTrend.labels.map((lbl, i) => (
                                             <View key={i} style={{ flex: 1, alignItems: 'center', marginHorizontal: 4 }}>
-                                                <Text style={{ fontSize: 10, color: '#6b7280' }}>{lbl || ''}</Text>
+                                                <Text style={{ ...textPresets.caption, color: '#6b7280' }}>{lbl || ''}</Text>
                                             </View>
                                         ))}
                                     </View>
@@ -361,7 +347,7 @@ return (
             </View>
 
             <View style={styles.columncontainer}>
-                <Text style={[styles.text, { color: colors.text }]}>Recent Orders</Text>
+                <Text style={styles.text}>Recent Orders</Text>
 
                 {recentOrders.length > 0 ? (
                     recentOrders.map((o, idx) => {
@@ -380,12 +366,12 @@ return (
                                         <Text style={styles.avatarText}>{initials}</Text>
                                     </View>
                                     <View style={{ flex: 1, paddingLeft: 10 }}>
-                                        <Text style={{ color: '#111827', fontSize: 14,
-                                            lineHeight: Math.round(14 * 1.5), fontFamily: "Medium"
-                                        }}>{customer}</Text>
+                                        <Text style={{ color: '#111827', ...textPresets.subtitle }}>
+                                            {customer}
+                                        </Text>
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
                                             <MaterialIcons name="access-time" size={12} color="#999999" />
-                                            <Text style={{ fontSize: 12, color: '#999999', fontFamily: "Medium", lineHeight: Math.round(12 * 1.5) }}>
+                                            <Text style={{ ...textPresets.label, color: '#999999' }}>
                                                 Purchased {timeAgo(placed)}
                                             </Text>
                                         </View>
@@ -406,11 +392,11 @@ return (
                                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 10, paddingTop: 8 }}>
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                                         <MaterialIcons name="shopping-cart" size={14} color="#da9412" />
-                                        <Text style={{ color: "#5f5f5f", fontSize: 12, fontFamily: "Medium", lineHeight: Math.round(12 * 1.5) }}>
+                                        <Text style={{ ...textPresets.label, color: "#5f5f5f" }}>
                                             Offer Name
                                         </Text>
                                     </View>
-                                    <Text style={{ fontSize: 12, color: '#da9412', fontFamily: "Medium", fontWeight: "600", lineHeight: Math.round(12 * 1.5), maxWidth: '60%' }} numberOfLines={1} ellipsizeMode="tail">
+                                    <Text style={{ ...textPresets.label, color: '#da9412', maxWidth: '60%' }} numberOfLines={1} ellipsizeMode="tail">
                                         {offer}
                                     </Text>
                                 </View>
@@ -420,11 +406,11 @@ return (
                                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 10, paddingTop: 4, paddingBottom: 4 }}>
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                                             <MaterialIcons name="local-offer" size={15} color="#9ca3af" />
-                                            <Text style={{ color: '#6b7280', fontSize: 12, fontFamily: "Medium", lineHeight: Math.round(12 * 1.5) }}>
+                                            <Text style={{ ...textPresets.label, color: '#6b7280' }}>
                                                 Offer Type
                                             </Text>
                                         </View>
-                                        <Text style={{ fontSize: 12, color: '#157a4f', fontFamily: "Medium", fontWeight: "600", lineHeight: Math.round(12 * 1.5) }}>
+                                        <Text style={{ ...textPresets.label, color: '#157a4f' }}>
                                             {offerType}
                                         </Text>
                                     </View>
@@ -434,13 +420,13 @@ return (
                     })
                 ) : (
                     <View style={styles.card2}>
-                        <Text style={{ padding: 10, color: "#6b7280", lineHeight: Math.round(14 * 1.5), fontFamily: "Medium", fontSize: 14 }}>
+                        <Text style={{ padding: 10, color: "#6b7280", ...textPresets.label }}>
                             No recent orders
                         </Text>
                     </View>
                 )}
 
-                    <Text style={[styles.text, { color: colors.text }]}>Reviews</Text>
+                    <Text style={styles.text}>Reviews</Text>
 
                 {reviewsLoading ? (
                     <View style={styles.card2}>
@@ -451,13 +437,16 @@ return (
                         const rating = resolveRating(item);
                         return (
                             <View key={index} style={[styles.card2, styles.reviewCard]}>
-                                <View style={{ flexDirection: 'row', paddingTop: 10, paddingHorizontal: 10,
+                                <View style={{ flexDirection: 'row', paddingHorizontal: 10,
                                     justifyContent:"space-between", alignItems: "center"
                                 }}>
-                                <Text style={{ fontSize:12, fontFamily: "Medium", lineHeight: Math.round(12 * 1.5), color:"#157a4f"
+                                <View style={{flexDirection:"row", gap:4, alignItems:"center"}}>
+                                   <MaterialCommunityIcons name="account-circle-outline" size={18} color="#157a4f"/>     
+                                <Text style={{ ...textPresets.label, color:"#157a4f"
                                  }}>
                                     {item.userName || item.userEmail || "Customer"}
                                 </Text>
+                                </View>
 
                                 <View style={{ flexDirection: 'row', alignItems: "center" }}>
                                     {Array.from({ length: 5 }).map((_, starIndex) => (
@@ -471,8 +460,7 @@ return (
                                 </View>
                                 </View>
 
-                                <Text style={{ paddingHorizontal: 10, paddingTop: 4, color: "#4b5563",
-                                    fontSize: 12, fontFamily: "Medium", lineHeight: Math.round(12 * 1.5)
+                                <Text style={{ paddingHorizontal: 10, paddingTop: 4, color: "#4b5563", ...textPresets.label
                                  }}>
                                     {item.content || "No review text provided."}
                                 </Text>
@@ -486,7 +474,7 @@ return (
                     })
                 ) : (
                     <View style={styles.card2}>
-                        <Text style={{ padding: 10, color: "#6b7280", lineHeight: Math.round(14 * 1.5), fontFamily: "Medium", fontSize: 14 }}>
+                        <Text style={{ padding: 10, color: "#6b7280", ...textPresets.label }}>
                             No recent reviews yet.
                         </Text>
                     </View>
@@ -506,16 +494,11 @@ return (
                         <View style={styles.lastbox}>
                             <LinearGradient colors={["#f7ad24", "#f8c15b", "#fae4ba"]}
                                 style={{ height: 120, borderRadius: 10, padding: 14 }} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-                                <Text style={{ fontSize: 12, fontFamily:"Medium",
-                                    lineHeight: Math.round(12 * 1.5)
-                                }}>See Your Shop As Customer</Text>
-                                <Text style={{ fontSize: 12,
-                                    fontFamily: "Medium", lineHeight: Math.round(12 * 1.5)
-                                }}>Open Customer App to See How Customers View Your Profile
+                                <Text style={{ ...textPresets.subtitle }}>See Your Shop As Customer</Text>
+                                <Text style={{ ...textPresets.label }}>
+                                    Open Customer App to See How Customers View Your Profile
                                 </Text>
-                                <Text style={{ fontSize: 16, fontFamily: "Medium",
-                                    lineHeight: Math.round(16 * 1.5)
-                                }}>Tap to explore!</Text>
+                                <Text style={{ ...textPresets.label }}>Tap to explore!</Text>
                             </LinearGradient>
                         </View>
                     </TouchableOpacity>
@@ -557,10 +540,8 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.25,
     },
     text: {
-        fontSize: 16,
         width: "100%",
-        fontFamily: "Medium",
-        lineHeight: Math.round(16 * 1.5)
+        ...textPresets.subtitle,
     },
     card1: {
         borderRadius: 10,
@@ -577,13 +558,10 @@ const styles = StyleSheet.create({
     columncontainer: {
         paddingHorizontal: 16,
         gap: 10,
-        top: 10
+        top: 14
     },
     smallcardtext: {
-        fontSize: 14,
-        paddingHorizontal: 10,
-        fontFamily: "Medium",
-        lineHeight: Math.round(14 * 1.5)
+        ...textPresets.label
     },
     metaBlock: {
         flexDirection: "row",
@@ -593,16 +571,12 @@ const styles = StyleSheet.create({
         justifyContent:"space-between"
     },
     metaLabel: {
-        fontSize: 12,
+       ...textPresets.label,
         color: "#5f5f5f",
-        fontFamily: "Medium",
-        lineHeight: Math.round(12 * 1.5),
     },
     metaValue: {
-        fontSize: 12,
-        color: "#111827",
-        fontFamily: "Medium",
-        lineHeight: Math.round(12 * 1.5),
+        ...textPresets.label,
+        color: "#0a0a0a",
     },
     card2: {
         borderRadius: 10,
@@ -637,10 +611,8 @@ const styles = StyleSheet.create({
         borderWidth: 1,
     },
     avatarText: {
-        fontSize: 15,
-        fontFamily: "Medium",
+        ...textPresets.subtitle,
         color: "#157a4f",
-        lineHeight: Math.round(15 * 1.5),
     },
     seeAllButton: {
         flexDirection: "row",
@@ -649,18 +621,14 @@ const styles = StyleSheet.create({
         justifyContent: "center",
     },
     seeAllText: {
-        fontSize: 14,
-        fontFamily: "Medium",
-        lineHeight: Math.round(14 * 1.5),
+        ...textPresets.body,
         color: "#f9a641"
     },
     reviewDate: {
         paddingHorizontal: 10,
         paddingTop: 8,
-        fontSize: 12,
+        ...textPresets.caption,
         color: "#9ca3af",
-        fontFamily: "Medium",
-        lineHeight: Math.round(12 * 1.5)
     },
     lastbox: {
         borderRadius: 10,

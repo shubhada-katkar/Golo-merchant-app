@@ -12,6 +12,7 @@ import Bottombar from "../components/Bottombar";
 import {ThemeContext} from "../theme/ThemeContext";
 import { MaterialCommunityIcons, MaterialIcons, AntDesign, Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { textPresets } from "../theme/typography";
 
 const formatDateTime = (value) => {
   const date = value ? new Date(value) : new Date();
@@ -289,15 +290,14 @@ export default function OrderDetailPage() {
                     <View style={{ justifyContent: 'center' }}>
                         <MaterialIcons
                             name="arrow-back-ios"
-                            size={26}
+                            size={22}
                             color={colors.text}
                             style={{ padding: 10 }}
                         />
                     </View>
                 </TouchableOpacity>
 
-                <Text style={{ fontSize: 20, color: colors.text, lineHeight: Math.round(20 * 1.2), flex: 1,
-                    fontFamily: "Medium"
+                <Text style={{  flex: 1, ...textPresets.title
                  }}>Order Details</Text>
         </View>
 
@@ -444,28 +444,6 @@ const styles = StyleSheet.create({
     padding: 18,
     paddingBottom: 30,
   },
-  headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontFamily: "Medium",
-    lineHeight: Math.round(20 * 1.5),
-  },
-  closeButton: {
-    backgroundColor: "#157a4f",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  closeText: {
-    color: "white",
-    fontFamily: "Medium",
-    lineHeight: Math.round(16 * 1.5),
-  },
   card: {
     backgroundColor: "white",
     borderRadius: 14,
@@ -484,18 +462,14 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   sectionTitle: {
-    fontSize: 14,
-    fontFamily: "SemiBold",
+    ...textPresets.subtitle,
     color: "#157a4f",
-    lineHeight: Math.round(14 * 1.4),
   },
   fieldLabel: {
-    fontSize: 12,
-    fontFamily: "Medium",
     color: "#888",
     letterSpacing: 0.6,
     marginBottom: 6,
-    lineHeight: Math.round(12 * 1.5),
+    ...textPresets.label,
   },
   fieldBox: {
     backgroundColor: "#f4f6f8",
@@ -504,10 +478,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   fieldValue: {
-    fontSize: 13,
-    fontFamily: "Medium",
+    ...textPresets.body,
     color: "#1a1a1a",
-    lineHeight: Math.round(13 * 1.5),
   },
   actionButton: {
     backgroundColor: '#157a4f',
@@ -523,9 +495,7 @@ const styles = StyleSheet.create({
   },
   actionText: {
     color: 'white',
-    fontFamily: 'Medium',
-    fontSize: 14,
-    lineHeight: Math.round(14 * 1.5),
+    ...textPresets.body,
   },
   codeInputSection: {
     marginTop: 16,
@@ -537,10 +507,8 @@ const styles = StyleSheet.create({
     paddingHorizontal:12
   },
   codeInputLabel: {
-    fontSize: 14,
-    fontFamily: 'SemiBold',
+    ...textPresets.body,
     color: "#157a4f",
-    lineHeight: Math.round(14 * 1.5),
     paddingBottom: 8,
   },
   codeInput: {
@@ -550,9 +518,8 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 14,
     backgroundColor: '#f9fafb',
-    fontSize: 14,
-    fontFamily: 'Medium',
     color: '#111827',
+    ...textPresets.body
   },
   codeButtonRow: {
     flexDirection: 'row',
@@ -575,14 +542,10 @@ const styles = StyleSheet.create({
   },
   codeButtonText: {
     color: 'white',
-    fontFamily: 'SemiBold',
-    fontSize: 14,
-    lineHeight: Math.round(14 * 1.5),
+    ...textPresets.body
   },
   cancelButtonText: {
     color: '#111827',
-    fontFamily: 'SemiBold',
-    fontSize: 14,
-    lineHeight: Math.round(14 * 1.5),
+    ...textPresets.label
   },
 });

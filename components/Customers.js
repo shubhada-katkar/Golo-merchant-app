@@ -6,10 +6,11 @@ import {
   ScrollView,
   ActivityIndicator,
 } from "react-native";
-import { FontAwesome } from "@expo/vector-icons";
+import Svg, { Path } from "react-native-svg";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { BASE_URL } from "../config";
+import { textPresets } from "../theme/typography";
 
 const normalizeUrl = (url) => String(url || "").replace(/\/{2,}$/, "");
 
@@ -18,6 +19,7 @@ export default function Customers() {
   const [error, setError] = useState("");
   const [demographics, setDemographics] = useState([]);
   const [topRegions, setTopRegions] = useState([]);
+  const [deviceBreakdown, setDeviceBreakdown] = useState({});
 
   const fetchRealtimeAnalytics = async () => {
     setLoading(true);
@@ -51,6 +53,15 @@ export default function Customers() {
       setTopRegions(
         Array.isArray(payload?.data?.regions) ? payload.data.regions : []
       );
+      setDeviceBreakdown(
+        payload?.data?.device && typeof payload.data.device === "object"
+          ? {
+              Mobile: Number(payload.data.device.Mobile ?? payload.data.device.mobile ?? 0),
+              Desktop: Number(payload.data.device.Desktop ?? payload.data.device.desktop ?? 0),
+              Tablet: Number(payload.data.device.Tablet ?? payload.data.device.tablet ?? 0),
+            }
+          : {}
+      );
     } catch (err) {
       setError(String(err?.message || "Failed to load analytics"));
     } finally {
@@ -63,6 +74,80 @@ export default function Customers() {
       fetchRealtimeAnalytics();
     }, [])
   );
+
+  const polarToCartesian = (cx, cy, radius, angleInDegrees) => {
+    const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180.0;
+    return {
+      x: cx + radius * Math.cos(angleInRadians),
+      y: cy + radius * Math.sin(angleInRadians),
+    };
+  };
+
+  const describeArc = (cx, cy, radius, startAngle, endAngle) => {
+    const start = polarToCartesian(cx, cy, radius, endAngle);
+    const end = polarToCartesian(cx, cy, radius, startAngle);
+    const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+    return [
+      "M",
+      cx,
+      cy,
+      "L",
+      start.x,
+      start.y,
+      "A",
+      radius,
+      radius,
+      0,
+      largeArcFlag,
+      0,
+      end.x,
+      end.y,
+      "Z",
+    ].join(" ");
+  };
+
+  const renderDeviceChart = () => {
+    const slices = [
+      { label: "Mobile", value: Number(deviceBreakdown.Mobile || 0), color: "#157a4f" },
+      { label: "Desktop", value: Number(deviceBreakdown.Desktop || 0), color: "#3b82f6" },
+      { label: "Tablet", value: Number(deviceBreakdown.Tablet || 0), color: "#f59e0b" },
+    ].filter((slice) => slice.value > 0);
+
+    if (!slices.length) {
+      return <Text style={styles.emptyText}>No device type data available.</Text>;
+    }
+
+    const total = slices.reduce((sum, slice) => sum + slice.value, 0);
+    let startAngle = 0;
+    const chartSlices = slices.map((slice) => {
+      const endAngle = startAngle + (slice.value / total) * 360;
+      const path = describeArc(60, 60, 50, startAngle, endAngle);
+      startAngle = endAngle;
+      return { ...slice, path };
+    });
+
+    return (
+      <View style={styles.deviceChartCard}>
+        <Svg width={120} height={120} viewBox="0 0 120 120">
+          {chartSlices.map((slice) => (
+            <Path key={slice.label} d={slice.path} fill={slice.color} />
+          ))}
+        </Svg>
+        <View style={styles.deviceLegend}>
+          {chartSlices.map((slice) => (
+            <View key={slice.label} style={styles.deviceLegendItem}>
+              <View
+                style={[styles.deviceLegendDot, { backgroundColor: slice.color }]}
+              />
+              <Text style={styles.deviceLegendText}>
+                {slice.label} {slice.value}%
+              </Text>
+            </View>
+          ))}
+        </View>
+      </View>
+    );
+  };
 
   const renderStackedBar = (values, colors) => {
     const total = values.reduce(
@@ -151,6 +236,27 @@ export default function Customers() {
       <View style={styles.section}>
         <View style={styles.card}>
           <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>Device Type</Text>
+            <Text style={styles.cardSubtitle}>Realtime usage split</Text>
+          </View>
+
+          {loading ? (
+            <ActivityIndicator
+              style={styles.loading}
+              size="small"
+              color="#157a4f"
+            />
+          ) : error ? (
+            <Text style={styles.errorText}>{error}</Text>
+          ) : (
+            renderDeviceChart()
+          )}
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Age and Gender</Text>
             <View style={styles.legendRow}>
               <View style={styles.legendItem}>
@@ -234,15 +340,13 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   cardTitle: {
-    fontSize: 18,
-    fontFamily: "Medium",
+    ...textPresets.body,
     marginBottom: 8,
+    lineHeight:Math.round(14 * 1.5)
   },
   cardSubtitle: {
-    fontSize: 13,
     color: "#6b7280",
-    fontFamily: "Medium",
-    lineHeight: Math.round(13 * 1.5),
+    ...textPresets.label
   },
   legendRow: {
     flexDirection: "row",
@@ -261,14 +365,51 @@ const styles = StyleSheet.create({
   },
   legendText: {
     marginLeft: 6,
-    fontSize: 12,
     color: "#374151",
-    fontFamily: "Medium",
-    lineHeight: Math.round(12 * 1.5),
+    ...textPresets.label
   },
   rowsContainer: {
     gap: 12,
   },
+deviceChartCard: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "space-between",
+  flexWrap: "wrap",
+  gap: 20,
+  paddingVertical: 8,
+},
+pieWrapper: {
+  shadowColor: "#000",
+  shadowOpacity: 0.15,
+  shadowRadius: 10,
+  shadowOffset: { width: 0, height: 4 },
+  elevation: 5,
+  borderRadius: 90,
+},
+deviceLegend: {
+  flex: 1,
+  minWidth: 140,
+  gap: 12,
+},
+deviceLegendItem: {
+  flexDirection: "row",
+  alignItems: "center",
+},
+deviceLegendDot: {
+  width: 14,
+  height: 14,
+  borderRadius: 7,
+  marginRight: 10,
+},
+deviceLegendText: {
+  color: "#374151",
+  ...textPresets.label
+},
+deviceLegendPercent: {
+  color: "#111827",
+  ...textPresets.body
+},
   dataRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -279,10 +420,8 @@ const styles = StyleSheet.create({
     width: 90,
   },
   rowLabel: {
-    fontSize: 13,
     color: "#111827",
-    fontFamily: "Medium",
-    lineHeight: Math.round(13 * 1.5),
+    ...textPresets.label
   },
   rowContent: {
     flex: 1,
@@ -304,24 +443,19 @@ const styles = StyleSheet.create({
   },
   rowValue: {
     minWidth: 40,
-    fontSize: 12,
     color: "#374151",
     textAlign: "right",
-    fontFamily: "Medium",
-    lineHeight: Math.round(12 * 1.5),
+    ...textPresets.label
   },
   loading: {
     paddingVertical: 20,
   },
   errorText: {
     color: "#b91c1c",
-    fontSize: 13,
-    fontFamily: "Medium",
-    lineHeight: Math.round(13 * 1.5),
+    ...textPresets.label
   },
   emptyText: {
     color: "#6b7280",
-    fontSize: 13,
-    fontFamily: "Medium",
+    ...textPresets.label
   },
 });

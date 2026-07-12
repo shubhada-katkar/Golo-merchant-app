@@ -5,6 +5,7 @@ import { ThemeContext } from "../theme/ThemeContext";
 import { Entypo, MaterialIcons, Feather } from "@expo/vector-icons";
 import { fmtAgo } from "../utils/timeFormatter";
 import {LinearGradient} from "expo-linear-gradient";
+import { textPresets } from "../theme/typography";
 
 const OrderCard = memo(function OrderCard({ order, onStatusChange, onViewOrder }) {
   const id = order?._id || order?.id || "";
@@ -40,14 +41,13 @@ const OrderCard = memo(function OrderCard({ order, onStatusChange, onViewOrder }
              flex: 1, alignItems: "center" }}>
             <MaterialIcons name="account-circle" size={20} color="#f9a641"
             style={{borderWidth: 0.5, borderColor: "#000000", borderRadius: 20}}/>
-            <Text style={{ fontSize: 13, fontFamily:"Medium", lineHeight: Math.round(13 * 1.5),
+            <Text style={{ ...textPresets.label,
             flexShrink: 1
             }} numberOfLines={1}  ellipsizeMode="tail"
             >{customerName}</Text>
           </View>
 
-          <Text style={{ fontSize: 12, fontFamily:"Medium",
-            lineHeight: Math.round(12 * 1.5), color: "#5f5f5f"
+          <Text style={{color: "#5f5f5f", ...textPresets.caption
           }}
           >Purchased {fmtAgo(order?.placedAt || order?.createdAt)}</Text>
       </View>
@@ -68,38 +68,34 @@ const OrderCard = memo(function OrderCard({ order, onStatusChange, onViewOrder }
 
         {isPending ? (
           <View style={{ flexDirection: "row", gap: 10, alignSelf:"flex-end"}}>
-            <LinearGradient colors={["#d80000","#db5454" ,"#f0625d"]} start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }} style={styles.button}>
+            <View style={[styles.button, { backgroundColor: "#e44d42" }]}>
             <TouchableOpacity onPress={() => onStatusChange?.(id, "rejected") }
               style={{ flexDirection: "row", gap: 6 }}>
               <Entypo name="cross" size={16} color="white" style={{ top: 2 }} />
               <Text style={styles.text}>Reject</Text>
             </TouchableOpacity>
-              </LinearGradient>
+              </View>
 
-            <LinearGradient colors={["#106440", "#50a180","#56d6a1"]} start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }} style={styles.button}>
+            <View style={[styles.button, { backgroundColor: "#157a4f" }]}>
             <TouchableOpacity onPress={() => onStatusChange?.(id, "accepted") }
               style={{ flexDirection: "row", gap: 6 }}>
               <Feather name="check" size={16} color="white" style={{ top: 2 }} />
               <Text style={styles.text}>Accept</Text>
             </TouchableOpacity>
-            </LinearGradient>
+            </View>
           </View>
         ) : status === "accepted" ? (
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginVertical: 8, alignSelf:"flex-end" }}>
-            <LinearGradient colors={["#fc9312","#ffb937", "#fad99c"]} start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }} style={styles.button}>
+            <View style={[styles.button, { backgroundColor: "#f5b849" }]}>
             <TouchableOpacity onPress={() => onViewOrder?.(order)}> 
-              <Text style={styles.acceptedButtonText}>Accepted</Text>
+              <Text style={styles.acceptedButtonText}>Click To Complete</Text>
             </TouchableOpacity>
-            </LinearGradient>
+            </View>
           </View>
 
         ) : status === "completed" ? (
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginVertical: 8, alignSelf:"flex-end" }}>
-            <LinearGradient colors={["#106440", "#50a180","#56d6a1"]} start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }} style={styles.button}>
+            <View style={[styles.button, { backgroundColor: "#157a4f" }]}>
             <TouchableOpacity
               onPress={() => onViewOrder?.(order)}
               style={{ flexDirection: "row", gap: 6 }}
@@ -108,7 +104,7 @@ const OrderCard = memo(function OrderCard({ order, onStatusChange, onViewOrder }
               style={{ top:2}} />
               <Text style={styles.completedButtonText}>Completed</Text>
             </TouchableOpacity>
-            </LinearGradient>
+            </View>
           </View>
 
         ) : (
@@ -197,10 +193,8 @@ const styles = StyleSheet.create({
     gap: 4
   },
   text:{
-    fontFamily:"Medium",
-    lineHeight: Math.round(14 * 1.5),
-    fontSize: 14,
-    color:"white"
+    color:"white",
+    ...textPresets.label
   },
   metaBlock: {
     marginTop: 6,
@@ -209,27 +203,19 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   metaLabel: {
-    fontSize: 12,
     color: "#5f5f5f",
-    fontFamily: "Medium",
-    lineHeight: Math.round(12 * 1.5),
+    ...textPresets.label
   },
   metaValue: {
-    fontSize: 12,
     color: "#000000",
-    fontFamily: "Medium",
-    lineHeight: Math.round(12 * 1.5),
+    ...textPresets.label
   },
   acceptedButtonText: {
     color: "white",
-    fontFamily: "Medium",
-    lineHeight: Math.round(14 * 1.5),
-    fontSize: 14
+    ...textPresets.label
   },
   completedButtonText: {
     color: "#ffffff",
-    fontFamily: "Medium",
-    lineHeight: Math.round(14 * 1.5),
-    fontSize: 14
+    ...textPresets.label
   },
 });

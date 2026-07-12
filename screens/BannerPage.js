@@ -9,11 +9,59 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL } from "../config";
 import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import { Calendar } from "react-native-calendars";
+import { Modal } from "react-native";
 import { uploadImageToCloudinary } from "../services/cloudinaryService";
+import {textPresets} from "../theme/typography";
+
+function getErrorMessageFromResponse(data) {
+    const candidates = [];
+
+    const pushValue = (value) => {
+        if (typeof value === "string" && value.trim()) {
+            candidates.push(value.trim());
+        } else if (Array.isArray(value)) {
+            value.forEach(pushValue);
+        } else if (value && typeof value === "object") {
+            Object.values(value).forEach(pushValue);
+        }
+    };
+
+    pushValue(data?.message);
+    pushValue(data?.error);
+    pushValue(data?.details);
+
+    return candidates.join(" ");
+}
+
+function isModerationFailureResponse(data) {
+    const message = getErrorMessageFromResponse(data).toLowerCase();
+    return [
+        "inappropriate",
+        "moderation",
+        "flagged",
+        "content policy",
+        "violat",
+        "unsafe",
+    ].some((token) => message.includes(token));
+}
 
 // Hardcoded for now — swap in real list later
-const BANNER_CATEGORIES = ["Books", "Electronics", "Fashion", "Grocery", "Home & Kitchen", "Beauty"];
+const BANNER_CATEGORIES = [  "Food & Restaurants",
+  "Home Services",
+  "Beauty & Wellness",
+  "Healthcare & Medical",
+  "Hotels & Accommodation",
+  "Shopping & Retail",
+  "Education & Training",
+  "Real Estate",
+  "Events & Entertainment",
+  "Professional Services",
+  "Automotive Services",
+  "Home Improvement",
+  "Fitness & Sports",
+  "Daily Needs & Utilities",
+  "Local Businesses & Vendors",];
 
 // Hardcoded pricing
 const RATE_PER_DAY = 240;
@@ -31,6 +79,7 @@ export default function BannerPage({ navigation }) {
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isUploadingImage, setIsUploadingImage] = useState(false);
+    const [flaggedModalVisible, setFlaggedModalVisible] = useState(false);
 
     const formatDateKey = (date) => {
         const y = date.getFullYear();
@@ -57,19 +106,15 @@ export default function BannerPage({ navigation }) {
         });
         if (!result.canceled && result.assets?.length) {
             setBannerImage(result.assets[0].uri);
+            // Clear flagged marker when user uploads a new image
+            try { await AsyncStorage.removeItem('golo_images_flagged'); } catch (e) {}
         }
     }, []);
 
-    const handleDateChange = useCallback((event, date) => {
-        setShowDatePicker(false);
-        if (Platform.OS === "android" && event.type === "dismissed") return;
-        if (!date) return;
-
-        const key = formatDateKey(date);
-        setSelectedDates((prev) => {
-            if (prev.includes(key)) return prev; // already added
-            return [...prev, key].sort();
-        });
+    const toggleDate = useCallback((key) => {
+        setSelectedDates((prev) =>
+            prev.includes(key) ? prev.filter((d) => d !== key) : [...prev, key].sort()
+        );
     }, []);
 
     const removeDate = useCallback((key) => {
@@ -96,6 +141,17 @@ export default function BannerPage({ navigation }) {
         if (!BASE_URL) {
             Alert.alert("Configuration error", "API base URL is not configured.");
             return;
+        }
+
+        // Check if image was flagged from a previous submission
+        try {
+            const storedFlag = await AsyncStorage.getItem("golo_images_flagged");
+            if (storedFlag === "true") {
+                setFlaggedModalVisible(true);
+                return;
+            }
+        } catch (error) {
+            console.warn("Failed to read moderation flag before submit", error);
         }
 
         try {
@@ -139,10 +195,25 @@ export default function BannerPage({ navigation }) {
 
             const payload = await response.json().catch(() => ({}));
             if (!response.ok) {
+                // Check if this is a moderation failure
+                const isModerationError = isModerationFailureResponse(payload);
+
+                if (isModerationError) {
+                    try {
+                        await AsyncStorage.setItem('golo_images_flagged', 'true');
+                    } catch (e) {
+                        console.warn('Failed to set flagged marker', e);
+                    }
+                    setFlaggedModalVisible(true);
+                    return;
+                }
+
                 throw new Error(payload?.message || "Unable to submit banner request right now.");
             }
 
-            Alert.alert("Request submitted", "Your banner promotion request has been sent for admin review.");
+            Alert.alert("Request submitted", "Your banner promotion request has been sent for review.");
+            // Clear the moderation flag since submission succeeded
+            try { await AsyncStorage.removeItem("golo_images_flagged"); } catch (e) {}
             navigation.navigate("BannerList");
         } catch (error) {
             Alert.alert("Submission failed", error?.message || "Please try again.");
@@ -164,10 +235,9 @@ export default function BannerPage({ navigation }) {
 
             <View style={styles.row1}>
                 <TouchableOpacity onPress={() => navigation.goBack()}>
-                    <MaterialIcons name="arrow-back-ios" size={26} color={colors.text} style={{ padding: 10 }} />
+                    <MaterialIcons name="arrow-back-ios" size={22} color={colors.text} style={{ padding: 10 }} />
                 </TouchableOpacity>
-                <Text style={{ fontSize: 20, paddingLeft: 5, color: colors.text,
-                    lineHeight: Math.round(20 * 1.2), fontFamily: "Medium", flex: 1
+                <Text style={{ flex: 1, ...textPresets.title
                 }}>Promote Banner</Text>
             </View>
 
@@ -186,12 +256,12 @@ export default function BannerPage({ navigation }) {
                         onChangeText={setBannerTitle}
                     />
 
-                    <Text style={[styles.label, { color: colors.subtext, marginTop: 18 }]}>BANNER CATEGORY</Text>
+                    <Text style={[styles.label, { marginTop: 18 }]}>BANNER CATEGORY</Text>
                     <TouchableOpacity
                         style={[styles.input, styles.dropdown]}
                         onPress={() => setCategoryOpen((prev) => !prev)}
                     >
-                        <Text style={{ color: colors.text, fontSize: 15 }}>{category}</Text>
+                        <Text style={{ ...textPresets.body }}>{category}</Text>
                         <Feather name={categoryOpen ? "chevron-up" : "chevron-down"} size={20} color={colors.subtext} />
                     </TouchableOpacity>
                     {categoryOpen && (
@@ -205,7 +275,7 @@ export default function BannerPage({ navigation }) {
                                         setCategoryOpen(false);
                                     }}
                                 >
-                                    <Text style={{ color: colors.text, fontSize: 15 }}>{item}</Text>
+                                    <Text style={{ ...textPresets.body }}>{item}</Text>
                                 </TouchableOpacity>
                             ))}
                         </View>
@@ -215,8 +285,7 @@ export default function BannerPage({ navigation }) {
                     <TouchableOpacity
                         style={[styles.uploadBox, { borderColor: colors.border }]}
                         onPress={handlePickImage}
-                        activeOpacity={0.7}
-                    >
+                        activeOpacity={0.7} >
                         {bannerImage ? (
                             <Image source={{ uri: bannerImage }} style={styles.previewImage} resizeMode="cover" />
                         ) : (
@@ -224,8 +293,8 @@ export default function BannerPage({ navigation }) {
                                 <View style={[styles.uploadIconCircle, { backgroundColor: colors.successLight || "#e3f3ea" }]}>
                                     <Feather name="upload" size={20} color={colors.success || "#157a4f"} />
                                 </View>
-                                <Text style={[styles.uploadTitle, { color: colors.text }]}>Click to upload banner image</Text>
-                                <Text style={[styles.uploadSubtitle, { color: colors.subtext }]}>
+                                <Text style={styles.uploadTitle}>Click to upload banner image</Text>
+                                <Text style={styles.uploadSubtitle}>
                                     Recommended 1920 x 520 px (ratio ~3.7:1), max 5MB
                                 </Text>
                             </>
@@ -254,9 +323,7 @@ export default function BannerPage({ navigation }) {
                         <View style={styles.chipsWrap}>
                             {selectedDates.map((key) => (
                                 <View key={key} style={[styles.chip, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}>
-                                    <Text style={{ color: colors.text, fontSize: 13,
-                                        fontFamily: "Medium", lineHeight: Math.round(13 * 1.5)
-                                     }}>{formatDateLabel(key)}</Text>
+                                    <Text style={{ ...textPresets.label }}>{formatDateLabel(key)}</Text>
                                     <TouchableOpacity onPress={() => removeDate(key)} style={{ marginLeft: 6 }}>
                                         <Feather name="x" size={14} color={colors.subtext} />
                                     </TouchableOpacity>
@@ -269,15 +336,36 @@ export default function BannerPage({ navigation }) {
                         Total selected dates: <Text style={{ fontFamily: "Bold" }}>{selectedDaysCount}</Text>
                     </Text>
 
-                    {showDatePicker && (
-                        <DateTimePicker
-                            value={new Date()}
-                            mode="date"
-                            display={Platform.OS === "ios" ? "inline" : "default"}
-                            minimumDate={new Date()}
-                            onChange={handleDateChange}
-                        />
-                    )}
+                    <Modal
+                        visible={showDatePicker}
+                        transparent
+                        animationType="slide"
+                        onRequestClose={() => setShowDatePicker(false)}
+                        statusBarTranslucent
+                    >
+                        <View style={styles.modalOverlay}>
+                            <View style={[styles.modalCard, { backgroundColor: colors.inputBackground }]}>
+                                <Calendar
+                                    minDate={formatDateKey(new Date())}
+                                    markedDates={selectedDates.reduce((acc, key) => {
+                                        acc[key] = { selected: true, selectedColor: colors.success || "#157a4f" };
+                                        return acc;
+                                    }, {})}
+                                    onDayPress={(day) => toggleDate(day.dateString)}
+                                    theme={{
+                                        todayTextColor: colors.success || "#157a4f",
+                                        arrowColor: colors.success || "#157a4f",
+                                    }}
+                                />
+                                <TouchableOpacity
+                                    style={[styles.submitBtn, { backgroundColor: colors.success || "#157a4f", marginTop: 12 }]}
+                                    onPress={() => setShowDatePicker(false)}
+                                >
+                                    <Text style={styles.submitBtnText}>Done ({selectedDaysCount} selected)</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </Modal>
                 </View>
 
                 {/* Pricing summary card */}
@@ -327,6 +415,61 @@ export default function BannerPage({ navigation }) {
 
             </ScrollView>
 
+            {/* Flagged / rejected image modal */}
+            <Modal
+                visible={flaggedModalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => {}}
+                statusBarTranslucent
+            >
+                <View style={styles.flaggedOverlay}>
+                    <View style={styles.flaggedCard}>
+                        {/* Header row: warning icon + title + close */}
+                        <View style={styles.flaggedHeaderRow}>
+                            <View style={styles.flaggedHeaderTextWrap}>
+                                <View style={styles.flaggedHeaderIconCircle}>
+                                    <Feather name="alert-triangle" size={14} color="#d92d20" />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.flaggedHeaderTitle}>Inappropriate Content</Text>
+                                    <Text style={styles.flaggedHeaderSubtitle}>
+                                        Your image has been flagged by our safety system.
+                                    </Text>
+                                </View>
+                            </View>
+                            <TouchableOpacity
+                                onPress={() => setFlaggedModalVisible(false)}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            >
+                                <Feather name="x" size={20} color="#8a8a8a" />
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Centered big shield icon */}
+                        <View style={styles.flaggedIconWrap}>
+                            <View style={styles.flaggedIconCircle}>
+                                <Feather name="shield" size={30} color="#d92d20" />
+                            </View>
+                        </View>
+
+                        <Text style={styles.flaggedTitle}>Upload Rejected</Text>
+                        <Text style={styles.flaggedDescription}>
+                            One or more of your uploaded images contains content that violates our community
+                            guidelines. Please remove the inappropriate images and try posting again.
+                        </Text>
+
+                        <TouchableOpacity
+                            style={styles.flaggedButton}
+                            onPress={() => setFlaggedModalVisible(false)}
+                            activeOpacity={0.85}
+                        >
+                            <Text style={styles.flaggedButtonText}>I Understand, Go Back</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
             <SafeAreaView edges={["bottom"]} style={{ width: "100%", bottom: 0, position: "absolute" }}>
                 <Bottombar />
             </SafeAreaView>
@@ -340,22 +483,6 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         paddingVertical: 8,
         paddingHorizontal: 14,
-    },
-    headerBlock: {
-        paddingHorizontal: 18,
-        paddingTop: 14,
-        paddingBottom: 6,
-    },
-    heading: {
-        fontSize: 24,
-        fontFamily: "Bold",
-        marginBottom: 8,
-    },
-    subheading: {
-        fontSize: 12,
-        lineHeight: 20,
-        fontFamily: "Medium",
-        lineHeight: Math.round(12 * 1.5),
     },
     card: {
         marginHorizontal: 18,
@@ -373,24 +500,29 @@ const styles = StyleSheet.create({
         shadowRadius: 3.84,
     },
     cardTitle: {
-        fontSize: 16,
-        fontFamily: "Medium",
+        ...textPresets.subtitle,
         marginBottom: 4,
-        lineHeight: Math.round(16 * 1.5),
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(0,0,0,0.4)",
+        justifyContent: "center",
+    },
+    modalCard: {
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+        padding: 14,
     },
     label: {
-        fontSize: 12,
-        fontFamily: "Medium",
-        letterSpacing: 0.5,
+        ...textPresets.label,
         marginBottom: 8,
     },
     input: {
         borderWidth: 1,
         borderRadius: 12,
         paddingHorizontal: 14,
-        paddingVertical: 7,
-        fontSize: 14,
-        fontFamily: "Medium",
+        paddingVertical: 8,
+        ...textPresets.body,
     },
     dropdown: {
         flexDirection: "row",
@@ -426,17 +558,13 @@ const styles = StyleSheet.create({
         marginBottom: 12,
     },
     uploadTitle: {
-        fontSize: 14,
-        fontFamily: "Medium",
         textAlign: "center",
         marginBottom: 6,
-        lineHeight: Math.round(14 * 1.5),
+        ...textPresets.body,
     },
     uploadSubtitle: {
-        fontSize: 12,
-        fontFamily: "Medium",
+        ...textPresets.caption,
         textAlign: "center",
-        lineHeight: Math.round(12 * 1.5),
     },
     previewImage: {
         width: "100%",
@@ -458,16 +586,12 @@ const styles = StyleSheet.create({
     },
     addDateBtnText: {
         color: "#fff",
-        fontSize: 13,
-        fontFamily: "Medium",
         marginLeft: 4,
-        lineHeight: Math.round(13 * 1.5),
+        ...textPresets.label
     },
     noDatesText: {
-        fontSize: 13,
-        fontFamily: "Medium",
         marginBottom: 6,
-        lineHeight: Math.round(13 * 1.5),
+        ...textPresets.label
     },
     chipsWrap: {
         flexDirection: "row",
@@ -483,10 +607,8 @@ const styles = StyleSheet.create({
         paddingVertical: 6,
     },
     selectedDaysSummary: {
-        fontSize: 14,
-        fontFamily: "Medium",
+        ...textPresets.label,
         marginTop: 12,
-        lineHeight: Math.round(14 * 1.5),
     },
     divider: {
         height: 1,
@@ -499,24 +621,16 @@ const styles = StyleSheet.create({
         paddingVertical: 6,
     },
     priceLabel: {
-        fontSize: 13,
-        fontFamily: "Medium",
-        lineHeight: Math.round(13 * 1.5),
+        ...textPresets.label
     },
     priceValue: {
-        fontSize: 13,
-        fontFamily: "Medium",
-        lineHeight: Math.round(13 * 1.5),
+        ...textPresets.label
     },
     totalLabel: {
-        fontSize: 16,
-        fontFamily: "Bold",
-        lineHeight: Math.round(16 * 1.5),
+        ...textPresets.label
     },
     totalValue: {
-        fontSize: 16,
-        fontFamily: "Bold",
-        lineHeight: Math.round(16 * 1.5),
+        ...textPresets.label
     },
     submitBtn: {
         borderRadius: 14,
@@ -526,15 +640,99 @@ const styles = StyleSheet.create({
     },
     submitBtnText: {
         color: "#fff",
-        fontSize: 16,
-        fontFamily: "Medium",
-        lineHeight: Math.round(16 * 1.5),
+        ...textPresets.body
     },
     footnote: {
-        fontSize: 12,
-        fontFamily: "Medium",
+        ...textPresets.caption,
         textAlign: "center",
         marginTop: 10,
-        lineHeight: Math.round(12 * 1.5),
+    },
+
+    // --- Flagged image modal (matches web "Upload Rejected" reference) ---
+    flaggedOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(20, 20, 20, 0.55)",
+        justifyContent: "center",
+        alignItems: "center",
+        paddingHorizontal: 24,
+    },
+    flaggedCard: {
+        width: "100%",
+        maxWidth: 360,
+        backgroundColor: "#fff",
+        borderRadius: 18,
+        paddingTop: 18,
+        paddingHorizontal: 18,
+        paddingBottom: 20,
+        elevation: 10,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+    },
+    flaggedHeaderRow: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        justifyContent: "space-between",
+    },
+    flaggedHeaderTextWrap: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        flex: 1,
+        paddingRight: 12,
+    },
+    flaggedHeaderIconCircle: {
+        width: 26,
+        height: 26,
+        borderRadius: 13,
+        backgroundColor: "#fdecea",
+        alignItems: "center",
+        justifyContent: "center",
+        marginRight: 10,
+        marginTop: 1,
+    },
+    flaggedHeaderTitle: {
+        ...textPresets.subtitle,
+        color: "#1a1a1a",
+    },
+    flaggedHeaderSubtitle: {
+        ...textPresets.caption,
+        color: "#8a8a8a",
+        marginTop: 3,
+    },
+    flaggedIconWrap: {
+        alignItems: "center",
+        marginTop: 18,
+        marginBottom: 14,
+    },
+    flaggedIconCircle: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: "#fdecea",
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    flaggedTitle: {
+        ...textPresets.subtitle,
+        color: "#1a1a1a",
+        textAlign: "center",
+        marginBottom: 8,
+    },
+    flaggedDescription: {
+        ...textPresets.label,
+        color: "#6b6b6b",
+        textAlign: "center",
+        marginBottom: 20,
+    },
+    flaggedButton: {
+        backgroundColor: "#e0483e",
+        borderRadius: 12,
+        paddingVertical: 13,
+        alignItems: "center",
+    },
+    flaggedButtonText: {
+        color: "#fff",
+        ...textPresets.body,
     },
 });

@@ -2,11 +2,14 @@ import React from "react";
 import {
   View, StyleSheet, Image, Text,
 } from "react-native";
+import { textPresets } from "../theme/typography";
 
 export default function OfferScroll({ products = [] }) {
   if (!products || products.length === 0) {
     return null;
   }
+
+  const isSingle = products.length === 1;
 
   const renderItem = (item, index) => {
     const imageUri = item.image?.url || item.imageUrl || item.images?.[0] || "";
@@ -15,6 +18,28 @@ export default function OfferScroll({ products = [] }) {
     const offerPrice = Number(item.offerPrice ?? item.price ?? item.originalPrice ?? 0);
     const hasDiscount = offerPrice !== originalPrice && originalPrice > 0;
     const key = item._id || item.id || item.productId || `${name}-${index}`;
+
+    if (isSingle) {
+      return (
+        <View key={key} style={styles.singleCard}>
+          {imageUri ? (
+            <Image source={{ uri: imageUri }} style={styles.singleImage} />
+          ) : (
+            <View style={[styles.singleImage, styles.imagePlaceholder]}>
+              <Text style={styles.imagePlaceholderText}>No Image</Text>
+            </View>
+          )}
+
+          <View style={styles.singleTextbox}>
+            <Text style={styles.singleNameText} numberOfLines={2}>{name}</Text>
+            <Text style={styles.singleText}>Price: Rs. {offerPrice.toFixed(2)}</Text>
+            {hasDiscount && (
+              <Text style={styles.singleText}>Original: Rs. {originalPrice.toFixed(2)}</Text>
+            )}
+          </View>
+        </View>
+      );
+    }
 
     return (
       <View key={key} style={styles.card}>
@@ -39,7 +64,7 @@ export default function OfferScroll({ products = [] }) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.listContainer}>
+      <View style={isSingle ? styles.singleListContainer : styles.listContainer}>
         {products.map(renderItem)}
       </View>
     </View>
@@ -84,24 +109,52 @@ const styles = StyleSheet.create({
   },
   imagePlaceholderText: {
     color: "#777",
-    fontFamily: "Medium",
-    fontSize: 12,
-    lineHeight: Math.round(12 * 1.5),
+    ...textPresets.label
   },
   textbox: {
     paddingTop: 10,
   },
   nameText: {
-    fontSize: 14,
-    fontFamily: "Medium",
-    lineHeight: Math.round(14 * 1.5),
     color: "#111",
     marginBottom: 2,
+    ...textPresets.label
   },
   text: {
-    fontSize: 13,
-    fontFamily: "Medium",
-    lineHeight: Math.round(13 * 1.5),
     color: "#333",
+    ...textPresets.label
+  },
+
+  // Single-product layout
+  singleListContainer: {
+    paddingHorizontal: 10,
+  },
+  singleCard: {
+    flexDirection: "row",
+    borderRadius: 15,
+    borderColor: "#000000",
+    borderWidth: 1,
+    padding: 12,
+    backgroundColor: "#f8f8f8",
+    alignItems: "center",
+  },
+  singleImage: {
+    borderRadius: 12,
+    borderColor: "#d7d7d7",
+    width: 130,
+    height: 130,
+  },
+  singleTextbox: {
+    flex: 1,
+    paddingLeft: 14,
+    justifyContent: "center",
+  },
+  singleNameText: {
+    color: "#111",
+    marginBottom: 6,
+    ...textPresets.label
+  },
+  singleText: {
+    color: "#333",
+    ...textPresets.label
   },
 });

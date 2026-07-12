@@ -6,6 +6,9 @@ import { Dimensions } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Entypo } from "@expo/vector-icons";
 import { BASE_URL } from "../config";
+import { saveAuthData } from "../services/authService";
+import { startMerchantNotificationPolling } from "../services/notificationService";
+import { textPresets } from "../theme/typography";
 
 export default function Login({ navigation, route }) {
   const { colors } = useContext(ThemeContext);
@@ -125,6 +128,7 @@ export default function Login({ navigation, route }) {
       }
       // Token validation
       const token = data?.data?.accessToken || data?.token;
+      const refreshToken = data?.data?.refreshToken || "";
       const merchant = data?.data?.user || data?.merchant;
       const merchantId = merchant?.id || merchant?._id;
 
@@ -132,13 +136,10 @@ export default function Login({ navigation, route }) {
         Alert.alert("Error", "Invalid server response");
         return;
       }
-      
-      // Save securely
-      await AsyncStorage.multiSet([
-        ["merchantToken", token],
-        ["merchantData", JSON.stringify(merchant)],
-        ["merchantId", String(merchantId)]
-      ]);
+
+      // Save securely via authService
+      await saveAuthData({ accessToken: token, refreshToken, merchant, merchantId });
+      await startMerchantNotificationPolling();
 
       navigation.reset({
         index: 0,
@@ -283,15 +284,11 @@ export default function Login({ navigation, route }) {
       <View style={styles.centerContainer}>
 
         {!forgotMode && (
-          <Text style={{ fontSize: width * 0.06, color: "#ffffff",
-          lineHeight:Math.round(width * 0.06 * 1.5), fontFamily:"SemiBold"
-         }}>
+          <Text style={{ ...textPresets.title,color: "#ffffff", }}>
           Login To Your Account</Text>
         )}
         {forgotMode && (
-          <Text style={{ fontSize: width * 0.06, color: "#ffffff",
-            lineHeight:Math.round(width * 0.06 * 1.5), fontFamily:"SemiBold"
-           }}>
+          <Text style={{ ...textPresets.title, color: "#ffffff", }}>
             Forgot Password</Text>
         )}
 
@@ -309,9 +306,7 @@ export default function Login({ navigation, route }) {
 
               <Text style={styles.text}>Password</Text>
               <View style={styles.inputpassword}>
-                <TextInput style={{ fontSize: 16, flex: 1,
-                  fontFamily:"Medium"
-                 }}
+                <TextInput style={{ flex: 1, ...textPresets.body }}
                   placeholder="Enter password"
                   secureTextEntry={!visiblepass}
                   value={password}
@@ -340,9 +335,7 @@ export default function Login({ navigation, route }) {
                 style={[styles.button, loading && { opacity: 0.6 }]}
                 disabled={loading}
               >
-                <Text style={{ color: "white", fontSize: 18,
-                  fontFamily:"Medium", lineHeight:Math.round(18*1.5)
-                 }}>
+                <Text style={{ ...textPresets.subtitle, color: "white" }}>
                   {loading ? "Logging in..." : "Login"}
                 </Text>
               </TouchableOpacity>
@@ -369,8 +362,7 @@ export default function Login({ navigation, route }) {
                   onPress={handleSendOtp}
                   disabled={otpCooldown > 0 || otpLoading}>
 
-                  <Text style={{ color: "white", fontSize: 18,
-                    fontFamily:"Medium", lineHeight:Math.round(18*1.5)
+                  <Text style={{ color: "white", ...textPresets.subtitle
                    }}>
                     {otpLoading
                       ? "Sending..."
@@ -412,10 +404,7 @@ export default function Login({ navigation, route }) {
                     onPress={handleVerifyOtp}
                     disabled={verifyLoading}
                   >
-                    <Text style={{ color: "white", fontSize: 16,
-                      fontFamily:"Medium", lineHeight:Math.round(16 * 1.5),
-                      alignSelf:"center"
-                     }}>
+                    <Text style={{ color: "white", ...textPresets.subtitle }}>
                       {verifyLoading ? "Verifying..." : "Verify"}
                     </Text>
                   </TouchableOpacity>
@@ -428,9 +417,7 @@ export default function Login({ navigation, route }) {
                     onPress={handleSendOtp}
                     disabled={otpCooldown > 0 || otpLoading}
                   >
-                    <Text style={{ color: "white", fontSize: 16, fontFamily: "Medium",
-                      lineHeight: Math.round(16 * 1.5)
-                     }}>
+                    <Text style={{ color: "white", ...textPresets.subtitle }}>
                       {otpLoading
                         ? "Resending..."
                         : otpCooldown > 0
@@ -449,8 +436,7 @@ export default function Login({ navigation, route }) {
         {!forgotMode ? (
           <>
             <View style={{ alignItems: "center", flexDirection: "row", marginTop: 10 }}>
-              <Text style={{ fontSize: 16,
-                fontFamily:"Medium", lineHeight:Math.round(16*1.5)
+              <Text style={{ ...textPresets.body
                }}>
                 Don't Have An Account?
               </Text>
@@ -489,27 +475,23 @@ const styles = StyleSheet.create({
     borderColor: "#000000"
   },
   text: {
-    fontSize: width * 0.048,
-    fontFamily:"Medium", 
-    lineHeight:Math.round(width * 0.048 * 1.5)
+    ...textPresets.subtitle,
   },
   input: {
     borderRadius: 10,
     paddingHorizontal: 12,
-    fontSize: 16,
     borderWidth: 1,
     borderColor: "#000000",
-    fontFamily:"Medium"
+    ...textPresets.body
   },
   otpInput: {
     borderRadius: 10,
     paddingHorizontal: 12,
     flex: 1,
-    fontSize: 16,
     marginRight: 8,
     borderWidth: 1,
     borderColor: "#000000",
-    fontFamily:"Medium",
+    ...textPresets.body
   },
   button: {
     backgroundColor: "#157a4f",
@@ -524,11 +506,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   link: {
-    fontSize: 16,
+    ...textPresets.body,
     color: "#4caf50",
     paddingHorizontal: 10,
-    fontFamily:"Medium", 
-    lineHeight:Math.round(16*1.5)
   },
   smallButton: {
     backgroundColor: "#157a4f",
@@ -539,10 +519,10 @@ const styles = StyleSheet.create({
   },
   noteText: {
     marginTop: 8,
-    fontSize: 14,
+    ...textPresets.caption,
     color: "#333",
     textAlign: "center",
-    fontFamily: "Medium",
+    
   },
   inputpassword: {
     flexDirection: "row",
@@ -553,7 +533,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     borderWidth: 1,
     borderColor: "#000000",
-    fontFamily:"Medium"
   },
   otpRow: {
     flexDirection: "row",
@@ -566,10 +545,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#000000",
     borderRadius: 10,
-    fontSize: 18,
     marginHorizontal: 2,
-    fontFamily: "Medium",
-    lineHeight: Math.round(18 * 1.5),
+    ...textPresets.body
   },
   centerContainer: {
     position: "absolute",

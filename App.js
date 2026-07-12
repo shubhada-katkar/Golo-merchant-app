@@ -13,16 +13,25 @@ import LoyaltyPage from "./screens/LoyaltyPage";
 import Registration from "./screens/Registration";
 import Login from "./screens/Login";
 import AddOfferPage from "./screens/AddOfferPage";
-import PreviewPage from "./screens/PreviewPage";
 import NotificationsPage from "./screens/NotificationsPage";
 import OrderDetailPage from "./screens/OrderDetailPage";
 import AllReviewsPage from "./screens/AllReviewsPage";
 import ScanQRCodePage from "./screens/ScanQRCodePage";
 import Orders from "./components/Orders";
 import ResetPassword from "./screens/ResetPassword";
+import AuthLoading from "./screens/AuthLoading";
 import BannerPage from "./screens/BannerPage";
 import BannerList from "./screens/BannerList";
-import { useFonts } from "expo-font";
+import UpgradePlanPage from "./screens/UpgradePlanPage";
+import PaymentPage from "./screens/PaymentPage";
+import {
+  Poppins_400Regular,
+  Poppins_500Medium,
+  Poppins_600SemiBold,
+  Poppins_700Bold,
+  useFonts,
+} from "@expo-google-fonts/poppins";
+import { startMerchantNotificationPolling, stopMerchantNotificationPolling } from "./services/notificationService";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -31,10 +40,10 @@ const Stack = createStackNavigator();
 export default function App() {
 
   const [fontsLoaded] = useFonts({
-    "Italic": require("./assets/fonts/GoogleSans-Italic.ttf"),
-    "Bold": require("./assets/fonts/GoogleSans-Bold.ttf"),
-    "SemiBold": require("./assets/fonts/GoogleSans-SemiBold.ttf"),
-    "Medium": require("./assets/fonts/GoogleSans-Medium.ttf"),
+    Poppins_400Regular,
+    Poppins_500Medium,
+    Poppins_600SemiBold,
+    Poppins_700Bold,
   });
 
   useEffect(() => {
@@ -43,6 +52,14 @@ export default function App() {
     }
   }, [fontsLoaded]);
 
+  useEffect(() => {
+    startMerchantNotificationPolling();
+
+    return () => {
+      stopMerchantNotificationPolling();
+    };
+  }, []);
+
   // ⚠️ Must return null while fonts are loading
   if (!fontsLoaded) return null;
 
@@ -50,13 +67,14 @@ export default function App() {
      <ThemeProvider>
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="Login"
+        initialRouteName="AuthLoading"
         screenOptions={{
           headerShown: false,
           cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
         }}
       >
 
+    <Stack.Screen name="AuthLoading" component={AuthLoading} />
     <Stack.Screen name="HomePage" component={HomePage} />
     <Stack.Screen name="ProfilePage" component={ProfilePage} />  
     <Stack.Screen name="PostsPage" component={PostsPage}/>
@@ -67,7 +85,6 @@ export default function App() {
     <Stack.Screen name="Registration" component={Registration}/>
     <Stack.Screen name="Login" component={Login}/>
     <Stack.Screen name="AddOfferPage" component={AddOfferPage}/>
-    <Stack.Screen name="PreviewPage" component={PreviewPage}/>
     <Stack.Screen name="NotificationsPage" component={NotificationsPage}/>
     <Stack.Screen name="OrderDetailPage" component={OrderDetailPage}/>
     <Stack.Screen name="Orders" component={Orders} />
@@ -76,6 +93,8 @@ export default function App() {
     <Stack.Screen name="ResetPassword" component={ResetPassword}/>
     <Stack.Screen name="BannerPage" component={BannerPage}/>
     <Stack.Screen name="BannerList" component={BannerList}/>
+    <Stack.Screen name="UpgradePlanPage" component={UpgradePlanPage}/>
+    <Stack.Screen name="PaymentPage" component={PaymentPage}/>
       </Stack.Navigator>
     </NavigationContainer>
     </ThemeProvider>

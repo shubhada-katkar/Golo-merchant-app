@@ -8,6 +8,7 @@ import Completed  from "../components/Completed";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL as CONFIG_BASE_URL } from "../config";
 import { enrichOrderDetails } from "../services/orderService";
+import { textPresets } from "../theme/typography";
 
 export default function Orders() {    const navigation = useNavigation();    const [activeTab, setactiveTab] = useState("All");
     const [orders, setOrders] = useState([]);
@@ -158,11 +159,9 @@ export default function Orders() {    const navigation = useNavigation();    con
 
             <View style={{ paddingVertical: 12 }}>
                 <View style={styles.card1}>
-                    <Text style={{ fontSize: 18, fontFamily:"Medium",
-                            lineHeight: Math.round(18 * 1.5)
+                    <Text style={{ ...textPresets.body
                      }}>Total Orders</Text>
-                    <Text style={{fontSize:14, fontFamily:"Bold",
-                        lineHeight: Math.round(14 * 1.5), color:"#157a4f"
+                    <Text style={{...textPresets.body, color:"#157a4f"
                     }}>{totalCount} Orders</Text>     
                     </View>                   
             </View>
@@ -214,11 +213,10 @@ const styles = StyleSheet.create({
         paddingBottom:8
     },
     row1text: {
-        fontSize: 14,
         color: "white",
         paddingHorizontal: 6,
-        fontFamily:"Medium",
-        lineHeight: Math.round(14 * 1.5)
+        ...textPresets.body,
+        lineHeight:Math.round(14 * 1.5)
     },
     row1button: {
         flex:1,

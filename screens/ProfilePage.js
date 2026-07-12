@@ -6,10 +6,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons, MaterialIcons, Feather, AntDesign } from "@expo/vector-icons";
 import { ThemeContext } from "../theme/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { clearAuthStorage, getValidToken } from "../services/authService";
 import { useFocusEffect } from "@react-navigation/native";
 import { BASE_URL } from "../config";
 import { LinearGradient } from "expo-linear-gradient";
 import { Linking } from "react-native";
+import { textPresets } from "../theme/typography";
 
 export default function ProfilePage({ navigation }) {
         const { theme, colors, toggleTheme } = useContext(ThemeContext);
@@ -26,41 +28,25 @@ export default function ProfilePage({ navigation }) {
                 try {
                   setLoadingLogout(true);
 
-                  const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+                  const token        = await AsyncStorage.getItem("merchantToken");
+                  const refreshToken = await AsyncStorage.getItem("merchantRefreshToken");
 
                   try {
                     if (token) {
-                      const logoutHeaders = {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${token}`,
-                      };
-
-                      let res = await fetch(`${BASE_URL}/users/logout`, {
+                      await fetch(`${BASE_URL}/users/logout`, {
                         method: "POST",
-                        headers: logoutHeaders,
-                        body: JSON.stringify({ refreshToken: null }),
+                        headers: {
+                          "Content-Type": "application/json",
+                          Authorization: `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({ refreshToken: refreshToken || null }),
                       });
-
-                      if (!res.ok && res.status === 404) {
-                        await fetch(`${BASE_URL}/users/logout`, {
-                          method: "POST",
-                          headers: logoutHeaders,
-                          body: JSON.stringify({ refreshToken: null }),
-                        });
-                      }
                     }
                   } catch (logoutError) {
                     console.log("Logout API error:", logoutError);
                   }
 
-                  await AsyncStorage.multiRemove([
-                    "merchantToken",
-                    "merchantData",
-                    "merchantId",
-                    "accessToken",
-                    "user",
-                    "refreshToken",
-                  ]);
+                  await clearAuthStorage();
 
                   navigation.reset({ index: 0, routes: [{ name: "Login" }] });
                 } catch (err) {
@@ -109,18 +95,17 @@ export default function ProfilePage({ navigation }) {
         useCallback(() => {
             const fetchProfile = async () => {
                 try {
-                    const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+                    let token;
+                    try {
+                        token = await getValidToken();
+                    } catch {
+                        return; // not logged in or network error – skip silently
+                    }
                     if (!token) return;
 
-                    let res = await fetch(`${BASE_URL}/users/merchant/profile`, {
+                    const res = await fetch(`${BASE_URL}/users/merchant/profile`, {
                         headers: { Authorization: `Bearer ${token}` }
                     });
-
-                    if (!res.ok && res.status === 404) {
-                        res = await fetch(`${BASE_URL}/merchant/profile`, {
-                        headers: { Authorization: `Bearer ${token}` }
-                        });
-                    }
 
                     const data = await res.json();
                     const merchantData = data?.data || data?.merchant || data || null;
@@ -161,11 +146,9 @@ return (
 
         <View style={styles.row1}>
             <TouchableOpacity onPress={() => navigation.goBack()}>
-                <MaterialIcons name="arrow-back-ios" size={26} color={colors.text} style={{ padding: 10 }} />
+                <MaterialIcons name="arrow-back-ios" size={22} color={colors.text} style={{ padding: 10 }} />
             </TouchableOpacity>
-            <Text style={{ fontSize: 20, paddingLeft: 5, color: colors.text,
-                lineHeight: Math.round(20 * 1.2), fontFamily: "Medium", flex: 1
-             }}>Profile</Text>
+            <Text style={{ ...textPresets.title, flex: 1 }}>Profile</Text>
         </View>
 
         <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1 }} />
@@ -196,7 +179,7 @@ return (
                 <Feather name="chevron-right" size={20} color={colors.subText || "#aaa"} />
             </TouchableOpacity>
 
-            <Text style={[styles.sectionHeader, { color: colors.text, marginTop: 18 }]}>PROMOTE BANNER</Text>
+            <Text style={[styles.sectionHeader, { color: colors.text, marginTop: 18 }]}>PROMOTE AND UPGRADE</Text>
 
             <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]} onPress={() => navigation.navigate("BannerList")}>
                 <View style={styles.iconCircle}>
@@ -208,6 +191,17 @@ return (
                 </View>
                 <Feather name="chevron-right" size={20} color={colors.subText || "#aaa"} />
             </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]} onPress={() => navigation.navigate("UpgradePlanPage")}>
+                <View style={styles.iconCircle}>
+                    <MaterialCommunityIcons name="crown-outline" size={20} color="#157a4f" />
+                </View>
+                <View style={styles.menuText}>
+                    <Text style={[styles.menuTitle, { color: colors.text }]}>Upgrade Your Plan</Text>
+                    <Text style={[styles.menuSub, { color: colors.subText || "#888" }]}>Enhance your business with premium features.</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color={colors.subText || "#aaa"} />
+            </TouchableOpacity>            
             
             <Text style={[styles.sectionHeader, { color: colors.text, marginTop: 18 }]}>REWARDS & SUPPORT</Text>
 
@@ -299,21 +293,17 @@ const styles = StyleSheet.create({
         paddingHorizontal: 24,
     },
     shopName: {
-        fontSize: 22,
-        fontFamily: "Medium",
-        lineHeight:Math.round(22*1.5)
+        ...textPresets.title
     },
     menuContainer: {
         paddingHorizontal: 16,
     },
     sectionHeader: {
-        fontSize: 11,
-        fontFamily: "Medium",
         letterSpacing: 0.8,
         opacity: 0.5,
         marginBottom: 8,
         marginLeft: 4,
-        lineHeight:Math.round(11*1.5)
+        ...textPresets.label
     },
     menuItem: {
         flexDirection: "row",
@@ -341,16 +331,12 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     menuTitle: {
-        fontSize: 15,
-        fontFamily: "Medium",
-        lineHeight:Math.round(15*1.5)
+       ...textPresets.body
     },
     menuSub: {
-        fontSize: 12,
         marginTop: 1,
-        fontFamily: "Medium",
         opacity: 0.7,
-        lineHeight:Math.round(12*1.5)
+        ...textPresets.label
     },
     divider: {
         height: 1,

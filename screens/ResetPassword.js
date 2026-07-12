@@ -5,6 +5,7 @@ import { ThemeContext } from "../theme/ThemeContext";
 import { Dimensions } from "react-native";
 import { Entypo } from "@expo/vector-icons";
 import { BASE_URL } from "../config";
+import { textPresets } from "../theme/typography";
 
 export default function ResetPassword({ navigation, route }) {
   const { colors } = useContext(ThemeContext);
@@ -93,7 +94,7 @@ export default function ResetPassword({ navigation, route }) {
       <View style={{ flex: 1, backgroundColor: "#ffffff" }} />
 
       <View style={styles.centerContainer}>
-        <Text style={{ fontSize: width * 0.06, color: "#ffffff", lineHeight: Math.round(width * 0.06 * 1.5), fontFamily: "SemiBold" }}>
+        <Text style={{ color: "#ffffff", ...textPresets.subtitle }}>
           Reset Password
         </Text>
 
@@ -101,7 +102,7 @@ export default function ResetPassword({ navigation, route }) {
           <Text style={styles.text}>New Password</Text>
           <View style={styles.inputpassword}>
             <TextInput
-              style={{ fontSize: 16, flex: 1, fontFamily: "Medium" }}
+              style={{ ...textPresets.body }}
               placeholder="Enter new password"
               secureTextEntry={!visiblepass}
               value={newPassword}
@@ -126,7 +127,7 @@ export default function ResetPassword({ navigation, route }) {
             style={[styles.button, loading && { opacity: 0.6 }]}
             disabled={loading}
           >
-            <Text style={{ color: "white", fontSize: 18, fontFamily: "Medium", lineHeight: Math.round(18 * 1.5) }}>
+            <Text style={{ color: "white", ...textPresets.subtitle }}>
               {loading ? "Resetting..." : "Reset Password"}
             </Text>
           </TouchableOpacity>
@@ -156,17 +157,14 @@ const styles = StyleSheet.create({
     borderColor: "#000000",
   },
   text: {
-    fontSize: width * 0.048,
-    fontFamily: "Medium",
-    lineHeight: Math.round(width * 0.048 * 1.5),
+    ...textPresets.body
   },
   input: {
     borderRadius: 10,
     paddingHorizontal: 12,
-    fontSize: 16,
     borderWidth: 1,
     borderColor: "#000000",
-    fontFamily: "Medium",
+    ...textPresets.body
   },
   button: {
     backgroundColor: "#157a4f",
@@ -176,18 +174,9 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   link: {
-    fontSize: 16,
     color: "#4caf50",
     paddingHorizontal: 10,
-    fontFamily: "Medium",
-    lineHeight: Math.round(16 * 1.5),
-  },
-  noteText: {
-    marginTop: 8,
-    fontSize: 14,
-    color: "#333",
-    textAlign: "center",
-    fontFamily: "Medium",
+    ...textPresets.body
   },
   inputpassword: {
     flexDirection: "row",
@@ -198,7 +187,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     borderWidth: 1,
     borderColor: "#000000",
-    fontFamily: "Medium",
+    ...textPresets.body,
+    lineHeight:Math.round(14 * 1.5)
   },
   centerContainer: {
     position: "absolute",

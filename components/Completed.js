@@ -4,6 +4,7 @@ import { Feather, MaterialIcons } from "@expo/vector-icons";
 import { useContext } from "react";
 import { ThemeContext } from "../theme/ThemeContext";
 import {LinearGradient} from "expo-linear-gradient";
+import { textPresets } from "../theme/typography";
 
 export default function Completed({ orders = [], onViewOrder }) {
   const { colors } = useContext(ThemeContext);
@@ -49,13 +50,11 @@ export default function Completed({ orders = [], onViewOrder }) {
               <View style={{ flexDirection: "row", gap: 5 }}>
                   <MaterialIcons name="account-circle" size={20} color="#f5b849" 
                   style={{ borderWidth: 0.5, borderRadius: 20 }} />
-                  <Text style={{fontFamily:"Medium",
-                    fontSize: 13, lineHeight: Math.round(13 * 1.5)
+                  <Text style={{...textPresets.label
                   }}>{customerName}</Text>
                 </View>
 
-              <Text style={{ fontSize: 12, fontFamily:"Medium",
-                lineHeight: Math.round(12 * 1.5), color: "#5f5f5f"
+              <Text style={{ ...textPresets.caption, color: "#5f5f5f"
               }}
               >Order Completed</Text> 
           </View>           
@@ -75,8 +74,7 @@ export default function Completed({ orders = [], onViewOrder }) {
                 </View>
 
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginVertical: 8, alignSelf:"flex-end" }}>
-                  <LinearGradient colors={["#106440", "#50a180","#56d6a1"]} start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }} style={styles.button}>
+                  <View style={styles.button}>
                   <TouchableOpacity
                     onPress={() => onViewOrder?.(order)}
                     style={{flexDirection: "row", alignItems: "center", gap: 6}}
@@ -84,7 +82,7 @@ export default function Completed({ orders = [], onViewOrder }) {
                     <Feather name="check-circle" size={16} color="#ffffff" />
                     <Text style={styles.buttonText}>Completed</Text>
                   </TouchableOpacity>
-                  </LinearGradient>
+                  </View>
                 </View>
               </View>
           );
@@ -120,12 +118,11 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     flexDirection: "row",
     gap:6,
+    backgroundColor: "#157a4f"
   },
   buttonText: {
     color: "#ffffff",
-    fontFamily:"Medium",
-    lineHeight: Math.round(14 * 1.5),
-    fontSize: 14
+    ...textPresets.label
   },
   metaBlock: {
     marginTop: 6,
@@ -134,15 +131,11 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   metaLabel: {
-    fontSize: 12,
     color: "#5f5f5f",
-    fontFamily: "Medium",
-    lineHeight: Math.round(12 * 1.5),
+    ...textPresets.label
   },
   metaValue: {
-    fontSize: 12,
     color: "#1f1f1f",
-    fontFamily: "Medium",
-    lineHeight: Math.round(12 * 1.5),
+    ...textPresets.label
   },
 });

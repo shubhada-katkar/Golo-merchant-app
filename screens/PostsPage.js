@@ -12,6 +12,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { BASE_URL } from "../config";
+import { textPresets } from "../theme/typography";
 
 export default function ProfilePage({ navigation }) {
     const [activeTab, setactiveTab] = useState("Recent");
@@ -84,10 +85,9 @@ export default function ProfilePage({ navigation }) {
 
             <View style={styles.row1}>
                 <TouchableOpacity onPress={() => navigation.navigate("HomePage")}>
-                    <MaterialIcons name="arrow-back-ios" size={26} color={colors.text} style={{ padding: 10 }} />
+                    <MaterialIcons name="arrow-back-ios" size={22} color={colors.text} style={{ padding: 10 }} />
                 </TouchableOpacity>
-                <Text style={{ fontSize: 20, paddingLeft: 5, color: colors.text,
-                    fontFamily:"Medium", lineHeight: Math.round(20 * 1.5)
+                <Text style={{ ...textPresets.title
                  }}>Offers</Text>
             </View>
 
@@ -167,21 +167,16 @@ const styles = StyleSheet.create({
     searchInput: {
         flex: 1,
         marginLeft: 8,
-        fontSize: 14,
-        fontFamily: "Medium",
-        top:3
+        top:3,
+        ...textPresets.body
     },
     row2text: {
-        fontSize: 14,
         color: "white",
-        fontFamily:"Medium", 
-        lineHeight: Math.round(14 * 1.5)
+        ...textPresets.label
     },
     tabCountText: {
-        fontSize: 18,
         color: "white",
-        fontFamily: "Medium",
-        lineHeight: Math.round(18 * 1.5),
+        ...textPresets.subtitle
     },
     row2button: {
         borderRadius: 20,

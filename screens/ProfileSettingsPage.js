@@ -11,6 +11,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { searchLocations, reverseGeocode } from "../app/services/leafletService";
 import { LinearGradient } from "expo-linear-gradient";
+import { textPresets } from "../theme/typography";
 
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
@@ -660,11 +661,11 @@ export default function ProfileSettingsPage({ navigation }) {
         {/* HEADER */}
         <View style={styles.row1}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <MaterialIcons name="arrow-back-ios" size={26}
+            <MaterialIcons name="arrow-back-ios" size={22}
               color={colors.text} style={{ padding: 10 }}
             />
           </TouchableOpacity>
-          <Text style={[styles.title, { color: colors.text }]}>Profile Settings</Text>
+          <Text style={styles.title}>Profile Settings</Text>
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }}
@@ -858,9 +859,7 @@ export default function ProfileSettingsPage({ navigation }) {
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Store Location</Text>
                 <TouchableOpacity onPress={closeLocationModal} style={styles.modalCloseButton}>
-                  <Text style={{ fontSize: 16, fontFamily: "Medium",
-                    lineHeight: Math.round(16 * 1.4), color: "#d32b2b"
-                   }}>Cancel</Text>
+                  <Text style={{ ...textPresets.label, color: "#d32b2b" }}>Cancel</Text>
                 </TouchableOpacity>
               </View>
 
@@ -922,7 +921,7 @@ export default function ProfileSettingsPage({ navigation }) {
 
 const styles = StyleSheet.create({
   row1: { flexDirection: "row", alignItems: "center", padding: 12 },
-  title: { fontSize: 20, marginLeft: 6, lineHeight: Math.round(20 * 1.4), fontFamily: "Medium" },
+  title: { ...textPresets.title },
 
  
 bannerContainer: {
@@ -986,20 +985,17 @@ profileImage: {
   },
   cardHeaderRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 },
   cardHeaderText: {
-    fontSize: 14,
-    fontFamily: "Medium",
     color: "#157a4f",
     letterSpacing: 0.5,
-    lineHeight:Math.round(14*1.5)
+    ...textPresets.body,
+    lineHeight: Math.round(textPresets.body.fontSize * 1.4),
   },
   fieldLabel: {
-    fontSize: 11,
-    fontFamily: "Medium",
     color: "#8a8a8a",
     marginTop: 12,
     marginBottom: 6,
     letterSpacing: 0.4,
-    lineHeight:Math.round(11*1.5)
+    ...textPresets.label,
   },
   input: {
     backgroundColor: "#f0f0f0",
@@ -1007,8 +1003,7 @@ profileImage: {
     borderWidth: 1,
     borderColor: "#e0e0e0",
     padding: 10,
-    fontSize: 13,
-    fontFamily: "Medium",
+    ...textPresets.body,
   },
   pickerWrap: {
     backgroundColor: "#f0f0f0",
@@ -1019,15 +1014,11 @@ profileImage: {
   },
   picker: { height: 50, width: "100%" },
   pickerItem: {
-    fontSize: 14,
-    fontFamily: "Medium",
-    lineHeight: Math.round(14 * 1.5),
+    ...textPresets.body,
   },
 
   sectionLabel: {
-    fontSize: 16,
-    fontFamily: "Medium",
-    lineHeight: Math.round(16 * 1.4),
+    ...textPresets.body,
     marginBottom: 8,
   },
   locationCard: {
@@ -1054,17 +1045,11 @@ profileImage: {
     marginTop: 10,
   },
   locationPreviewText: {
-    fontSize: 13,
-    fontFamily: "Medium",
-    lineHeight: Math.round(13 * 1.4),
-    fontWeight: "600",
+    ...textPresets.label,
   },
   locationPreviewAction: {
     marginTop: 4,
-    fontSize: 13,
-    fontFamily: "Medium",
-    lineHeight: Math.round(13 * 1.4),
-    fontWeight: "500",
+    ...textPresets.label,
   },
 
   buttonRow: {
@@ -1083,7 +1068,7 @@ profileImage: {
     justifyContent: "center",
     gap: 6,
   },
-  updateButtonText: { color: "#fff", fontSize: 15, fontFamily: "Medium", lineHeight:Math.round(15*1.5) },
+  updateButtonText: { ...textPresets.body, color: "#fff", lineHeight: Math.round(textPresets.body.fontSize * 1.5) },
   discardButton: {
     flex: 1,
     flexDirection: "row",
@@ -1094,7 +1079,7 @@ profileImage: {
     justifyContent: "center",
     gap: 6,
   },
-  discardButtonText: { color: "#fff", fontSize: 15, fontFamily: "Medium", lineHeight:Math.round(15*1.5) },
+  discardButtonText: { ...textPresets.body, color: "#fff", lineHeight: Math.round(textPresets.body.fontSize * 1.5) },
 
   modalContainer: {
     flex: 1,
@@ -1107,9 +1092,7 @@ profileImage: {
     marginBottom: 16,
   },
   modalTitle: {
-    fontSize: 18,
-    fontFamily: "Medium",
-    lineHeight: Math.round(18 * 1.4),
+    ...textPresets.subtitle,
   },
   modalCloseButton: {
     padding: 10,
@@ -1125,8 +1108,7 @@ profileImage: {
   searchInput: {
     flex: 1,
     paddingVertical: 10,
-    fontSize: 14,
-    fontFamily: "Medium",
+    ...textPresets.body,
   },
   searchResults: {
     maxHeight: 180,
@@ -1137,7 +1119,7 @@ profileImage: {
     paddingVertical: 12,
     paddingHorizontal: 12,
   },
-  searchResultText: { fontSize: 16, fontFamily: "Medium", lineHeight: Math.round(16 * 1.4) },
+  searchResultText: { ...textPresets.body },
   modalMapContainer: {
     flex: 1,
     borderWidth: 1,
@@ -1150,10 +1132,8 @@ profileImage: {
     height: Dimensions.get("window").height * 0.42,
   },
   modalNote: {
-    fontSize: 14,
     marginBottom: 16,
-    fontFamily: "Medium",
-    lineHeight: Math.round(14 * 1.4),
+    ...textPresets.label,
   },
   modalActions: {
     flexDirection: "row",
@@ -1171,8 +1151,6 @@ profileImage: {
   },
   modalButtonText: {
     color: "#ffffff",
-    fontSize: 14,
-    fontFamily: "Medium",
-    lineHeight: Math.round(14 * 1.4),
+    ...textPresets.body,
   },
 });

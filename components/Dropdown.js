@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import DropDownPicker from "react-native-dropdown-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL as CONFIG_BASE_URL } from "../config";
+import { textPresets } from "../theme/typography";
 
 export default function Dropdown({ BASE_URL, token, onChange, value: parentValue = [] }) {
 
@@ -108,8 +109,7 @@ export default function Dropdown({ BASE_URL, token, onChange, value: parentValue
 
             showBadgeCloseIcon={true}
             badgeColors={["#E5E7EB"]}
-            badgeTextStyle={{ color: "#000", fontFamily: "Medium",
-                fontSize: 13, lineHeight: Math.round(13 * 1.5), paddingVertical:4
+            badgeTextStyle={{ color: "#000", paddingVertical:4, ...textPresets.label
              }}
             badgeStyle={{
                 paddingHorizontal: 10,
@@ -131,7 +131,7 @@ export default function Dropdown({ BASE_URL, token, onChange, value: parentValue
                 borderColor: "#ccc",
             }}
 
-            textStyle={{ fontSize: 14, fontFamily: "Medium" }}
+            textStyle={{ ...textPresets.body}}
 
             searchContainerStyle={{
                 borderBottomWidth: 0

@@ -19,6 +19,7 @@ import * as ImagePicker from "expo-image-picker";
 import { uploadImageToCloudinary } from "../services/cloudinaryService";
 import { BASE_URL } from "../config";
 import { LinearGradient } from "expo-linear-gradient";
+import { textPresets } from '../theme/typography';
 
 const parseResponseSafely = async (response) => {
     const responseText = await response.text();
@@ -32,6 +33,38 @@ const parseResponseSafely = async (response) => {
     } catch (error) {
         return { message: responseText };
     }
+};
+
+const getErrorMessageFromResponse = (data) => {
+    const candidates = [];
+
+    const pushValue = (value) => {
+        if (typeof value === "string" && value.trim()) {
+            candidates.push(value.trim());
+        } else if (Array.isArray(value)) {
+            value.forEach(pushValue);
+        } else if (value && typeof value === "object") {
+            Object.values(value).forEach(pushValue);
+        }
+    };
+
+    pushValue(data?.message);
+    pushValue(data?.error);
+    pushValue(data?.details);
+
+    return candidates.join(" ");
+};
+
+const isModerationFailureResponse = (data) => {
+    const message = getErrorMessageFromResponse(data).toLowerCase();
+    return [
+        "inappropriate",
+        "moderation",
+        "flagged",
+        "content policy",
+        "violat",
+        "unsafe",
+    ].some((token) => message.includes(token));
 };
 
 const formatDateOnly = (date) => {
@@ -126,6 +159,7 @@ export default function AddOfferPage({ navigation, route }) {
     const [isDeleting, setIsDeleting] = useState(false);
     const [bannerImage, setBannerImage] = useState(null); // local URI
     const [isBannerUploading, setIsBannerUploading] = useState(false);
+    const [flaggedModalVisible, setFlaggedModalVisible] = useState(false);
 
     const [selectedIds, setSelectedIds] = useState([]);
     const [selectedProducts, setSelectedProducts] = useState([]);
@@ -294,6 +328,11 @@ export default function AddOfferPage({ navigation, route }) {
 
             if (!result.canceled && result.assets && result.assets.length > 0) {
                 setBannerImage(result.assets[0].uri);
+                try {
+                    await AsyncStorage.removeItem("golo_images_flagged");
+                } catch (error) {
+                    console.warn("Failed to clear moderation flag", error);
+                }
             }
         } catch (err) {
             console.error("Image picker error:", err);
@@ -379,6 +418,16 @@ export default function AddOfferPage({ navigation, route }) {
         }
 
         try {
+            try {
+                const storedFlag = await AsyncStorage.getItem("golo_images_flagged");
+                if (storedFlag === "true") {
+                    setFlaggedModalVisible(true);
+                    return;
+                }
+            } catch (error) {
+                console.warn("Failed to read moderation flag before submit", error);
+            }
+
             setIsSaving(true);
 
             const accessToken = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
@@ -476,9 +525,25 @@ export default function AddOfferPage({ navigation, route }) {
             const responseData = await parseResponseSafely(response);
 
             if (!response.ok) {
+                if (isModerationFailureResponse(responseData)) {
+                    try {
+                        await AsyncStorage.setItem("golo_images_flagged", "true");
+                    } catch (error) {
+                        console.warn("Failed to set moderation flag", error);
+                    }
+                    setFlaggedModalVisible(true);
+                    return;
+                }
+
                 const errorMessage = responseData?.message || responseData?.error || `HTTP ${response.status}`;
                 alert("Error: " + errorMessage);
                 return;
+            }
+
+            try {
+                await AsyncStorage.removeItem("golo_images_flagged");
+            } catch (error) {
+                console.warn("Failed to clear moderation flag after success", error);
             }
 
             alert(offerData ? "Offer updated successfully" : "Offer created successfully");
@@ -507,11 +572,9 @@ export default function AddOfferPage({ navigation, route }) {
                     <Topbar />
                     <View style={styles.row1}>
                         <TouchableOpacity onPress={() => navigation.goBack()}>
-                            <MaterialIcons name="arrow-back-ios" size={26} color={colors.text} style={{ padding: 10 }} />
+                            <MaterialIcons name="arrow-back-ios" size={22} color={colors.text} style={{ padding: 10 }} />
                         </TouchableOpacity>
-                        <Text style={{
-                            fontSize: 20, color: colors.text,
-                            lineHeight: Math.round(20 * 1.5), fontFamily: "Medium"
+                        <Text style={{...textPresets.title
                         }}>
                             {offerData ? "Edit Offer" : "Add Offer"}
                         </Text>
@@ -524,8 +587,7 @@ export default function AddOfferPage({ navigation, route }) {
                                 <View style={{ padding: 20, justifyContent: "center", alignItems: "center" }}>
                                     <ActivityIndicator size="small" color="#157a4f" />
                                     <Text style={{
-                                        color: colors.text, marginTop: 8,
-                                        fontSize: 12, lineHeight: Math.round(12 * 1.5), fontFamily: "Medium"
+                                        color: colors.text, marginTop: 8,...textPresets.label
                                     }}>Loading products...</Text>
                                 </View>
                             ) : (
@@ -557,7 +619,7 @@ export default function AddOfferPage({ navigation, route }) {
                             </View>
                         )}
 
-                        <Text style={[styles.text, { color: colors.text }]}>Offer Image</Text>
+                        <Text style={styles.text}>Offer Image</Text>
 
                         <TouchableOpacity
                             style={styles.card1}
@@ -575,16 +637,15 @@ export default function AddOfferPage({ navigation, route }) {
                                     <View style={styles.bannerOverlay}>
                                         <Feather name="edit-2" size={18} color="#fff" />
                                         <Text style={{
-                                            color: "#fff", fontSize: 13, marginLeft: 6,
-                                            lineHeight: Math.round(13 * 1.4), fontFamily: "Medium"
+                                            color: "#fff",  marginLeft: 6, ...textPresets.label 
                                         }}>Tap to change</Text>
                                     </View>
                                 </>
                             ) : (
                                 <>
                                     <Feather name="upload" size={30} color="#157a4f" />
-                                    <Text style={{ color: "#157a4f", fontSize: 14, lineHeight: Math.round(14 * 1.5), fontFamily: "Medium", marginTop: 8 }}>Upload Banner Image</Text>
-                                    <Text style={{ color: "#999", fontSize: 12, marginTop: 4, lineHeight: Math.round(12 * 1.4), fontFamily: "Medium" }}>Recommended: 16:9 ratio</Text>
+                                    <Text style={{ color: "#157a4f", marginTop: 8, ...textPresets.label }}>Upload Banner Image</Text>
+                                    <Text style={{ color: "#999",marginTop: 4,  ...textPresets.label }}>Recommended: 16:9 ratio</Text>
                                 </>
                             )}
                         </TouchableOpacity>
@@ -597,14 +658,13 @@ export default function AddOfferPage({ navigation, route }) {
                             onChangeText={setTitle}
                         />
 
-                        <Text style={[styles.text, { color: colors.text }]}>Offer Type</Text>
+                        <Text style={styles.text}>Offer Type</Text>
                         <TouchableOpacity
                             style={[styles.input, { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingRight: 15 }]}
                             onPress={() => setOfferTypeModalOpen(true)}
                         >
                             <Text style={{
-                                fontSize: 14, color: offerType ? "#000" : "#999",
-                                fontFamily: "Medium"
+                                 color: offerType ? "#000" : "#999",...textPresets.body
                             }}>
                                 {offerType ? offerTypeOptions.find(opt => opt.value === offerType)?.label : "Select offer type"}
                             </Text>
@@ -620,10 +680,8 @@ export default function AddOfferPage({ navigation, route }) {
                         >
                             <TouchableWithoutFeedback onPress={() => setOfferTypeModalOpen(false)}>
                                 <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center" }}>
-                                    <View style={{ backgroundColor: "#fff", borderRadius: 15, width: "85%", maxHeight: "40%", paddingVertical: 20 }}>
-                                        <Text style={{
-                                            fontSize: 14, lineHeight: Math.round(14 * 1.5), fontFamily: "Medium",
-                                            marginBottom: 15, paddingHorizontal: 20, color: colors.text
+                                    <View style={{ backgroundColor: "#fff", borderRadius: 15, width: "85%", maxHeight: "50%", paddingVertical: 20 }}>
+                                        <Text style={{ ...textPresets.subtitle,  marginBottom: 15, paddingHorizontal: 20, color:"#157a4f"
                                         }}>
                                             Select Offer Type
                                         </Text>
@@ -644,7 +702,7 @@ export default function AddOfferPage({ navigation, route }) {
                                                         setOfferTypeModalOpen(false);
                                                     }}
                                                 >
-                                                    <Text style={{ fontSize: 16, lineHeight: Math.round(16 * 1.5), fontFamily: "Medium", color: offerType === item.value ? "#157a4f" : colors.text, fontWeight: offerType === item.value ? "bold" : "normal" }}>
+                                                    <Text style={{...textPresets.body, color: offerType === item.value ? "#157a4f" : colors.text }}>
                                                         {item.label}
                                                     </Text>
                                                 </TouchableOpacity>
@@ -695,8 +753,7 @@ export default function AddOfferPage({ navigation, route }) {
 
                         <View style={{ flexDirection: "row", alignItems: "center", paddingTop: 10 }}>
                             <Text style={{
-                                fontSize: 16, color: colors.text,
-                                lineHeight: Math.round(16 * 1.5), fontFamily: "Medium"
+                                 color: colors.text,...textPresets.body, 
                             }}>Loyalty Reward</Text>
                             <Switch
                                 value={isDarkMode}
@@ -749,8 +806,8 @@ export default function AddOfferPage({ navigation, route }) {
                             >
                                 <MaterialIcons name="check-circle" size={20} color="#fff" />
                                 <Text style={{
-                                    color: "#fff", fontSize: 15,
-                                    fontFamily: "Medium", lineHeight: Math.round(15 * 1.5)
+                                    color: "#fff", 
+                                     lineHeight: Math.round(14 * 1.5)
                                 }}>
                                     {isBannerUploading ? "Uploading Offer..." : isSaving ? (offerData ? "Updating..." : "Saving...") : offerData ? "Update Offer" : "Add Offer"}
                                 </Text>
@@ -761,7 +818,7 @@ export default function AddOfferPage({ navigation, route }) {
                                 <TouchableOpacity style={[styles.rowButton, { backgroundColor: "#e93c3c" }]}
                                     onPress={clearAllFields} >
                                     <MaterialIcons name="cancel" size={20} color="#fff" />
-                                    <Text style={{ color: "white", fontSize: 15, fontFamily: "Medium", lineHeight: Math.round(15 * 1.5) }}>Discard</Text>
+                                    <Text style={{ color: "white",  lineHeight: Math.round(14 * 1.5) }}>Discard</Text>
                                 </TouchableOpacity>
                             }
 
@@ -771,7 +828,7 @@ export default function AddOfferPage({ navigation, route }) {
                                     onPress={handleDelete}
                                     disabled={isSaving || isDeleting}
                                 >
-                                    <Text style={{ color: "#fff", fontSize: 15, fontFamily: "Medium", lineHeight: Math.round(15 * 1.5) }}>
+                                    <Text style={{ color: "#fff",  lineHeight: Math.round(14 * 1.5) }}>
                                         {isDeleting ? "Deleting..." : "Delete Offer"}
                                     </Text>
                                 </TouchableOpacity>
@@ -786,14 +843,66 @@ export default function AddOfferPage({ navigation, route }) {
             <SafeAreaView edges={["bottom"]} style={{ width: "100%", bottom: 0, position: "absolute" }}>
                 <Bottombar />
             </SafeAreaView>
+
+            <Modal
+                visible={flaggedModalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setFlaggedModalVisible(false)}
+                statusBarTranslucent
+            >
+             <View style={styles.flaggedOverlay}>
+                <View style={styles.flaggedCard}>
+                    <View style={styles.flaggedHeaderRow}>
+                                                <View style={styles.flaggedHeaderTextWrap}>
+                                                    <View style={styles.flaggedHeaderIconCircle}>
+                                                        <Feather name="alert-triangle" size={14} color="#d92d20" />
+                                                    </View>
+                                                    <View style={{ flex: 1 }}>
+                                                        <Text style={styles.flaggedHeaderTitle}>Inappropriate Content</Text>
+                                                        <Text style={styles.flaggedHeaderSubtitle}>
+                                                            Your image has been flagged by our safety system.
+                                                        </Text>
+                                                    </View>
+                                                </View>
+                                                <TouchableOpacity
+                                                    onPress={() => setFlaggedModalVisible(false)}
+                                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                                >
+                                                    <Feather name="x" size={20} color="#8a8a8a" />
+                                                </TouchableOpacity>
+                                            </View>
+                                            {/* Centered big shield icon */}
+                                                                    <View style={styles.flaggedIconWrap}>
+                                                                        <View style={styles.flaggedIconCircle}>
+                                                                            <Feather name="shield" size={30} color="#d92d20" />
+                                                                        </View>
+                                                                    </View>
+                                            
+                                                                    <Text style={styles.flaggedTitle}>Upload Rejected</Text>
+                                                                    <Text style={styles.flaggedDescription}>
+                                                                        One or more of your uploaded images contains content that violates our community
+                                                                        guidelines. Please remove the inappropriate images and try posting again.
+                                                                    </Text>
+                                            
+                                                                    <TouchableOpacity
+                                                                        style={styles.flaggedButton}
+                                                                        onPress={() => setFlaggedModalVisible(false)}
+                                                                        activeOpacity={0.85}
+                                                                    >
+                                                                        <Text style={styles.flaggedButtonText}>I Understand, Go Back</Text>
+                                                                    </TouchableOpacity>
+                </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
     row1: { alignItems: "center", flexDirection: "row", paddingVertical: 6, paddingHorizontal: 10 },
-    text: { fontSize: 16, paddingTop: 20, fontFamily: "Medium", lineHeight: Math.round(16 * 1.5) },
-    input: { fontSize: 14, backgroundColor: "#e6e6e6", padding: 10, borderRadius: 10, fontFamily: "Medium" },
+    text: {  paddingTop: 20, ...textPresets.body },
+    input: {  backgroundColor: "#e6e6e6", padding: 12, borderRadius: 10, ...textPresets.body },
     button: { backgroundColor: "#f5b849", borderRadius: 10, alignItems: "center", justifyContent: "center", padding: 6, borderColor: "#b9b9b9", borderWidth: 1, marginTop: 20 },
     dateBox: { flex: 1, flexDirection: "row", alignItems: "center", backgroundColor: "#ccc", borderRadius: 10, paddingHorizontal: 10 },
     rowButton: {
@@ -830,7 +939,7 @@ const styles = StyleSheet.create({
     },
     viewSelectedBtn: {
         marginTop: 12,
-        padding: 12,
+        padding: 10,
         borderRadius: 10,
         borderColor: "#157a4f",
         borderWidth: 1.5,
@@ -838,9 +947,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     viewSelectedText: {
-        fontSize: 14,
-        lineHeight: Math.round(14 * 1.5),
-        fontFamily: "Medium",
+        ...textPresets.body,
         color: "#157a4f",
     },
     dateBox: { flex: 1, flexDirection: "row", alignItems: "center", backgroundColor: "#fff", borderRadius: 10, paddingHorizontal: 10, borderWidth: 1, borderColor: "#e0e0e0" },
@@ -856,17 +963,98 @@ const styles = StyleSheet.create({
         borderColor: "#e0e0e0",
     },
     dateLabel: {
-        fontSize: 10,
-        fontFamily: "Medium",
         color: "#5e5e5e",
-        letterSpacing: 0.5,
-        lineHeight: Math.round(10 * 1.5)
+        ...textPresets.label,
     },
     dateValue: {
-        fontSize: 13,
-        fontFamily: "Medium",
+        ...textPresets.label,
         color: "#111",
-        marginTop: 2,
-        lineHeight: Math.round(13 * 1.5)
+    },
+    // --- Flagged image modal (matches web "Upload Rejected" reference) ---
+    flaggedOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(20, 20, 20, 0.55)",
+        justifyContent: "center",
+        alignItems: "center",
+        paddingHorizontal: 24,
+    },
+    flaggedCard: {
+        width: "100%",
+        maxWidth: 360,
+        backgroundColor: "#fff",
+        borderRadius: 18,
+        paddingTop: 18,
+        paddingHorizontal: 18,
+        paddingBottom: 20,
+        elevation: 10,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+    },
+    flaggedHeaderRow: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        justifyContent: "space-between",
+    },
+    flaggedHeaderTextWrap: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        flex: 1,
+        paddingRight: 12,
+    },
+    flaggedHeaderIconCircle: {
+        width: 26,
+        height: 26,
+        borderRadius: 13,
+        backgroundColor: "#fdecea",
+        alignItems: "center",
+        justifyContent: "center",
+        marginRight: 10,
+        marginTop: 1,
+    },
+    flaggedHeaderTitle: {
+        ...textPresets.subtitle,
+        color: "#1a1a1a",
+    },
+    flaggedHeaderSubtitle: {
+        ...textPresets.caption,
+        color: "#8a8a8a",
+        marginTop: 3,
+    },
+    flaggedIconWrap: {
+        alignItems: "center",
+        marginTop: 18,
+        marginBottom: 14,
+    },
+    flaggedIconCircle: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: "#fdecea",
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    flaggedTitle: {
+        ...textPresets.subtitle,
+        color: "#1a1a1a",
+        textAlign: "center",
+        marginBottom: 8,
+    },
+    flaggedDescription: {
+        ...textPresets.label,
+        color: "#6b6b6b",
+        textAlign: "center",
+        marginBottom: 20,
+    },
+    flaggedButton: {
+        backgroundColor: "#e0483e",
+        borderRadius: 12,
+        paddingVertical: 13,
+        alignItems: "center",
+    },
+    flaggedButtonText: {
+        color: "#fff",
+        ...textPresets.body,
     },
 });

@@ -8,6 +8,7 @@ import { BASE_URL } from "../config";
 import Topbar from "../components/Topbar";
 import { MaterialIcons, AntDesign, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { textPresets } from "../theme/typography";
 
 export default function AllReviewsPage({ navigation }) {
   const { colors } = useContext(ThemeContext);
@@ -70,10 +71,9 @@ export default function AllReviewsPage({ navigation }) {
       <Topbar />
        <View style={styles.row1}>
                     <TouchableOpacity style={{padding:10}} onPress={() => navigation.goBack()}>
-                        <MaterialIcons name="arrow-back-ios" size={26} color={colors.text}/>
+                        <MaterialIcons name="arrow-back-ios" size={22} color={colors.text}/>
                     </TouchableOpacity>
-                    <Text style={{ fontSize: 20, paddingLeft: 5, color:colors.text,
-                        fontFamily:"Medium", lineHeight: Math.round(20 * 1.5)
+                    <Text style={{ ...textPresets.title
                     }}>All Reviews</Text>
         </View>
 
@@ -136,21 +136,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  pageHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 18,
-    paddingTop: 12,
-    paddingBottom: 14,
-  },
-  backButton: {
-    marginRight: 14,
-  },
-  pageTitle: {
-    fontSize: 22,
-    fontFamily:"Medium",
-    lineHeight: Math.round(22 * 1.5)
-  },
   content: {
     paddingHorizontal: 18,
     paddingBottom: 90,
@@ -164,9 +149,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   emptyText: {
-    fontSize: 16,
-    fontFamily:"Medium",
-    lineHeight: Math.round(16 * 1.5)
+    ...textPresets.body,
   },
   reviewCard: {
     marginBottom: 14,
@@ -186,22 +169,17 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   userName: {
-    fontSize: 14,
-    fontFamily:"Medium",
+   ...textPresets.body,
+    color:"#157a4f",
     lineHeight: Math.round(14 * 1.5),
-    color:"#157a4f"
   },
   reviewText: {
-    fontSize: 12,
-    lineHeight: Math.round(12 * 1.5),
+    ...textPresets.label,
     color: "#374151",
-    fontFamily:"Medium"
   },
   reviewDate: {
-    marginTop: 12,
-    fontSize: 12,
+    marginTop: 8,
     color: "#9ca3af",
-    fontFamily:"Medium",
-    lineHeight: Math.round(12 * 1.5)
+    ...textPresets.caption
   },
 });

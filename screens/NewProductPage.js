@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from "react";
 import {
   View, Text, TouchableOpacity, TextInput,
   StyleSheet, Image, ScrollView, KeyboardAvoidingView, Platform,
-  TouchableWithoutFeedback, Dimensions, Keyboard,
+  TouchableWithoutFeedback, Dimensions, Keyboard, Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Topbar from "../components/Topbar";
@@ -14,6 +14,39 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL } from "../config";
 import { uploadImageToCloudinary } from "../services/cloudinaryService";
 import { LinearGradient } from "expo-linear-gradient";
+import { textPresets } from "../theme/typography";
+
+function getErrorMessageFromResponse(data) {
+  const candidates = [];
+
+  const pushValue = (value) => {
+    if (typeof value === "string" && value.trim()) {
+      candidates.push(value.trim());
+    } else if (Array.isArray(value)) {
+      value.forEach(pushValue);
+    } else if (value && typeof value === "object") {
+      Object.values(value).forEach(pushValue);
+    }
+  };
+
+  pushValue(data?.message);
+  pushValue(data?.error);
+  pushValue(data?.details);
+
+  return candidates.join(" ");
+}
+
+function isModerationFailureResponse(data) {
+  const message = getErrorMessageFromResponse(data).toLowerCase();
+  return [
+    "inappropriate",
+    "moderation",
+    "flagged",
+    "content policy",
+    "violat",
+    "unsafe",
+  ].some((token) => message.includes(token));
+}
 
 export default function NewProductPage({ navigation, route }) {
   const { colors } = useContext(ThemeContext);
@@ -24,6 +57,7 @@ export default function NewProductPage({ navigation, route }) {
   const [isSaving, setIsSaving] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [merchantStoreSubCategory, setMerchantStoreSubCategory] = useState("");
+  const [flaggedModalVisible, setFlaggedModalVisible] = useState(false);
 
   const [selectedImages, setSelectedImages] = useState([]);
 
@@ -99,16 +133,36 @@ export default function NewProductPage({ navigation, route }) {
       return;
     }
 
+    if (selectedImages.length >= 5) {
+      alert("You can upload up to 5 images only.");
+      return;
+    }
+
+    const remainingSlots = 5 - selectedImages.length;
+
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: "images",
       allowsMultipleSelection: true,
-      selectionLimit: 10,
+      selectionLimit: remainingSlots,
       quality: 1,
     });
 
     if (!result.canceled) {
-      const pickedImages = result.assets.map((asset) => ({ uri: asset.uri }));
+      const pickedImages = result.assets
+        .map((asset) => ({ uri: asset.uri }))
+        .slice(0, remainingSlots);
+
+      if (!pickedImages.length) {
+        alert("You can upload up to 5 images only.");
+        return;
+      }
+
       setSelectedImages((currentImages) => [...currentImages, ...pickedImages]);
+      try {
+        await AsyncStorage.removeItem("golo_images_flagged");
+      } catch (error) {
+        console.warn("Failed to clear moderation flag", error);
+      }
     }
   };
 
@@ -124,6 +178,17 @@ const saveProduct = async () => {
   setIsSaving(true);
 
     try {
+      try {
+        const storedFlag = await AsyncStorage.getItem("golo_images_flagged");
+        if (storedFlag === "true") {
+          setFlaggedModalVisible(true);
+          setIsSaving(false);
+          return;
+        }
+      } catch (error) {
+        console.warn("Failed to read moderation flag before submit", error);
+      }
+
       if (!form.productname || form.price === "") {
         alert("Please fill all required fields");
         return;
@@ -257,9 +322,23 @@ const saveProduct = async () => {
       console.log("Raw server response:", text);
 
       if (response?.ok) {
+        try {
+          await AsyncStorage.removeItem("golo_images_flagged");
+        } catch (error) {
+          console.warn("Failed to clear moderation flag after success", error);
+        }
         alert(isEdit ? "Product Updated Successfully!" : "Product Added Successfully!");
         navigation.goBack();
       } else {
+        if (isModerationFailureResponse(data)) {
+          try {
+            await AsyncStorage.setItem("golo_images_flagged", "true");
+          } catch (error) {
+            console.warn("Failed to set moderation flag", error);
+          }
+          setFlaggedModalVisible(true);
+          return;
+        }
         alert(data.message || "Something went wrong");
       }
 
@@ -299,13 +378,11 @@ return (
               <TouchableOpacity onPress={() => navigation.goBack()}>
                 <MaterialIcons
                   name="arrow-back-ios"
-                  size={26}
+                  size={22}
                   style={{ padding: 10 }}
-                  color={colors.text}
                 />
               </TouchableOpacity>
-              <Text style={{ fontSize: 20, color: colors.text,
-                fontFamily:"Medium", lineHeight: Math.round(20 * 1.5)
+              <Text style={{ ...textPresets.title
                }}>
                 {isEdit ? "Edit Product" : "Add New Product"}
               </Text>
@@ -428,6 +505,61 @@ return (
           <Bottombar />
         </SafeAreaView>
       )}
+
+            {/* Flagged / rejected image modal */}
+            <Modal
+                visible={flaggedModalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => {}}
+                statusBarTranslucent
+            >
+                <View style={styles.flaggedOverlay}>
+                    <View style={styles.flaggedCard}>
+                        {/* Header row: warning icon + title + close */}
+                        <View style={styles.flaggedHeaderRow}>
+                            <View style={styles.flaggedHeaderTextWrap}>
+                                <View style={styles.flaggedHeaderIconCircle}>
+                                    <Feather name="alert-triangle" size={14} color="#d92d20" />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.flaggedHeaderTitle}>Inappropriate Content</Text>
+                                    <Text style={styles.flaggedHeaderSubtitle}>
+                                        Your image has been flagged by our safety system.
+                                    </Text>
+                                </View>
+                            </View>
+                            <TouchableOpacity
+                                onPress={() => setFlaggedModalVisible(false)}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            >
+                                <Feather name="x" size={20} color="#8a8a8a" />
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Centered big shield icon */}
+                        <View style={styles.flaggedIconWrap}>
+                            <View style={styles.flaggedIconCircle}>
+                                <Feather name="shield" size={30} color="#d92d20" />
+                            </View>
+                        </View>
+
+                        <Text style={styles.flaggedTitle}>Upload Rejected</Text>
+                        <Text style={styles.flaggedDescription}>
+                            One or more of your uploaded images contains content that violates our community
+                            guidelines. Please remove the inappropriate images and try posting again.
+                        </Text>
+
+                        <TouchableOpacity
+                            style={styles.flaggedButton}
+                            onPress={() => setFlaggedModalVisible(false)}
+                            activeOpacity={0.85}
+                        >
+                            <Text style={styles.flaggedButtonText}>I Understand, Go Back</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
     </SafeAreaView>
   );
 }
@@ -456,11 +588,9 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   sectionTitle: {
-    fontSize: 16,
     color: "#157a4f",
-    fontFamily: "Medium",
-    lineHeight: Math.round(16 * 1.5),
     marginBottom: 12,
+    ...textPresets.subtitle
   },
   imageUploadCard: {
     width: "100%",
@@ -523,14 +653,11 @@ const styles = StyleSheet.create({
 },
 imagePlaceholderText: {
   color: "#157a4f",
-  fontSize: 14,
-  fontFamily: "Medium",
+  ...textPresets.body
 },
   text: {
-    fontSize: 14,
     paddingTop: 16,
-    fontFamily: "Medium",
-    lineHeight: Math.round(14 * 1.5),
+    ...textPresets.body
   },
   requiredStar: {
     color: "#e74c3c",
@@ -542,8 +669,7 @@ imagePlaceholderText: {
     borderWidth: 1,
     paddingVertical: 10,
     paddingHorizontal: 12,
-    fontSize: 14,
-    fontFamily: "Medium",
+    ...textPresets.body,
     marginTop: 8,
   },
   row: {
@@ -581,8 +707,93 @@ imagePlaceholderText: {
   },
   buttonText: {
     color: "#fff",
-    fontSize: 16,
-    fontFamily: "Medium",
-    lineHeight: Math.round(16 * 1.5),
+    ...textPresets.body
   },
+// --- Flagged image modal (matches web "Upload Rejected" reference) ---
+    flaggedOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(20, 20, 20, 0.55)",
+        justifyContent: "center",
+        alignItems: "center",
+        paddingHorizontal: 24,
+    },
+    flaggedCard: {
+        width: "100%",
+        maxWidth: 360,
+        backgroundColor: "#fff",
+        borderRadius: 18,
+        paddingTop: 18,
+        paddingHorizontal: 18,
+        paddingBottom: 20,
+        elevation: 10,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+    },
+    flaggedHeaderRow: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        justifyContent: "space-between",
+    },
+    flaggedHeaderTextWrap: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        flex: 1,
+        paddingRight: 12,
+    },
+    flaggedHeaderIconCircle: {
+        width: 26,
+        height: 26,
+        borderRadius: 13,
+        backgroundColor: "#fdecea",
+        alignItems: "center",
+        justifyContent: "center",
+        marginRight: 10,
+        marginTop: 1,
+    },
+    flaggedHeaderTitle: {
+        ...textPresets.subtitle,
+        color: "#1a1a1a",
+    },
+    flaggedHeaderSubtitle: {
+        ...textPresets.caption,
+        color: "#8a8a8a",
+        marginTop: 3,
+    },
+    flaggedIconWrap: {
+        alignItems: "center",
+        marginTop: 18,
+        marginBottom: 14,
+    },
+    flaggedIconCircle: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: "#fdecea",
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    flaggedTitle: {
+        ...textPresets.subtitle,
+        color: "#1a1a1a",
+        textAlign: "center",
+        marginBottom: 8,
+    },
+    flaggedDescription: {
+        ...textPresets.label,
+        color: "#6b6b6b",
+        textAlign: "center",
+        marginBottom: 20,
+    },
+    flaggedButton: {
+        backgroundColor: "#e0483e",
+        borderRadius: 12,
+        paddingVertical: 13,
+        alignItems: "center",
+    },
+    flaggedButtonText: {
+        color: "#fff",
+        ...textPresets.body,
+    },
 });

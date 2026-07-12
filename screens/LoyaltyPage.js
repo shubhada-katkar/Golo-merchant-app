@@ -8,6 +8,7 @@ import { ThemeContext } from "../theme/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL } from "../config";
 import { LinearGradient } from "expo-linear-gradient";
+import { textPresets } from "../theme/typography";
 
 export default function ({ navigation }) {
     const { colors } = useContext(ThemeContext);
@@ -276,9 +277,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 14,
     },
     pageTitle: {
-        fontSize: 20,
-        fontFamily: "Medium",
-        lineHeight: Math.round(20 * 1.5),
+        ...textPresets.title,
     },
     searchBox: {
         flexDirection: "row",
@@ -294,8 +293,7 @@ const styles = StyleSheet.create({
     },
     searchInput: {
         flex: 1,
-        fontSize: 14,
-        fontFamily: "Medium",
+        ...textPresets.body,
     },
     row2: {
         marginHorizontal: 14,
@@ -332,24 +330,17 @@ const styles = StyleSheet.create({
     },
     avatarText: {
         color: "#157a4f",
-        fontSize: 18,
-        fontFamily:"Medium",
-        lineHeight:Math.round(18*1.5)
+        ...textPresets.subtitle,
     },
     customerInfo: {
         marginLeft: 14,
         flex: 1,
     },
     customerName: {
-        fontSize: 14,
-        fontFamily:"Medium",
-        lineHeight:Math.round(14*1.5)
+        ...textPresets.body,
     },
     customerEmail: {
-        fontSize: 12,
-        marginTop: 2,
-        fontFamily:"Medium",
-        lineHeight:Math.round(12*1.5)
+        ...textPresets.caption,
     },
     pointsBadge: {
         alignItems: "center",
@@ -360,15 +351,10 @@ const styles = StyleSheet.create({
         borderWidth:0.5
     },
     pointsNumber: {
-        fontSize: 16,
-        lineHeight: Math.round(16*1.5),
-        fontFamily:"Medium"
+        ...textPresets.subtitle,
     },
     pointsLabel: {
-        fontSize: 10,
-        marginTop: 1,
-        lineHeight:Math.round(10*1.5),
-        fontFamily:"Medium"
+        ...textPresets.label,
     },
     loaderWrapper: {
         padding: 24,
@@ -377,9 +363,7 @@ const styles = StyleSheet.create({
     },
     statusText: {
         marginTop: 10,
-        fontSize: 15,
-        textAlign: "center",
-        fontFamily: "Medium",
-        lineHeight: Math.round(15 * 1.2),
+      textAlign: "center",
+        ...textPresets.caption
     },
 });

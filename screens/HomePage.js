@@ -9,6 +9,7 @@ import Customers from "../components/Customers.js";
 import { useContext } from "react";
 import { ThemeContext } from "../theme/ThemeContext";
 import {LinearGradient} from "expo-linear-gradient";
+import { textPresets } from '../theme/typography';
 
 export default function HomePage() {
     const [activeTab, setactiveTab] = useState("Overview");
@@ -27,17 +28,17 @@ export default function HomePage() {
 
             <View style={styles.first}>
                 <TouchableOpacity onPress={() => setactiveTab("Overview")}>
-                    <Text style={[styles.text1, { color: colors.text }]}>Overview</Text>
+                    <Text style={styles.text1}>Overview</Text>
                     {activeTab == "Overview" && <View style={styles.ActiveTab} />}
                 </TouchableOpacity>
 
                 <TouchableOpacity onPress={() => setactiveTab("Orders")}>
-                    <Text style={[styles.text1, { color: colors.text }]}>Orders</Text>
+                    <Text style={styles.text1}>Orders</Text>
                     {activeTab == "Orders" && <View style={styles.ActiveTab} />}
                 </TouchableOpacity>
 
                 <TouchableOpacity onPress={() => setactiveTab("Customers")}>
-                    <Text style={[styles.text1, { color: colors.text }]}>Customers</Text>
+                    <Text style={styles.text1}>Customers</Text>
                     {activeTab == "Customers" && <View style={styles.ActiveTab} />}
                 </TouchableOpacity>
             </View>
@@ -62,9 +63,7 @@ const styles = StyleSheet.create({
         justifyContent: "space-between"
     },
     text1: {
-        fontSize: 16,
-        fontFamily: "Medium",
-        lineHeight: Math.round(16 * 1.5),
+        ...textPresets.subtitle,
     },
     ActiveTab: {
         height: 3,

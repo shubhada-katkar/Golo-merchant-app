@@ -1,10 +1,11 @@
 import React from "react";
 import { View,Text,StyleSheet,TouchableOpacity } from "react-native";
-import { MaterialCommunityIcons, FontAwesome6,FontAwesome } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useRoute } from "@react-navigation/native";
 import { useContext } from "react";
 import { ThemeContext } from "../theme/ThemeContext";
+import { textPresets } from "../theme/typography";
 
 export default function Bottombar(){
     const navigation=useNavigation();
@@ -18,16 +19,14 @@ export default function Bottombar(){
             <TouchableOpacity style={[styles.bar ]} onPress={()=>navigation.navigate("HomePage")}>
                 <MaterialCommunityIcons name="view-dashboard-outline" size={24}
                 color={currentRoute === "HomePage" ? "#f9a641" : "black"}/>
-                <Text style={{textAlign:"auto",fontSize:11,color:currentRoute === "HomePage" ? "#f9a641":"black",
-                    fontFamily : "Medium", lineHeight: Math.round(11*1.5)
+                <Text style={{...textPresets.caption,textAlign:"auto",color:currentRoute === "HomePage" ? "#f9a641":"black",
                 }}>Dashboard</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.bar} onPress={()=>navigation.navigate("PostsPage")}>
                 <MaterialCommunityIcons name="account-group-outline" size={24}
                 color={currentRoute === "PostsPage" ? "#f9a641" : "black"}/>
-                <Text style={{textAlign:"auto",fontSize:11,color:currentRoute === "PostsPage" ? "#f9a641" : "black",
-                    fontFamily : "Medium", lineHeight: Math.round(11*1.5)
+                <Text style={{...textPresets.caption,textAlign:"auto",color:currentRoute === "PostsPage" ? "#f9a641" : "black",
                 }}>Offers</Text>
             </TouchableOpacity>
 
@@ -38,16 +37,16 @@ export default function Bottombar(){
     ]} >
     <MaterialCommunityIcons
       name="plus"
-      size={32}
+      size={30}
       color={currentRoute==="AddOfferPage" ? "#ffffff" : "black"}
     />
   </TouchableOpacity>
 
   <Text
     style={{
-      fontSize: 11,
+      ...textPresets.caption,
       color: currentRoute === "AddOfferPage" ? "#f9a641" : "black",
-      fontFamily: "Medium",
+      top:7
     }}
   >
     Add Offer
@@ -57,16 +56,14 @@ export default function Bottombar(){
             <TouchableOpacity style={styles.bar} onPress={()=>navigation.navigate("ProductListPage")}>
                 <MaterialCommunityIcons name="format-list-checkbox" size={24}
                 color= {currentRoute === "ProductListPage" ? "#f9a641" : "black"}/>
-                <Text style={{textAlign:"auto",fontSize:11,color:currentRoute === "ProductListPage" ? "#f9a641" : "black",
-                    fontFamily : "Medium", lineHeight: Math.round(11*1.5)
+                <Text style={{...textPresets.caption,textAlign:"auto",color:currentRoute === "ProductListPage" ? "#f9a641" : "black",
                 }}>Product List</Text>
             </TouchableOpacity>
 
                 <TouchableOpacity style={styles.bar} onPress={()=>navigation.navigate("ProfilePage")}>
                 <MaterialCommunityIcons name="account-circle-outline" size={24} 
                 color={currentRoute === "ProfilePage" ? "#f9a641" : "black"}/>
-                <Text style={{textAlign:"auto",fontSize:11,color:currentRoute === "ProfilePage" ? "#f9a641" : "black",
-                    fontFamily : "Medium", lineHeight: Math.round(11*1.5)
+                <Text style={{...textPresets.caption,textAlign:"auto",color:currentRoute === "ProfilePage" ? "#f9a641" : "black",
                 }}>Profile</Text>
                 </TouchableOpacity>
 
@@ -96,8 +93,8 @@ const styles=StyleSheet.create({
         alignItems:"center",
      },
 addButton: {
-  width: 60,
-  height: 60,
+  width: 50,
+  height: 50,
   borderRadius: 30,
 
   justifyContent: "center",
@@ -106,6 +103,6 @@ addButton: {
   borderWidth: 3,
   borderColor: "#d1d1d1",
 
-  marginTop: -30, // lifts button above bar
+  marginTop: -40, // lifts button above bar
 },
 })

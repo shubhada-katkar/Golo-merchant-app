@@ -5,6 +5,7 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import { Camera, CameraView } from "expo-camera";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { ThemeContext } from "../theme/ThemeContext";
+import { textPresets } from "../theme/typography";
 
 export default function ScanQRCodePage() {
   const { colors } = useContext(ThemeContext);
@@ -131,9 +132,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   title: {
-    fontSize: 18,
-    fontFamily: "Medium",
-    lineHeight: Math.round(18 * 1.5),
+    ...textPresets.subtitle,
   },
   cameraContainer: {
     flex: 1,
@@ -159,9 +158,8 @@ const styles = StyleSheet.create({
   scanHint: {
     marginTop: 16,
     color: "white",
-    fontSize: 14,
     textAlign: "center",
-    fontFamily: "Medium",
+    ...textPresets.body,
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
@@ -172,8 +170,7 @@ const styles = StyleSheet.create({
   overlayText: {
     marginTop: 12,
     color: "white",
-    fontSize: 14,
-    fontFamily: "Medium",
+    ...textPresets.body,
   },
   loadingContainer: {
     flex: 1,
@@ -183,9 +180,8 @@ const styles = StyleSheet.create({
   },
   statusText: {
     marginTop: 14,
-    fontSize: 16,
+    ...textPresets.body,
     textAlign: "center",
-    fontFamily: "Medium",
   },
   permissionButton: {
     marginTop: 20,
@@ -196,7 +192,6 @@ const styles = StyleSheet.create({
   },
   permissionButtonText: {
     color: "white",
-    fontSize: 14,
-    fontFamily: "Medium",
+    ...textPresets.body,
   },
 });

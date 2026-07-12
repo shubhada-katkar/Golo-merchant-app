@@ -9,6 +9,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { BASE_URL } from "../config";
 import { LinearGradient } from "expo-linear-gradient";
+import { textPresets } from "../theme/typography";
 
 import Total from "../productlistcomponents/Total";
 
@@ -127,14 +128,12 @@ export default function ProductListPage({ navigation }) {
         <TouchableOpacity onPress={() => navigation.navigate("HomePage")}>
           <MaterialIcons
             name="arrow-back-ios"
-            size={26}
+            size={22}
             color={colors.text}
             style={{ padding: 10 }}
           />
         </TouchableOpacity>
-        <Text style={{ fontSize: 20, color: colors.text, fontFamily:"Medium",
-          lineHeight: Math.round(20 * 1.5)
-         }}>
+        <Text style={{ ...textPresets.title }}>
           Product List
         </Text>
       </View>
@@ -153,12 +152,12 @@ export default function ProductListPage({ navigation }) {
 
       {/* Search */}
       <View style={styles.search}>
-      <Feather name="search" size={18} style={{top:-3}} color="#919191"/>
+      <Feather name="search" size={14} style={{top:-3}} color="#919191"/>
         <TextInput
           placeholder="Search product..."
           value={searchText}
           onChangeText={setSearchText}
-          style={{ fontSize: 14, fontFamily:"Medium", }}
+          style={{ ...textPresets.body }}
         />
       </View>
     
@@ -220,15 +219,11 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   statValue: {
-    fontSize: 22,
-    fontFamily: "Medium",
     color: "#157a4f",
-    lineHeight: Math.round(22 * 1.5),
+    ...textPresets.subtitle
   },
   statLabel: {
-    fontSize: 14,
-    fontFamily: "Medium",
     color: "#6b7280",
-    lineHeight: Math.round(14 * 1.5),
+    ...textPresets.label
   },
 });
