@@ -13,6 +13,7 @@ import { ThemeContext } from "../theme/ThemeContext";
 import { AntDesign, MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL } from "../config";
+import { textPresets } from "../theme/typography";
 
 export default function Active({ searchText = "" }) {
     const { colors } = useContext(ThemeContext);
@@ -219,16 +220,12 @@ export default function Active({ searchText = "" }) {
                     )}
 
                     <View style={{ flex: 1, paddingHorizontal: 10 , justifyContent:"center" }}>
-                            <Text style={{ fontSize: 16, fontFamily: "Medium",
-                                lineHeight: Math.round(16 * 1.5), width: "80%",
-                            }}>
+                            <Text style={{ width: "80%", ...textPresets.body }}>
                                 {title}
                             </Text>
 
                         {validTo && (
-                            <Text style={{ fontSize: 12, marginTop: 3,
-                                fontFamily:"Medium", lineHeight: Math.round(12 * 1.5), color:"#157a4f"
-                             }}>
+                            <Text style={{ ...textPresets.label, color: "#157a4f" }}>
                                 Expires On: {new Date(validTo).toDateString()}
                             </Text>
                         )}
@@ -264,7 +261,7 @@ export default function Active({ searchText = "" }) {
                 onRefresh={fetchOffers}
                 ListEmptyComponent={
                     <Text style={{ textAlign: 'center', marginTop: 20, color: colors.text,
-                        fontSize:12, fontFamily:"Medium", lineHeight: Math.round(12 * 1.5)
+                        ...textPresets.body
                      }}>
                         No active offers available
                     </Text>

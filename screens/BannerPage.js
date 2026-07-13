@@ -1,4 +1,4 @@
-import React, { useState, useContext, useCallback } from "react";
+import React, { useState, useContext, useCallback, useEffect } from "react";
 import { View, TouchableOpacity, Text, StyleSheet, Image, ScrollView, Alert, TextInput, Platform, ActivityIndicator } from "react-native";
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
@@ -12,7 +12,7 @@ import * as ImagePicker from "expo-image-picker";
 import { Calendar } from "react-native-calendars";
 import { Modal } from "react-native";
 import { uploadImageToCloudinary } from "../services/cloudinaryService";
-import {textPresets} from "../theme/typography";
+import { textPresets } from "../theme/typography";
 
 function getErrorMessageFromResponse(data) {
     const candidates = [];
@@ -35,40 +35,61 @@ function getErrorMessageFromResponse(data) {
 }
 
 function isModerationFailureResponse(data) {
-    const message = getErrorMessageFromResponse(data).toLowerCase();
-    return [
-        "inappropriate",
-        "moderation",
-        "flagged",
-        "content policy",
-        "violat",
-        "unsafe",
-    ].some((token) => message.includes(token));
+    const message = getErrorMessageFromResponse(data)
+        .toLowerCase()
+        .replace(/\s+/g, " ")
+        .trim();
+
+    const rejectionPhrases = [
+        "one or more images contain inappropriate content and cannot be uploaded",
+        "the uploaded video contains inappropriate content and cannot be published",
+    ];
+
+    return rejectionPhrases.some((phrase) => message.includes(phrase));
 }
 
 // Hardcoded for now — swap in real list later
-const BANNER_CATEGORIES = [  "Food & Restaurants",
-  "Home Services",
-  "Beauty & Wellness",
-  "Healthcare & Medical",
-  "Hotels & Accommodation",
-  "Shopping & Retail",
-  "Education & Training",
-  "Real Estate",
-  "Events & Entertainment",
-  "Professional Services",
-  "Automotive Services",
-  "Home Improvement",
-  "Fitness & Sports",
-  "Daily Needs & Utilities",
-  "Local Businesses & Vendors",];
+const BANNER_CATEGORIES = ["Food & Restaurants",
+    "Home Services",
+    "Beauty & Wellness",
+    "Healthcare & Medical",
+    "Hotels & Accommodation",
+    "Shopping & Retail",
+    "Education & Training",
+    "Real Estate",
+    "Events & Entertainment",
+    "Professional Services",
+    "Automotive Services",
+    "Home Improvement",
+    "Fitness & Sports",
+    "Daily Needs & Utilities",
+    "Local Businesses & Vendors",];
 
 // Hardcoded pricing
 const RATE_PER_DAY = 240;
 const PLATFORM_FEE = 0;
 
-export default function BannerPage({ navigation }) {
+/**
+ * Normalize a Date object or ISO date string from the backend
+ * into a "YYYY-MM-DD" calendar key suitable for the date picker.
+ */
+const toDateKey = (value) => {
+    if (!value) return null;
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return null;
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+};
+
+export default function BannerPage({ navigation, route }) {
     const { colors } = useContext(ThemeContext);
+
+    // ── Edit mode ──────────────────────────────────────────────
+    const editData = route?.params?.editData || null;
+    const isEditMode = Boolean(editData);
+    const editRequestId = editData?.requestId || editData?._id || null;
 
     const [bannerTitle, setBannerTitle] = useState("");
     const [category, setCategory] = useState(BANNER_CATEGORIES[0]);
@@ -80,6 +101,32 @@ export default function BannerPage({ navigation }) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isUploadingImage, setIsUploadingImage] = useState(false);
     const [flaggedModalVisible, setFlaggedModalVisible] = useState(false);
+    const [isFetchingEdit, setIsFetchingEdit] = useState(false);
+
+    // ── Pre-populate form when editing ─────────────────────────
+    useEffect(() => {
+        if (!isEditMode || !editData) return;
+
+        // Title
+        if (editData.bannerTitle) setBannerTitle(editData.bannerTitle);
+
+        // Category
+        if (editData.bannerCategory && BANNER_CATEGORIES.includes(editData.bannerCategory)) {
+            setCategory(editData.bannerCategory);
+        }
+
+        // Image
+        if (editData.imageUrl) setBannerImage(editData.imageUrl);
+
+        // Dates – backend stores as Date[] (ISO strings); normalise to "YYYY-MM-DD" keys
+        const rawDates = Array.isArray(editData.selectedDates) ? editData.selectedDates : [];
+        const dateKeys = rawDates
+            .map(toDateKey)
+            .filter(Boolean)
+            .sort();
+        // Deduplicate
+        setSelectedDates([...new Set(dateKeys)]);
+    }, [isEditMode]); // only run once on mount if editing
 
     const formatDateKey = (date) => {
         const y = date.getFullYear();
@@ -107,7 +154,7 @@ export default function BannerPage({ navigation }) {
         if (!result.canceled && result.assets?.length) {
             setBannerImage(result.assets[0].uri);
             // Clear flagged marker when user uploads a new image
-            try { await AsyncStorage.removeItem('golo_images_flagged'); } catch (e) {}
+            try { await AsyncStorage.removeItem('golo_images_flagged'); } catch (e) { }
         }
     }, []);
 
@@ -175,13 +222,22 @@ export default function BannerPage({ navigation }) {
                 return;
             }
 
-            const response = await fetch(`${BASE_URL}/banners/promotions/request`, {
-                method: "POST",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
+            // ── Edit mode → PUT, Create mode → POST ───────────
+            const url = isEditMode
+                ? `${BASE_URL}/banners/promotions/${editRequestId}`
+                : `${BASE_URL}/banners/promotions/request`;
+
+            const method = isEditMode ? "PUT" : "POST";
+
+            const bodyPayload = isEditMode
+                ? {
+                    bannerTitle: bannerTitle.trim(),
+                    bannerCategory: category,
+                    imageUrl,
+                    selectedDates,
+                    recommendedSize: "1920 x 520 px",
+                }
+                : {
                     bannerTitle: bannerTitle.trim(),
                     bannerCategory: category,
                     imageUrl,
@@ -190,7 +246,15 @@ export default function BannerPage({ navigation }) {
                     dailyRate: RATE_PER_DAY,
                     platformFee: PLATFORM_FEE,
                     recommendedSize: "1920 x 520 px",
-                }),
+                };
+
+            const response = await fetch(url, {
+                method,
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(bodyPayload),
             });
 
             const payload = await response.json().catch(() => ({}));
@@ -208,12 +272,17 @@ export default function BannerPage({ navigation }) {
                     return;
                 }
 
-                throw new Error(payload?.message || "Unable to submit banner request right now.");
+                throw new Error(payload?.message || (isEditMode ? "Unable to update banner right now." : "Unable to submit banner request right now."));
             }
 
-            Alert.alert("Request submitted", "Your banner promotion request has been sent for review.");
+            Alert.alert(
+                isEditMode ? "Banner updated" : "Request submitted",
+                isEditMode
+                    ? "Your banner promotion has been updated successfully."
+                    : "Your banner promotion request has been sent for review."
+            );
             // Clear the moderation flag since submission succeeded
-            try { await AsyncStorage.removeItem("golo_images_flagged"); } catch (e) {}
+            try { await AsyncStorage.removeItem("golo_images_flagged"); } catch (e) { }
             navigation.navigate("BannerList");
         } catch (error) {
             Alert.alert("Submission failed", error?.message || "Please try again.");
@@ -237,8 +306,9 @@ export default function BannerPage({ navigation }) {
                 <TouchableOpacity onPress={() => navigation.goBack()}>
                     <MaterialIcons name="arrow-back-ios" size={22} color={colors.text} style={{ padding: 10 }} />
                 </TouchableOpacity>
-                <Text style={{ flex: 1, ...textPresets.title
-                }}>Promote Banner</Text>
+                <Text style={{
+                    flex: 1, ...textPresets.title
+                }}>{isEditMode ? "Edit Banner" : "Promote Banner"}</Text>
             </View>
 
             <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1 }} />
@@ -404,7 +474,7 @@ export default function BannerPage({ navigation }) {
                         {isSubmitting || isUploadingImage ? (
                             <ActivityIndicator color="#fff" />
                         ) : (
-                            <Text style={styles.submitBtnText}>Submit For Approval</Text>
+                            <Text style={styles.submitBtnText}>{isEditMode ? "Update Banner" : "Submit For Approval"}</Text>
                         )}
                     </TouchableOpacity>
 
@@ -420,7 +490,7 @@ export default function BannerPage({ navigation }) {
                 visible={flaggedModalVisible}
                 transparent
                 animationType="fade"
-                onRequestClose={() => {}}
+                onRequestClose={() => { }}
                 statusBarTranslucent
             >
                 <View style={styles.flaggedOverlay}>

@@ -32,33 +32,41 @@ export default function ScanQRCodePage() {
     setScanned(true);
 
     const scannedValue = String(data || "").trim();
+
     if (!scannedValue) {
-      Alert.alert("Scan failed", "Empty QR code detected. Please try again.");
-      setScanned(false);
+      Alert.alert(
+        "Invalid QR Code",
+        "This QR code could not be read. Please try again.",
+        [{ text: "OK", onPress: () => navigation.goBack() }],
+        { cancelable: false }
+      );
       return;
     }
 
     try {
       if (typeof onScanned === "function") {
         await onScanned(scannedValue);
-        return;
       }
 
-      Alert.alert("QR code scanned", "Scan successful. Returning to orders.", [
-        {
-          text: "OK",
-          onPress: () => navigation.goBack(),
-        },
-      ], { cancelable: false });
+      Alert.alert(
+        "QR Code Scanned",
+        "Scan successful.",
+        [{ text: "OK", onPress: () => navigation.goBack() }],
+        { cancelable: false }
+      );
     } catch (error) {
-      Alert.alert("Scan failed", String(error?.message || error || "Invalid QR code"));
-      setScanned(false);
+      Alert.alert(
+        "Invalid QR Code",
+        String(error?.message || error || "This QR code could not be processed."),
+        [{ text: "OK", onPress: () => navigation.goBack() }],
+        { cancelable: false }
+      );
     }
   };
 
   if (hasPermission === null) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}> 
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#157a4f" />
           <Text style={[styles.statusText, { color: colors.text }]}>Requesting camera access...</Text>
@@ -69,7 +77,7 @@ export default function ScanQRCodePage() {
 
   if (hasPermission === false) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}> 
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.loadingContainer}>
           <Text style={[styles.statusText, { color: colors.text }]}>Camera access is required to scan QR codes.</Text>
           <TouchableOpacity style={styles.permissionButton} onPress={() => Camera.requestCameraPermissionsAsync().then(({ status }) => setHasPermission(status === "granted"))}>
@@ -81,7 +89,7 @@ export default function ScanQRCodePage() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}> 
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <MaterialCommunityIcons name="arrow-left" size={30} color="#157a4f" />
@@ -103,7 +111,7 @@ export default function ScanQRCodePage() {
         </View>
 
         {(!cameraReady || scanned) && (
-          <View style={styles.overlay}> 
+          <View style={styles.overlay}>
             <ActivityIndicator size="large" color="#ffffff" />
             <Text style={styles.overlayText}>{scanned ? "QR scanned!" : "Starting camera..."}</Text>
           </View>
@@ -122,7 +130,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    zIndex: 2,paddingVertical: 12,
+    zIndex: 2, paddingVertical: 12,
   },
   backButton: {
     width: 35,

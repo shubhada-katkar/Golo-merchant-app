@@ -2,17 +2,17 @@ import React, { useState, useEffect, useContext } from "react";
 import {
   View, Text, TouchableOpacity, TextInput,
   StyleSheet, Image, ScrollView, KeyboardAvoidingView, Platform,
-  TouchableWithoutFeedback, Dimensions, Keyboard, Modal,
+  TouchableWithoutFeedback, Dimensions, Keyboard, Modal, FlatList,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
-import { MaterialIcons, Feather } from "@expo/vector-icons";
+import { MaterialIcons, Feather, Ionicons } from "@expo/vector-icons";
 import { ThemeContext } from "../theme/ThemeContext";
 import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL } from "../config";
-import { uploadImageToCloudinary } from "../services/cloudinaryService";
+import { uploadImageToCloudinary, uploadVideoToCloudinary } from "../services/cloudinaryService";
 import { LinearGradient } from "expo-linear-gradient";
 import { textPresets } from "../theme/typography";
 
@@ -37,15 +37,75 @@ function getErrorMessageFromResponse(data) {
 }
 
 function isModerationFailureResponse(data) {
-  const message = getErrorMessageFromResponse(data).toLowerCase();
-  return [
-    "inappropriate",
-    "moderation",
-    "flagged",
-    "content policy",
-    "violat",
-    "unsafe",
-  ].some((token) => message.includes(token));
+  const message = getErrorMessageFromResponse(data)
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const rejectionPhrases = [
+    "one or more images contain inappropriate content and cannot be uploaded",
+    "the uploaded video contains inappropriate content and cannot be published",
+  ];
+
+  return rejectionPhrases.some((phrase) => message.includes(phrase));
+}
+
+function getVideoFileName(videoUrl) {
+  if (typeof videoUrl !== "string" || !videoUrl.trim()) {
+    return null;
+  }
+
+  const sanitizedUrl = videoUrl.split("?")[0].split("#")[0];
+  const fileName = sanitizedUrl.split("/").pop();
+
+  if (!fileName || fileName === "upload") {
+    return null;
+  }
+
+  return fileName;
+}
+
+function resolveProductVideoDetails(product) {
+  if (!product) {
+    return null;
+  }
+
+  const videoObject =
+    product?.video && typeof product.video === "object" ? product.video : null;
+
+  const candidateUrl =
+    typeof product?.videoUrl === "string" && product.videoUrl.trim()
+      ? product.videoUrl.trim()
+      : typeof product?.video === "string" && product.video.trim()
+        ? product.video.trim()
+        : typeof videoObject?.url === "string" && videoObject.url.trim()
+          ? videoObject.url.trim()
+          : typeof videoObject?.videoUrl === "string" && videoObject.videoUrl.trim()
+            ? videoObject.videoUrl.trim()
+            : typeof videoObject?.uri === "string" && videoObject.uri.trim()
+              ? videoObject.uri.trim()
+              : null;
+
+  const candidateFileName =
+    typeof videoObject?.fileName === "string" && videoObject.fileName.trim()
+      ? videoObject.fileName.trim()
+      : typeof product?.videoName === "string" && product.videoName.trim()
+        ? product.videoName.trim()
+        : typeof product?.fileName === "string" && product.fileName.trim()
+          ? product.fileName.trim()
+          : typeof videoObject?.name === "string" && videoObject.name.trim()
+            ? videoObject.name.trim()
+            : getVideoFileName(candidateUrl);
+
+  if (!candidateUrl) {
+    return null;
+  }
+
+  return {
+    uri: candidateUrl,
+    fileName: candidateFileName || "Selected video",
+    duration: typeof videoObject?.duration === "number" ? videoObject.duration : undefined,
+  };
 }
 
 export default function NewProductPage({ navigation, route }) {
@@ -58,14 +118,23 @@ export default function NewProductPage({ navigation, route }) {
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [merchantStoreSubCategory, setMerchantStoreSubCategory] = useState("");
   const [flaggedModalVisible, setFlaggedModalVisible] = useState(false);
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+
+  const categoryOptions = [
+    { label: "Clothing", value: "Clothing" },
+    { label: "Electronics", value: "Electronics" },
+    { label: "Food and Groceries", value: "Food and Groceries" },
+  ];
 
   const [selectedImages, setSelectedImages] = useState([]);
+  const [selectedVideo, setSelectedVideo] = useState(null);
 
   const initialForm = {
     price: "",
     productname: "",
     description: "",
     stockQuantity: "",
+    category: "",
   };
   const [form, setForm] = useState(initialForm);
 
@@ -101,6 +170,7 @@ export default function NewProductPage({ navigation, route }) {
         description: editProduct.description || "",
         price: String(editProduct.price || ""),
         stockQuantity: String(editProduct.stockQuantity ?? editProduct.stock ?? ""),
+        category: editProduct.category || "",
       });
 
       const existingImages = [
@@ -115,9 +185,15 @@ export default function NewProductPage({ navigation, route }) {
       const imageUris = existingImages.length
         ? existingImages
         : typeof fallbackImage === "string"
-        ? [fallbackImage]
-        : [];
+          ? [fallbackImage]
+          : [];
       setSelectedImages(imageUris.map((uri) => ({ uri })));
+
+      const existingVideoDetails = resolveProductVideoDetails(editProduct);
+
+      if (existingVideoDetails?.uri) {
+        setSelectedVideo(existingVideoDetails);
+      }
     }
     return () => {
       showSub.remove();
@@ -133,12 +209,17 @@ export default function NewProductPage({ navigation, route }) {
       return;
     }
 
-    if (selectedImages.length >= 5) {
-      alert("You can upload up to 5 images only.");
+    const maxImageCount = selectedVideo ? 4 : 5;
+    if (selectedImages.length >= maxImageCount) {
+      alert(
+        selectedVideo
+          ? "You can upload up to 4 images only when a video is attached."
+          : "You can upload up to 5 images only."
+      );
       return;
     }
 
-    const remainingSlots = 5 - selectedImages.length;
+    const remainingSlots = maxImageCount - selectedImages.length;
 
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: "images",
@@ -153,7 +234,11 @@ export default function NewProductPage({ navigation, route }) {
         .slice(0, remainingSlots);
 
       if (!pickedImages.length) {
-        alert("You can upload up to 5 images only.");
+        alert(
+          selectedVideo
+            ? "You can upload up to 4 images only when a video is attached."
+            : "You can upload up to 5 images only."
+        );
         return;
       }
 
@@ -172,10 +257,62 @@ export default function NewProductPage({ navigation, route }) {
     );
   };
 
-const saveProduct = async () => {
-  if (isSaving) return;
+  const pickVideo = async () => {
+    const { status: permissionStatus } =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permissionStatus !== "granted") {
+      alert("Sorry, we need camera roll permissions to make this work!");
+      return;
+    }
 
-  setIsSaving(true);
+    if (selectedVideo) {
+      alert("You can add only one video per product.");
+      return;
+    }
+
+    if (selectedImages.length > 4) {
+      alert("Remove one image before adding a video. Video products can have up to 4 images only.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      allowsEditing: false,
+      quality: 1,
+      selectionLimit: 1,
+      videoMaxDuration: 30,
+    });
+
+    if (!result.canceled) {
+      const videoAsset = result.assets?.[0];
+      if (!videoAsset?.uri) {
+        alert("Please select a valid video file.");
+        return;
+      }
+
+      const rawDuration = Number(videoAsset.duration || 0);
+      const normalizedDuration = rawDuration > 100 ? rawDuration / 1000 : rawDuration;
+      if (normalizedDuration > 30) {
+        alert("Please choose a video that is 30 seconds or shorter.");
+        return;
+      }
+
+      setSelectedVideo({
+        uri: videoAsset.uri,
+        fileName: videoAsset.fileName || `video_${Date.now()}.mp4`,
+        duration: normalizedDuration,
+      });
+    }
+  };
+
+  const removeSelectedVideo = () => {
+    setSelectedVideo(null);
+  };
+
+  const saveProduct = async () => {
+    if (isSaving) return;
+
+    setIsSaving(true);
 
     try {
       try {
@@ -202,6 +339,16 @@ const saveProduct = async () => {
       const stockQuantity = Number(form.stockQuantity ?? 0);
       if (Number.isNaN(stockQuantity) || stockQuantity < 0) {
         alert("Please enter a valid stock quantity");
+        return;
+      }
+
+      const maxImageCount = selectedVideo ? 4 : 5;
+      if (selectedImages.length > maxImageCount) {
+        alert(
+          selectedVideo
+            ? "Please keep the image count at 4 or fewer when a video is attached."
+            : "Please keep the image count at 5 or fewer."
+        );
         return;
       }
 
@@ -236,26 +383,27 @@ const saveProduct = async () => {
         setSelectedImages(uploadedImages.map((uri) => ({ uri })));
       }
 
+      let productVideoUrl = isEdit ? null : undefined;
+      if (selectedVideo?.uri) {
+        if (/^https?:\/\//i.test(selectedVideo.uri)) {
+          productVideoUrl = selectedVideo.uri;
+        } else {
+          const uploadResult = await uploadVideoToCloudinary(selectedVideo.uri, "golo/product-videos");
+          if (!uploadResult.success) {
+            alert(uploadResult.message || "Failed to upload video. Please try again.");
+            return;
+          }
+          productVideoUrl = uploadResult.url;
+        }
+      }
+
       const productImages =
         uploadedImages.length > 0
           ? uploadedImages
           : isEdit
-          ? []
-          : undefined;
-      const productCategory = merchantStoreSubCategory;
-
-      const createJsonPayload = {
-        productName: form.productname,
-        description: form.description,
-        category: productCategory,
-        regularPrice: Number(form.price),
-        stockQuantity,
-        ...(productImages !== undefined ? { productImages } : {}),
-      };
-
-      const updateJsonPayload = {
-       ...createJsonPayload,
-      };
+            ? []
+            : undefined;
+      const productCategory = form.category || merchantStoreSubCategory;
 
       const merchantCreatePayload = {
         name: form.productname,
@@ -264,6 +412,7 @@ const saveProduct = async () => {
         price: Number(form.price),
         stockQuantity,
         ...(productImages !== undefined ? { images: productImages } : {}),
+        ...(productVideoUrl !== undefined ? { videoUrl: productVideoUrl } : {}),
       };
 
       const merchantUpdatePayload = {
@@ -273,44 +422,28 @@ const saveProduct = async () => {
         price: Number(form.price),
         stockQuantity,
         ...(productImages !== undefined ? { images: productImages } : {}),
-      };
-
-      const stripUnsupportedFields = (payload) => {
-        const { image, ...rest } = payload;
-        return rest;
+        ...(productVideoUrl !== undefined ? { videoUrl: productVideoUrl } : {}),
       };
 
       const editIdentifier = editProduct?.productId || editProduct?._id || editProduct?.id;
-      const urlCandidates = isEdit
-        ? [`${BASE_URL}/products/${editIdentifier}`, `${BASE_URL}/merchant/products/${editIdentifier}`]
-        : [`${BASE_URL}/products`, `${BASE_URL}/merchant/products`];
+      const merchantUrl = isEdit
+        ? `${BASE_URL}/merchant/products/${editIdentifier}`
+        : `${BASE_URL}/merchant/products`;
 
-      const cleanCreateJsonPayload = stripUnsupportedFields(createJsonPayload);
-      const cleanUpdateJsonPayload = stripUnsupportedFields(updateJsonPayload);
-      const cleanMerchantCreatePayload = stripUnsupportedFields(merchantCreatePayload);
-      const cleanMerchantUpdatePayload = stripUnsupportedFields(merchantUpdatePayload);
+      const bodyPayload = isEdit
+        ? merchantUpdatePayload
+        : merchantCreatePayload;
 
-      let response = null;
-      for (const url of urlCandidates) {
-        const bodyPayload = url.includes("/merchant/products")
-          ? isEdit
-            ? cleanMerchantUpdatePayload
-            : cleanMerchantCreatePayload
-          : isEdit
-          ? cleanUpdateJsonPayload
-          : cleanCreateJsonPayload;
+      console.log("Merchant product payload being sent:", JSON.stringify(bodyPayload));
 
-        response = await fetch(url, {
-          method,
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(bodyPayload),
-        });
-
-        if (response.ok) break;
-      }
+      const response = await fetch(merchantUrl, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(bodyPayload),
+      });
 
       const text = await response?.text();
       let data = {};
@@ -353,9 +486,10 @@ const saveProduct = async () => {
   const clearAllFields = () => {
     setForm(initialForm);
     setSelectedImages([]);
+    setSelectedVideo(null);
   };
 
-return (
+  return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       {/* Detect taps outside */}
       <TouchableWithoutFeedback
@@ -367,28 +501,29 @@ return (
           style={{ flex: 1 }}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-        <LinearGradient
-             colors={["#f8a812", "#fad081", "#f8f6f265"]}
-             start={{ x: 0, y: 0 }}
-             end={{ x: 0, y: 1 }}
-             style={{height: 220, position: "absolute", top: 0, left: 0, right: 0, zIndex: 0}}
-        />
+          <LinearGradient
+            colors={["#f8a812", "#fad081", "#f8f6f265"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={{ height: 220, position: "absolute", top: 0, left: 0, right: 0, zIndex: 0 }}
+          />
           <Topbar />
-              <View style={styles.row1}>
-              <TouchableOpacity onPress={() => navigation.goBack()}>
-                <MaterialIcons
-                  name="arrow-back-ios"
-                  size={22}
-                  style={{ padding: 10 }}
-                />
-              </TouchableOpacity>
-              <Text style={{ ...textPresets.title
-               }}>
-                {isEdit ? "Edit Product" : "Add New Product"}
-              </Text>
-            </View>
+          <View style={styles.row1}>
+            <TouchableOpacity onPress={() => navigation.goBack()}>
+              <MaterialIcons
+                name="arrow-back-ios"
+                size={22}
+                style={{ padding: 10 }}
+              />
+            </TouchableOpacity>
+            <Text style={{
+              ...textPresets.title
+            }}>
+              {isEdit ? "Edit Product" : "Add New Product"}
+            </Text>
+          </View>
 
-            <View style={styles.divider} />
+          <View style={styles.divider} />
           <ScrollView
             contentContainerStyle={{ paddingBottom: 100 }}
             keyboardShouldPersistTaps="handled"
@@ -428,6 +563,36 @@ return (
                 </TouchableOpacity>
               </View>
 
+              <View style={styles.videoUploadCard}>
+                <Text style={styles.videoLabel}>Video (optional · 1 video only · max 30 sec)</Text>
+                {selectedVideo ? (
+                  <View style={styles.videoPreviewRow}>
+                    <View style={styles.videoPreviewIconWrap}>
+                      <Feather name="video" size={24} color="#157a4f" />
+                    </View>
+                    <View style={styles.videoPreviewTextWrap}>
+                      <Text style={styles.videoPreviewTitle} numberOfLines={1}>
+                        {selectedVideo.fileName || "Selected video"}
+                      </Text>
+                      <Text style={styles.videoPreviewSubtitle}>
+                        {selectedVideo.duration ? `${Math.ceil(selectedVideo.duration)} sec` : "Video attached"}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.removeVideoButton}
+                      onPress={removeSelectedVideo}
+                    >
+                      <Feather name="x" size={14} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity style={styles.videoButton} onPress={pickVideo}>
+                    <Feather name="video" size={18} color="#fff" />
+                    <Text style={styles.videoButtonText}>Select Video</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
               <Text style={[styles.text, { color: colors.text }]}>
                 Product Name<Text style={styles.requiredStar}>*</Text>
               </Text>
@@ -448,6 +613,60 @@ return (
                 value={form.description}
                 onChangeText={(text) => setForm({ ...form, description: text })}
               />
+
+              <Text style={[styles.text, { color: colors.text }]}>Category</Text>
+              <TouchableOpacity
+                style={[styles.input, { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingRight: 15 }]}
+                onPress={() => setCategoryModalOpen(true)}
+              >
+                <Text style={{
+                  color: form.category ? "#000" : "#999", ...textPresets.body
+                }}>
+                  {form.category || "Select category"}
+                </Text>
+                <Ionicons name="chevron-down" size={20} color="#333" />
+              </TouchableOpacity>
+
+              <Modal
+                visible={categoryModalOpen}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setCategoryModalOpen(false)}
+                statusBarTranslucent
+              >
+                <TouchableWithoutFeedback onPress={() => setCategoryModalOpen(false)}>
+                  <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center" }}>
+                    <View style={{ backgroundColor: "#fff", borderRadius: 15, width: "85%", maxHeight: "50%", paddingVertical: 20 }}>
+                      <Text style={{ ...textPresets.subtitle, marginBottom: 15, paddingHorizontal: 20, color: "#157a4f" }}>
+                        Select Category
+                      </Text>
+                      <FlatList
+                        data={categoryOptions}
+                        keyExtractor={(item) => item.value}
+                        renderItem={({ item }) => (
+                          <TouchableOpacity
+                            style={{
+                              paddingVertical: 15,
+                              paddingHorizontal: 20,
+                              borderBottomWidth: 1,
+                              borderBottomColor: "#eee",
+                              backgroundColor: form.category === item.value ? "#ecfdf5" : "#fff",
+                            }}
+                            onPress={() => {
+                              setForm({ ...form, category: item.value });
+                              setCategoryModalOpen(false);
+                            }}
+                          >
+                            <Text style={{ ...textPresets.body, color: form.category === item.value ? "#157a4f" : "#000" }}>
+                              {item.label}
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                      />
+                    </View>
+                  </View>
+                </TouchableWithoutFeedback>
+              </Modal>
 
               <View style={[styles.row, { marginTop: 16 }]}>
                 <View style={styles.halfField}>
@@ -506,60 +725,60 @@ return (
         </SafeAreaView>
       )}
 
-            {/* Flagged / rejected image modal */}
-            <Modal
-                visible={flaggedModalVisible}
-                transparent
-                animationType="fade"
-                onRequestClose={() => {}}
-                statusBarTranslucent
-            >
-                <View style={styles.flaggedOverlay}>
-                    <View style={styles.flaggedCard}>
-                        {/* Header row: warning icon + title + close */}
-                        <View style={styles.flaggedHeaderRow}>
-                            <View style={styles.flaggedHeaderTextWrap}>
-                                <View style={styles.flaggedHeaderIconCircle}>
-                                    <Feather name="alert-triangle" size={14} color="#d92d20" />
-                                </View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.flaggedHeaderTitle}>Inappropriate Content</Text>
-                                    <Text style={styles.flaggedHeaderSubtitle}>
-                                        Your image has been flagged by our safety system.
-                                    </Text>
-                                </View>
-                            </View>
-                            <TouchableOpacity
-                                onPress={() => setFlaggedModalVisible(false)}
-                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            >
-                                <Feather name="x" size={20} color="#8a8a8a" />
-                            </TouchableOpacity>
-                        </View>
-
-                        {/* Centered big shield icon */}
-                        <View style={styles.flaggedIconWrap}>
-                            <View style={styles.flaggedIconCircle}>
-                                <Feather name="shield" size={30} color="#d92d20" />
-                            </View>
-                        </View>
-
-                        <Text style={styles.flaggedTitle}>Upload Rejected</Text>
-                        <Text style={styles.flaggedDescription}>
-                            One or more of your uploaded images contains content that violates our community
-                            guidelines. Please remove the inappropriate images and try posting again.
-                        </Text>
-
-                        <TouchableOpacity
-                            style={styles.flaggedButton}
-                            onPress={() => setFlaggedModalVisible(false)}
-                            activeOpacity={0.85}
-                        >
-                            <Text style={styles.flaggedButtonText}>I Understand, Go Back</Text>
-                        </TouchableOpacity>
-                    </View>
+      {/* Flagged / rejected image modal */}
+      <Modal
+        visible={flaggedModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => { }}
+        statusBarTranslucent
+      >
+        <View style={styles.flaggedOverlay}>
+          <View style={styles.flaggedCard}>
+            {/* Header row: warning icon + title + close */}
+            <View style={styles.flaggedHeaderRow}>
+              <View style={styles.flaggedHeaderTextWrap}>
+                <View style={styles.flaggedHeaderIconCircle}>
+                  <Feather name="alert-triangle" size={14} color="#d92d20" />
                 </View>
-            </Modal>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.flaggedHeaderTitle}>Inappropriate Content</Text>
+                  <Text style={styles.flaggedHeaderSubtitle}>
+                    Your uploaded media has been flagged by our safety system.
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                onPress={() => setFlaggedModalVisible(false)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Feather name="x" size={20} color="#8a8a8a" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Centered big shield icon */}
+            <View style={styles.flaggedIconWrap}>
+              <View style={styles.flaggedIconCircle}>
+                <Feather name="shield" size={30} color="#d92d20" />
+              </View>
+            </View>
+
+            <Text style={styles.flaggedTitle}>Upload Rejected</Text>
+            <Text style={styles.flaggedDescription}>
+              One or more of your uploaded media files contains content that violates our community
+              guidelines. Please remove the inappropriate media and try posting again.
+            </Text>
+
+            <TouchableOpacity
+              style={styles.flaggedButton}
+              onPress={() => setFlaggedModalVisible(false)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.flaggedButtonText}>I Understand, Go Back</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -644,17 +863,84 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   imagePlaceholder: {
-  flex: 1,
-  width: "100%",
-  height: "100%",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: 8,
-},
-imagePlaceholderText: {
-  color: "#157a4f",
-  ...textPresets.body
-},
+    flex: 1,
+    width: "100%",
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  imagePlaceholderText: {
+    color: "#157a4f",
+    ...textPresets.body
+  },
+  videoUploadCard: {
+    width: "100%",
+    borderRadius: 12,
+    backgroundColor: "#f3f1ec",
+    marginBottom: 10,
+    padding: 12,
+  },
+  videoLabel: {
+    color: "#157a4f",
+    ...textPresets.label,
+    marginBottom: 10,
+    alignSelf: "center"
+  },
+  videoPreviewRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ffffff",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#d8d6d2",
+    padding: 10,
+  },
+  videoPreviewIconWrap: {
+    width: 46,
+    height: 46,
+    borderRadius: 10,
+    backgroundColor: "#e8f8f0",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  videoPreviewTextWrap: {
+    flex: 1,
+    marginLeft: 10,
+  },
+  videoPreviewTitle: {
+    color: "#1a1a1a",
+    ...textPresets.body,
+    fontWeight: "600",
+  },
+  videoPreviewSubtitle: {
+    color: "#6b6b6b",
+    ...textPresets.caption,
+    marginTop: 2,
+  },
+  removeVideoButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#e0473e",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#f3f1ec",
+  },
+  videoButton: {
+    backgroundColor: "#157a4f",
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+  videoButtonText: {
+    color: "#fff",
+    ...textPresets.body,
+  },
   text: {
     paddingTop: 16,
     ...textPresets.body
@@ -709,91 +995,91 @@ imagePlaceholderText: {
     color: "#fff",
     ...textPresets.body
   },
-// --- Flagged image modal (matches web "Upload Rejected" reference) ---
-    flaggedOverlay: {
-        flex: 1,
-        backgroundColor: "rgba(20, 20, 20, 0.55)",
-        justifyContent: "center",
-        alignItems: "center",
-        paddingHorizontal: 24,
-    },
-    flaggedCard: {
-        width: "100%",
-        maxWidth: 360,
-        backgroundColor: "#fff",
-        borderRadius: 18,
-        paddingTop: 18,
-        paddingHorizontal: 18,
-        paddingBottom: 20,
-        elevation: 10,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 12,
-    },
-    flaggedHeaderRow: {
-        flexDirection: "row",
-        alignItems: "flex-start",
-        justifyContent: "space-between",
-    },
-    flaggedHeaderTextWrap: {
-        flexDirection: "row",
-        alignItems: "flex-start",
-        flex: 1,
-        paddingRight: 12,
-    },
-    flaggedHeaderIconCircle: {
-        width: 26,
-        height: 26,
-        borderRadius: 13,
-        backgroundColor: "#fdecea",
-        alignItems: "center",
-        justifyContent: "center",
-        marginRight: 10,
-        marginTop: 1,
-    },
-    flaggedHeaderTitle: {
-        ...textPresets.subtitle,
-        color: "#1a1a1a",
-    },
-    flaggedHeaderSubtitle: {
-        ...textPresets.caption,
-        color: "#8a8a8a",
-        marginTop: 3,
-    },
-    flaggedIconWrap: {
-        alignItems: "center",
-        marginTop: 18,
-        marginBottom: 14,
-    },
-    flaggedIconCircle: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
-        backgroundColor: "#fdecea",
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    flaggedTitle: {
-        ...textPresets.subtitle,
-        color: "#1a1a1a",
-        textAlign: "center",
-        marginBottom: 8,
-    },
-    flaggedDescription: {
-        ...textPresets.label,
-        color: "#6b6b6b",
-        textAlign: "center",
-        marginBottom: 20,
-    },
-    flaggedButton: {
-        backgroundColor: "#e0483e",
-        borderRadius: 12,
-        paddingVertical: 13,
-        alignItems: "center",
-    },
-    flaggedButtonText: {
-        color: "#fff",
-        ...textPresets.body,
-    },
+  // --- Flagged image modal (matches web "Upload Rejected" reference) ---
+  flaggedOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(20, 20, 20, 0.55)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 24,
+  },
+  flaggedCard: {
+    width: "100%",
+    maxWidth: 360,
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    paddingTop: 18,
+    paddingHorizontal: 18,
+    paddingBottom: 20,
+    elevation: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+  },
+  flaggedHeaderRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+  },
+  flaggedHeaderTextWrap: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    flex: 1,
+    paddingRight: 12,
+  },
+  flaggedHeaderIconCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: "#fdecea",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+    marginTop: 1,
+  },
+  flaggedHeaderTitle: {
+    ...textPresets.subtitle,
+    color: "#1a1a1a",
+  },
+  flaggedHeaderSubtitle: {
+    ...textPresets.caption,
+    color: "#8a8a8a",
+    marginTop: 3,
+  },
+  flaggedIconWrap: {
+    alignItems: "center",
+    marginTop: 18,
+    marginBottom: 14,
+  },
+  flaggedIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "#fdecea",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  flaggedTitle: {
+    ...textPresets.subtitle,
+    color: "#1a1a1a",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  flaggedDescription: {
+    ...textPresets.label,
+    color: "#6b6b6b",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  flaggedButton: {
+    backgroundColor: "#e0483e",
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: "center",
+  },
+  flaggedButtonText: {
+    color: "#fff",
+    ...textPresets.body,
+  },
 });

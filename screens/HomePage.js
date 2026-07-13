@@ -8,7 +8,7 @@ import Orders from "../components/Orders";
 import Customers from "../components/Customers.js";
 import { useContext } from "react";
 import { ThemeContext } from "../theme/ThemeContext";
-import {LinearGradient} from "expo-linear-gradient";
+import { LinearGradient } from "expo-linear-gradient";
 import { textPresets } from '../theme/typography';
 
 export default function HomePage() {
@@ -17,33 +17,33 @@ export default function HomePage() {
 
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-        <LinearGradient
-            colors={["#f8a812", "#fad081", "#fffbf4"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            style={{height: 220, position: "absolute", top: 0, left: 0, right: 0, zIndex: 0}}
-        />
+            <LinearGradient
+                colors={["#f8a812", "#fad081", "#fffbf4"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={{ height: 220, position: "absolute", top: 0, left: 0, right: 0, zIndex: 0 }}
+            />
             <View style={{ zIndex: 1 }}>
-            <Topbar />
+                <Topbar />
 
-            <View style={styles.first}>
-                <TouchableOpacity onPress={() => setactiveTab("Overview")}>
-                    <Text style={styles.text1}>Overview</Text>
-                    {activeTab == "Overview" && <View style={styles.ActiveTab} />}
-                </TouchableOpacity>
+                <View style={styles.first}>
+                    <TouchableOpacity onPress={() => setactiveTab("Overview")}>
+                        <Text style={styles.text1}>Overview</Text>
+                        {activeTab == "Overview" && <View style={styles.ActiveTab} />}
+                    </TouchableOpacity>
 
-                <TouchableOpacity onPress={() => setactiveTab("Orders")}>
-                    <Text style={styles.text1}>Orders</Text>
-                    {activeTab == "Orders" && <View style={styles.ActiveTab} />}
-                </TouchableOpacity>
+                    <TouchableOpacity onPress={() => setactiveTab("Orders")}>
+                        <Text style={styles.text1}>Orders</Text>
+                        {activeTab == "Orders" && <View style={styles.ActiveTab} />}
+                    </TouchableOpacity>
 
-                <TouchableOpacity onPress={() => setactiveTab("Customers")}>
-                    <Text style={styles.text1}>Customers</Text>
-                    {activeTab == "Customers" && <View style={styles.ActiveTab} />}
-                </TouchableOpacity>
-            </View>
+                    <TouchableOpacity onPress={() => setactiveTab("Customers")}>
+                        <Text style={styles.text1}>Analytics</Text>
+                        {activeTab == "Customers" && <View style={styles.ActiveTab} />}
+                    </TouchableOpacity>
+                </View>
 
-            <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1 }} />
+                <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1 }} />
             </View>
 
             {activeTab == "Overview" && <Overview />}

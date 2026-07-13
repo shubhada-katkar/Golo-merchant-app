@@ -69,16 +69,16 @@ export default function Overview() {
     };
 
     const handleOpenCustomerApp = async () => {
-    const customerAppScheme = "golo://";
-    const fallbackUrl = "https://drive.google.com/drive/folders/1x7QPqCVtgoZfIUd8iblraYAXdc4RWM5y";
+        const customerAppScheme = "golo://";
+        const fallbackUrl = "https://drive.google.com/drive/folders/1x7QPqCVtgoZfIUd8iblraYAXdc4RWM5y";
 
-    try {
-        await Linking.openURL(customerAppScheme);
-    } catch (error) {
-        console.log("Customer app not installed, opening Drive link:", error);
-        await Linking.openURL(fallbackUrl);
-    }
-};
+        try {
+            await Linking.openURL(customerAppScheme);
+        } catch (error) {
+            console.log("Customer app not installed, opening Drive link:", error);
+            await Linking.openURL(fallbackUrl);
+        }
+    };
 
     // ✅ Fetch profile and latest merchant reviews every time screen opens
     useFocusEffect(
@@ -207,8 +207,8 @@ export default function Overview() {
                     const list = Array.isArray(data?.data)
                         ? data.data
                         : Array.isArray(data)
-                        ? data
-                        : [];
+                            ? data
+                            : [];
                     setReviews(list.slice(0, 2));
                 } catch (error) {
                     console.log("Overview review fetch error:", error);
@@ -231,9 +231,9 @@ export default function Overview() {
         }, [])
     );
 
-return (
+    return (
         <ScrollView contentContainerStyle={{ paddingBottom: 60 }}
-        style={{ backgroundColor: "transparent" }}>
+            style={{ backgroundColor: "transparent" }}>
 
             {/* ===== PROFILE HEADER ===== */}
             <View style={[styles.profileCard, { marginTop: 16 }]}>
@@ -243,17 +243,19 @@ return (
                     <Text style={{ ...textPresets.title }}>
                         {shopName}
                     </Text>
-                
-                  <View style={{ flexDirection:"row", alignItems: "center", gap:8}}>
-                    <Text style={{  color: "#9ca3af", ...textPresets.label
-                     }}>
-                        Total Customers
-                    </Text>
 
-                    <Text style={{ ...textPresets.label, color: "#157a4f"
-                     }}>
-                        {uniqueClaimedCustomers}
-                    </Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                        <Text style={{
+                            color: "#9ca3af", ...textPresets.label
+                        }}>
+                            Total Customers
+                        </Text>
+
+                        <Text style={{
+                            ...textPresets.label, color: "#157a4f"
+                        }}>
+                            {uniqueClaimedCustomers}
+                        </Text>
 
                     </View>
                 </View>
@@ -263,7 +265,7 @@ return (
                 <View style={styles.graph}>
                     <View style={{ flexDirection: "row", alignContent: "center", justifyContent: "space-between" }}>
                         <View style={{ flexDirection: "row", alignItems: "center" }}>
-                            <Text style={{...textPresets.label }}>
+                            <Text style={{ ...textPresets.label }}>
                                 Shop Visits
                             </Text>
                             <Octicons name="graph" size={16} color="green" style={{ paddingLeft: 8 }} />
@@ -288,14 +290,15 @@ return (
                                 <View style={{ marginTop: 12 }}>
                                     <View style={{ flexDirection: 'row' }}>
                                         {/* Y axis labels */}
-                                        <View style={{ width: 40, height: chartHeight, justifyContent: 'space-between', alignItems: 'flex-end', paddingRight: 6 }}>
+                                        <View style={{ width: 26, height: chartHeight, justifyContent: 'space-between', alignItems: 'flex-end', paddingRight: 2 }}>
                                             {Array.from({ length: steps + 1 }).map((_, i) => {
                                                 const t = steps - i;
                                                 const value = Math.round((t / steps) * max);
                                                 return (
-                                                    <Text key={i} style={{  color: '#6b7280',
+                                                    <Text key={i} style={{
+                                                        color: '#6b7280',
                                                         ...textPresets.label
-                                                     }}>{value}</Text>
+                                                    }}>{value}</Text>
                                                 );
                                             })}
                                         </View>
@@ -330,7 +333,7 @@ return (
                                     </View>
 
                                     {/* X axis labels (dates) */}
-                                    <View style={{ flexDirection: 'row', marginTop: 6, paddingLeft: 40 }}>
+                                    <View style={{ flexDirection: 'row', marginTop: 6, paddingLeft: 28 }}>
                                         {visitsTrend.labels.map((lbl, i) => (
                                             <View key={i} style={{ flex: 1, alignItems: 'center', marginHorizontal: 4 }}>
                                                 <Text style={{ ...textPresets.caption, color: '#6b7280' }}>{lbl || ''}</Text>
@@ -359,7 +362,7 @@ return (
                         const statusLabel = status ? status.charAt(0).toUpperCase() + status.slice(1) : "Unknown";
                         const initials = customer.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
                         return (
-                            <TouchableOpacity key={idx} style={[styles.card2, styles.orderCard, { backgroundColor: "#ffffff"}]} onPress={() => navigation.navigate("OrderDetailPage", { order: o })}>
+                            <TouchableOpacity key={idx} style={[styles.card2, styles.orderCard, { backgroundColor: "#ffffff" }]} onPress={() => navigation.navigate("OrderDetailPage", { order: o })}>
                                 {/* Customer row with avatar */}
                                 <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingBottom: 8 }}>
                                     <View style={styles.avatarCircle}>
@@ -380,13 +383,13 @@ return (
 
                                 <View style={{ height: 1, backgroundColor: '#919191', marginHorizontal: 10, marginTop: 8 }} />
 
-                            <View style={styles.metaBlock}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                <MaterialIcons name="punch-clock" size={14} color="#106440" />
-                                    <Text style={styles.metaLabel}>Order Status</Text>
-                               </View>
+                                <View style={styles.metaBlock}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                        <MaterialIcons name="punch-clock" size={14} color="#106440" />
+                                        <Text style={styles.metaLabel}>Order Status</Text>
+                                    </View>
                                     <Text style={[styles.metaValue, { color: status === "completed" ? "#106440" : status === "accepted" ? "#157a4f" : "#6b7280" }]}>{statusLabel}</Text>
-                            </View>
+                                </View>
 
                                 {/* Offer Name row */}
                                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 10, paddingTop: 8 }}>
@@ -426,7 +429,7 @@ return (
                     </View>
                 )}
 
-                    <Text style={styles.text}>Reviews</Text>
+                <Text style={styles.text}>Reviews</Text>
 
                 {reviewsLoading ? (
                     <View style={styles.card2}>
@@ -437,31 +440,34 @@ return (
                         const rating = resolveRating(item);
                         return (
                             <View key={index} style={[styles.card2, styles.reviewCard]}>
-                                <View style={{ flexDirection: 'row', paddingHorizontal: 10,
-                                    justifyContent:"space-between", alignItems: "center"
+                                <View style={{
+                                    flexDirection: 'row', paddingHorizontal: 10,
+                                    justifyContent: "space-between", alignItems: "center"
                                 }}>
-                                <View style={{flexDirection:"row", gap:4, alignItems:"center"}}>
-                                   <MaterialCommunityIcons name="account-circle-outline" size={18} color="#157a4f"/>     
-                                <Text style={{ ...textPresets.label, color:"#157a4f"
-                                 }}>
-                                    {item.userName || item.userEmail || "Customer"}
-                                </Text>
+                                    <View style={{ flexDirection: "row", gap: 4, alignItems: "center" }}>
+                                        <MaterialCommunityIcons name="account-circle-outline" size={18} color="#157a4f" />
+                                        <Text style={{
+                                            ...textPresets.label, color: "#157a4f"
+                                        }}>
+                                            {item.userName || item.userEmail || "Customer"}
+                                        </Text>
+                                    </View>
+
+                                    <View style={{ flexDirection: 'row', alignItems: "center" }}>
+                                        {Array.from({ length: 5 }).map((_, starIndex) => (
+                                            <AntDesign
+                                                key={starIndex}
+                                                name="star"
+                                                size={18}
+                                                color={starIndex < rating ? "#f5de0b" : "#dadada"}
+                                            />
+                                        ))}
+                                    </View>
                                 </View>
 
-                                <View style={{ flexDirection: 'row', alignItems: "center" }}>
-                                    {Array.from({ length: 5 }).map((_, starIndex) => (
-                                        <AntDesign
-                                            key={starIndex}
-                                            name="star"
-                                            size={18}
-                                            color={starIndex < rating ? "#f5de0b" : "#dadada"}
-                                        />
-                                    ))}
-                                </View>
-                                </View>
-
-                                <Text style={{ paddingHorizontal: 10, paddingTop: 4, color: "#4b5563", ...textPresets.label
-                                 }}>
+                                <Text style={{
+                                    paddingHorizontal: 10, paddingTop: 4, color: "#4b5563", ...textPresets.label
+                                }}>
                                     {item.content || "No review text provided."}
                                 </Text>
                                 {item.createdAt ? (
@@ -481,12 +487,12 @@ return (
                 )}
 
                 <TouchableOpacity
-                        style={styles.seeAllButton}
-                        onPress={() => navigation.navigate("AllReviewsPage")}
-                    >
-                        <Text style={styles.seeAllText}>See More</Text>
-                        <AntDesign name="right" size={14} color="#ec9831" />
-                    </TouchableOpacity>
+                    style={styles.seeAllButton}
+                    onPress={() => navigation.navigate("AllReviewsPage")}
+                >
+                    <Text style={styles.seeAllText}>See More</Text>
+                    <AntDesign name="right" size={14} color="#ec9831" />
+                </TouchableOpacity>
 
                 {/*Last Box*/}
                 <View style={{ paddingVertical: 14 }}>
@@ -535,7 +541,9 @@ const styles = StyleSheet.create({
         shadowColor: "#413f4f",
         shadowRadius: 10,
         shadowOffset: { height: 4, width: 3 },
-        padding: 10,
+        paddingVertical: 10,
+        paddingLeft: 6,
+        paddingRight: 10,
         backgroundColor: "white",
         shadowOpacity: 0.25,
     },
@@ -566,12 +574,12 @@ const styles = StyleSheet.create({
     metaBlock: {
         flexDirection: "row",
         alignItems: "center",
-        paddingHorizontal:10,
-        top:2,
-        justifyContent:"space-between"
+        paddingHorizontal: 10,
+        top: 2,
+        justifyContent: "space-between"
     },
     metaLabel: {
-       ...textPresets.label,
+        ...textPresets.label,
         color: "#5f5f5f",
     },
     metaValue: {

@@ -56,15 +56,17 @@ const getErrorMessageFromResponse = (data) => {
 };
 
 const isModerationFailureResponse = (data) => {
-    const message = getErrorMessageFromResponse(data).toLowerCase();
-    return [
-        "inappropriate",
-        "moderation",
-        "flagged",
-        "content policy",
-        "violat",
-        "unsafe",
-    ].some((token) => message.includes(token));
+    const message = getErrorMessageFromResponse(data)
+        .toLowerCase()
+        .replace(/\s+/g, " ")
+        .trim();
+
+    const rejectionPhrases = [
+        "one or more images contain inappropriate content and cannot be uploaded",
+        "the uploaded video contains inappropriate content and cannot be published",
+    ];
+
+    return rejectionPhrases.some((phrase) => message.includes(phrase));
 };
 
 const formatDateOnly = (date) => {
@@ -574,7 +576,8 @@ export default function AddOfferPage({ navigation, route }) {
                         <TouchableOpacity onPress={() => navigation.goBack()}>
                             <MaterialIcons name="arrow-back-ios" size={22} color={colors.text} style={{ padding: 10 }} />
                         </TouchableOpacity>
-                        <Text style={{...textPresets.title
+                        <Text style={{
+                            ...textPresets.title
                         }}>
                             {offerData ? "Edit Offer" : "Add Offer"}
                         </Text>
@@ -587,7 +590,7 @@ export default function AddOfferPage({ navigation, route }) {
                                 <View style={{ padding: 20, justifyContent: "center", alignItems: "center" }}>
                                     <ActivityIndicator size="small" color="#157a4f" />
                                     <Text style={{
-                                        color: colors.text, marginTop: 8,...textPresets.label
+                                        color: colors.text, marginTop: 8, ...textPresets.label
                                     }}>Loading products...</Text>
                                 </View>
                             ) : (
@@ -637,7 +640,7 @@ export default function AddOfferPage({ navigation, route }) {
                                     <View style={styles.bannerOverlay}>
                                         <Feather name="edit-2" size={18} color="#fff" />
                                         <Text style={{
-                                            color: "#fff",  marginLeft: 6, ...textPresets.label 
+                                            color: "#fff", marginLeft: 6, ...textPresets.label
                                         }}>Tap to change</Text>
                                     </View>
                                 </>
@@ -645,7 +648,7 @@ export default function AddOfferPage({ navigation, route }) {
                                 <>
                                     <Feather name="upload" size={30} color="#157a4f" />
                                     <Text style={{ color: "#157a4f", marginTop: 8, ...textPresets.label }}>Upload Banner Image</Text>
-                                    <Text style={{ color: "#999",marginTop: 4,  ...textPresets.label }}>Recommended: 16:9 ratio</Text>
+                                    <Text style={{ color: "#999", marginTop: 4, ...textPresets.label }}>Recommended: 16:9 ratio</Text>
                                 </>
                             )}
                         </TouchableOpacity>
@@ -664,7 +667,7 @@ export default function AddOfferPage({ navigation, route }) {
                             onPress={() => setOfferTypeModalOpen(true)}
                         >
                             <Text style={{
-                                 color: offerType ? "#000" : "#999",...textPresets.body
+                                color: offerType ? "#000" : "#999", ...textPresets.body
                             }}>
                                 {offerType ? offerTypeOptions.find(opt => opt.value === offerType)?.label : "Select offer type"}
                             </Text>
@@ -681,7 +684,8 @@ export default function AddOfferPage({ navigation, route }) {
                             <TouchableWithoutFeedback onPress={() => setOfferTypeModalOpen(false)}>
                                 <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center" }}>
                                     <View style={{ backgroundColor: "#fff", borderRadius: 15, width: "85%", maxHeight: "50%", paddingVertical: 20 }}>
-                                        <Text style={{ ...textPresets.subtitle,  marginBottom: 15, paddingHorizontal: 20, color:"#157a4f"
+                                        <Text style={{
+                                            ...textPresets.subtitle, marginBottom: 15, paddingHorizontal: 20, color: "#157a4f"
                                         }}>
                                             Select Offer Type
                                         </Text>
@@ -702,7 +706,7 @@ export default function AddOfferPage({ navigation, route }) {
                                                         setOfferTypeModalOpen(false);
                                                     }}
                                                 >
-                                                    <Text style={{...textPresets.body, color: offerType === item.value ? "#157a4f" : colors.text }}>
+                                                    <Text style={{ ...textPresets.body, color: offerType === item.value ? "#157a4f" : colors.text }}>
                                                         {item.label}
                                                     </Text>
                                                 </TouchableOpacity>
@@ -753,21 +757,26 @@ export default function AddOfferPage({ navigation, route }) {
 
                         <View style={{ flexDirection: "row", alignItems: "center", paddingTop: 10 }}>
                             <Text style={{
-                                 color: colors.text,...textPresets.body, 
+                                color: colors.text, ...textPresets.body,
                             }}>Loyalty Reward</Text>
                             <Switch
                                 value={isDarkMode}
                                 onValueChange={(value) => {
+                                    if (offerData) return; // Prevent toggling when editing
                                     setIsDarkMode(value);
                                     if (!value) {
                                         setStars("");
                                     }
                                 }}
+                                disabled={!!offerData}
                                 thumbColor={isDarkMode ? "#157a4f" : "#f4f3f4"}
                                 trackColor={{ false: "#ccc", true: "#141414" }}
                                 ios_backgroundColor="#ccc"
-                                style={{ transform: [{ scaleX: 1.17 }, { scaleY: 1.17 }], paddingLeft: 10 }}
+                                style={{ transform: [{ scaleX: 1.17 }, { scaleY: 1.17 }], paddingLeft: 10, opacity: offerData ? 0.5 : 1 }}
                             />
+                            {offerData && isDarkMode ? (
+                                <Text style={{ color: "#6b7280", marginLeft: 8, ...textPresets.label }}>Locked</Text>
+                            ) : null}
                         </View>
 
                         {isDarkMode && (
@@ -778,11 +787,18 @@ export default function AddOfferPage({ navigation, route }) {
                                     keyboardType="numeric"
                                     value={stars}
                                     onChangeText={(value) => {
+                                        if (offerData) return; // Prevent editing when in edit mode
                                         const num = value.replace(/[^0-9]/g, "");
                                         if (num === "" || Number(num) <= 50) setStars(num);
                                     }}
-                                    style={styles.input}
+                                    editable={!offerData}
+                                    style={[styles.input, offerData ? { backgroundColor: "#e5e3df", color: "#999" } : {}]}
                                 />
+                                {offerData ? (
+                                    <Text style={{ color: "#6b7280", marginTop: 4, ...textPresets.label }}>
+                                        Loyalty points cannot be changed after offer creation.
+                                    </Text>
+                                ) : null}
                             </>
                         )}
 
@@ -806,8 +822,8 @@ export default function AddOfferPage({ navigation, route }) {
                             >
                                 <MaterialIcons name="check-circle" size={20} color="#fff" />
                                 <Text style={{
-                                    color: "#fff", 
-                                     lineHeight: Math.round(14 * 1.5)
+                                    color: "#fff",
+                                    lineHeight: Math.round(14 * 1.5)
                                 }}>
                                     {isBannerUploading ? "Uploading Offer..." : isSaving ? (offerData ? "Updating..." : "Saving...") : offerData ? "Update Offer" : "Add Offer"}
                                 </Text>
@@ -818,7 +834,7 @@ export default function AddOfferPage({ navigation, route }) {
                                 <TouchableOpacity style={[styles.rowButton, { backgroundColor: "#e93c3c" }]}
                                     onPress={clearAllFields} >
                                     <MaterialIcons name="cancel" size={20} color="#fff" />
-                                    <Text style={{ color: "white",  lineHeight: Math.round(14 * 1.5) }}>Discard</Text>
+                                    <Text style={{ color: "white", lineHeight: Math.round(14 * 1.5) }}>Discard</Text>
                                 </TouchableOpacity>
                             }
 
@@ -828,7 +844,7 @@ export default function AddOfferPage({ navigation, route }) {
                                     onPress={handleDelete}
                                     disabled={isSaving || isDeleting}
                                 >
-                                    <Text style={{ color: "#fff",  lineHeight: Math.round(14 * 1.5) }}>
+                                    <Text style={{ color: "#fff", lineHeight: Math.round(14 * 1.5) }}>
                                         {isDeleting ? "Deleting..." : "Delete Offer"}
                                     </Text>
                                 </TouchableOpacity>
@@ -851,48 +867,48 @@ export default function AddOfferPage({ navigation, route }) {
                 onRequestClose={() => setFlaggedModalVisible(false)}
                 statusBarTranslucent
             >
-             <View style={styles.flaggedOverlay}>
-                <View style={styles.flaggedCard}>
-                    <View style={styles.flaggedHeaderRow}>
-                                                <View style={styles.flaggedHeaderTextWrap}>
-                                                    <View style={styles.flaggedHeaderIconCircle}>
-                                                        <Feather name="alert-triangle" size={14} color="#d92d20" />
-                                                    </View>
-                                                    <View style={{ flex: 1 }}>
-                                                        <Text style={styles.flaggedHeaderTitle}>Inappropriate Content</Text>
-                                                        <Text style={styles.flaggedHeaderSubtitle}>
-                                                            Your image has been flagged by our safety system.
-                                                        </Text>
-                                                    </View>
-                                                </View>
-                                                <TouchableOpacity
-                                                    onPress={() => setFlaggedModalVisible(false)}
-                                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                                                >
-                                                    <Feather name="x" size={20} color="#8a8a8a" />
-                                                </TouchableOpacity>
-                                            </View>
-                                            {/* Centered big shield icon */}
-                                                                    <View style={styles.flaggedIconWrap}>
-                                                                        <View style={styles.flaggedIconCircle}>
-                                                                            <Feather name="shield" size={30} color="#d92d20" />
-                                                                        </View>
-                                                                    </View>
-                                            
-                                                                    <Text style={styles.flaggedTitle}>Upload Rejected</Text>
-                                                                    <Text style={styles.flaggedDescription}>
-                                                                        One or more of your uploaded images contains content that violates our community
-                                                                        guidelines. Please remove the inappropriate images and try posting again.
-                                                                    </Text>
-                                            
-                                                                    <TouchableOpacity
-                                                                        style={styles.flaggedButton}
-                                                                        onPress={() => setFlaggedModalVisible(false)}
-                                                                        activeOpacity={0.85}
-                                                                    >
-                                                                        <Text style={styles.flaggedButtonText}>I Understand, Go Back</Text>
-                                                                    </TouchableOpacity>
-                </View>
+                <View style={styles.flaggedOverlay}>
+                    <View style={styles.flaggedCard}>
+                        <View style={styles.flaggedHeaderRow}>
+                            <View style={styles.flaggedHeaderTextWrap}>
+                                <View style={styles.flaggedHeaderIconCircle}>
+                                    <Feather name="alert-triangle" size={14} color="#d92d20" />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.flaggedHeaderTitle}>Inappropriate Content</Text>
+                                    <Text style={styles.flaggedHeaderSubtitle}>
+                                        Your image has been flagged by our safety system.
+                                    </Text>
+                                </View>
+                            </View>
+                            <TouchableOpacity
+                                onPress={() => setFlaggedModalVisible(false)}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            >
+                                <Feather name="x" size={20} color="#8a8a8a" />
+                            </TouchableOpacity>
+                        </View>
+                        {/* Centered big shield icon */}
+                        <View style={styles.flaggedIconWrap}>
+                            <View style={styles.flaggedIconCircle}>
+                                <Feather name="shield" size={30} color="#d92d20" />
+                            </View>
+                        </View>
+
+                        <Text style={styles.flaggedTitle}>Upload Rejected</Text>
+                        <Text style={styles.flaggedDescription}>
+                            One or more of your uploaded images contains content that violates our community
+                            guidelines. Please remove the inappropriate images and try posting again.
+                        </Text>
+
+                        <TouchableOpacity
+                            style={styles.flaggedButton}
+                            onPress={() => setFlaggedModalVisible(false)}
+                            activeOpacity={0.85}
+                        >
+                            <Text style={styles.flaggedButtonText}>I Understand, Go Back</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </Modal>
         </SafeAreaView>
@@ -901,8 +917,8 @@ export default function AddOfferPage({ navigation, route }) {
 
 const styles = StyleSheet.create({
     row1: { alignItems: "center", flexDirection: "row", paddingVertical: 6, paddingHorizontal: 10 },
-    text: {  paddingTop: 20, ...textPresets.body },
-    input: {  backgroundColor: "#e6e6e6", padding: 12, borderRadius: 10, ...textPresets.body },
+    text: { paddingTop: 20, ...textPresets.body },
+    input: { backgroundColor: "#e6e6e6", padding: 12, borderRadius: 10, ...textPresets.body },
     button: { backgroundColor: "#f5b849", borderRadius: 10, alignItems: "center", justifyContent: "center", padding: 6, borderColor: "#b9b9b9", borderWidth: 1, marginTop: 20 },
     dateBox: { flex: 1, flexDirection: "row", alignItems: "center", backgroundColor: "#ccc", borderRadius: 10, paddingHorizontal: 10 },
     rowButton: {

@@ -157,7 +157,7 @@ export default function BannerList({ navigation }) {
                         return (
                             <View key={item?.requestId || item?._id} style={styles.bannerCard}>
                                 <View style={styles.bannerCardTop}>
-                                    <View style={[styles.bannerThumb, { backgroundColor: colors.divider }]}> 
+                                    <View style={[styles.bannerThumb, { backgroundColor: colors.divider }]}>
                                         {item?.imageUrl ? (
                                             <Image source={{ uri: item.imageUrl }} style={{ width: "100%", height: "100%", borderRadius: 8 }} />
                                         ) : (
@@ -168,7 +168,7 @@ export default function BannerList({ navigation }) {
                                         <Text style={{ ...textPresets.body }}>{item?.bannerTitle || "Banner"}</Text>
                                         <Text style={{ ...textPresets.caption }}>{item?.bannerCategory || "General"}</Text>
                                     </View>
-                                    <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}> 
+                                    <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
                                         <Text style={{ color: statusStyle.text, ...textPresets.caption }}>{statusStyle.label}</Text>
                                     </View>
                                 </View>
@@ -185,15 +185,27 @@ export default function BannerList({ navigation }) {
                                     <Text style={styles.detailValue}>Rs. {item?.totalPrice || 0}</Text>
                                 </View>
 
-                                {statusStyle.canPay ? (
-                                    <TouchableOpacity style={styles.paybtn} onPress={() => handlePayNow(item)} disabled={payingId === (item?.requestId || item?._id)}>
-                                        {payingId === (item?.requestId || item?._id) ? (
-                                            <ActivityIndicator size="small" color="#fff" />
-                                        ) : (
-                                            <Text style={{ ...textPresets.body }}>Pay Now</Text>
-                                        )}
-                                    </TouchableOpacity>
-                                ) : null}
+                                <View style={styles.bannerActionsRow}>
+                                    {statusStyle.canPay ? (
+                                        <TouchableOpacity style={[styles.paybtn, { flex: 1 }]} onPress={() => handlePayNow(item)} disabled={payingId === (item?.requestId || item?._id)}>
+                                            {payingId === (item?.requestId || item?._id) ? (
+                                                <ActivityIndicator size="small" color="#fff" />
+                                            ) : (
+                                                <Text style={{ ...textPresets.body }}>Pay Now</Text>
+                                            )}
+                                        </TouchableOpacity>
+                                    ) : null}
+
+                                    {["under_review", "pending", "rejected", "approved"].includes(String(item?.status || "").toLowerCase()) && String(item?.paymentStatus || "").toLowerCase() !== "paid" ? (
+                                        <TouchableOpacity
+                                            style={styles.editBtn}
+                                            onPress={() => navigation.navigate("BannerPage", { editData: item })}
+                                        >
+                                            <Feather name="edit-2" size={14} color="#fff" />
+                                            <Text style={{ color: "#fff", marginLeft: 4, ...textPresets.label }}>Edit</Text>
+                                        </TouchableOpacity>
+                                    ) : null}
+                                </View>
                             </View>
                         );
                     })
@@ -223,4 +235,6 @@ const styles = StyleSheet.create({
     paybtn: { flexDirection: "row", alignItems: "center", paddingVertical: 8, borderRadius: 12, backgroundColor: "#f5b849", justifyContent: "center", width: "100%", alignSelf: "center", marginVertical: 5 },
     loaderBox: { alignItems: "center", justifyContent: "center", paddingVertical: 24 },
     emptyBox: { alignItems: "center", justifyContent: "center", paddingVertical: 24 },
+    bannerActionsRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 },
+    editBtn: { flexDirection: "row", alignItems: "center", paddingVertical: 11, paddingHorizontal: 14, borderRadius: 12, backgroundColor: "#157a4f", justifyContent: "center" },
 });

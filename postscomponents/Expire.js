@@ -13,6 +13,7 @@ import { ThemeContext } from "../theme/ThemeContext";
 import { AntDesign, MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL } from "../config";
+import { textPresets } from "../theme/typography";
 
 export default function Expire({ searchText = "" }) {
     const { colors } = useContext(ThemeContext);
@@ -221,16 +222,12 @@ export default function Expire({ searchText = "" }) {
 
                     <View style={{ flex: 1, paddingHorizontal: 10, justifyContent:"center"
                      }}>
-                            <Text style={{ fontSize: 16, fontFamily: "Medium",
-                                lineHeight: Math.round(16 * 1.5), width: "80%"
-                            }}>
+                            <Text style={{ width: "80%", ...textPresets.body }}>
                                 {title}
                             </Text>
 
                         {validTo && (
-                            <Text style={{ fontSize: 12, marginTop: 3,
-                                fontFamily:"Medium", lineHeight: Math.round(12 * 1.5), color:"#157a4f"
-                             }}>
+                            <Text style={{ ...textPresets.label, color: "#157a4f" }}>
                                 Expired On: {new Date(validTo).toDateString()}
                             </Text>
                         )}
@@ -265,8 +262,7 @@ export default function Expire({ searchText = "" }) {
             onRefresh={fetchExpiredOffers}
             ListEmptyComponent={
                 !loading && (
-                    <Text style={{ textAlign: "center", marginTop: 20, color: colors.text,
-                        fontSize:12, fontFamily:"Medium", lineHeight: Math.round(12 * 1.5)
+                    <Text style={{ textAlign: "center", marginTop: 20, ...textPresets.body
                      }}>
                         No expired offers yet
                     </Text>

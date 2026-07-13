@@ -6,6 +6,7 @@ import { AntDesign, MaterialIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL } from "../config";
+import { textPresets } from "../theme/typography";
 
 export default function Total({ products, setProducts, searchText,}) {
 
@@ -95,7 +96,7 @@ export default function Total({ products, setProducts, searchText,}) {
 
         <View style={{ flex: 1, paddingHorizontal: 10 }}>
           <View style={styles.row}>
-            <Text style={{ fontSize: 16, fontFamily:"Medium", lineHeight: Math.round(16 * 1.5), width: "65%" }}
+            <Text style={{ width: "65%", ...textPresets.body }}
             numberOfLines={1} ellipsizeMode="tail">
               {item.productname}
             </Text>
@@ -128,16 +129,13 @@ export default function Total({ products, setProducts, searchText,}) {
 
       <View style={{flexDirection:"row", alignItems:"center", gap:4}}>
         <AntDesign name="tag" size={12} color="#157a4f"/>
-          <Text style={{ fontFamily:"Medium", lineHeight: Math.round(14 * 1.5),
-            fontSize: 12, color:"#157a4f"
+          <Text style={{ ...textPresets.label, color:"#157a4f"
            }}>
             Category: {item.category}
           </Text>
           </View>
 
-          <Text numberOfLines={2} style={{ fontFamily:"Medium", lineHeight: Math.round(12 * 1.5),
-            fontSize: 12, ellipsizeMode: "tail"
-           }}>
+          <Text numberOfLines={2} ellipsizeMode="tail" style={{ ...textPresets.label, color: colors.text }}>
             Description: {item.description}
           </Text>
         </View>
