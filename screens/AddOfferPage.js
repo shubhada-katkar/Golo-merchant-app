@@ -126,12 +126,22 @@ const normalizeSelectedProduct = (product, offerType = "") => {
         0
     );
 
+    let offerPrice = product?.offerPrice;
+    if (offerPrice === undefined || offerPrice === null || offerPrice === "") {
+        offerPrice = calculateOfferPrice(originalPrice, offerType);
+    } else {
+        offerPrice = Number(offerPrice);
+        if (!Number.isFinite(offerPrice)) {
+            offerPrice = calculateOfferPrice(originalPrice, offerType);
+        }
+    }
+
     return {
         productId: product?._id || product?.id || product?.productId || "",
         productName: product?.name || product?.productname || product?.productName || "Product",
         imageUrl: product?.image?.url || product?.images?.[0] || product?.imageUrl || "",
         originalPrice,
-        offerPrice: Number(product?.offerPrice ?? calculateOfferPrice(originalPrice, offerType)),
+        offerPrice,
         stockQuantity: Number.isFinite(numericStock) ? numericStock : 0,
     };
 };
@@ -278,27 +288,91 @@ export default function AddOfferPage({ navigation, route }) {
             ? offerData.selectedProducts
             : [];
 
-        const selectedProds = selectedIds
-            .map((id) => {
-                const merchantProduct = merchantProducts.find(p => p._id === id || p.id === id);
-                if (merchantProduct) {
-                    return normalizeSelectedProduct(merchantProduct, offerType);
+        setSelectedProducts((prevSelectedProducts) => {
+            return selectedIds
+                .map((id) => {
+                    const existingProduct = prevSelectedProducts.find(
+                        p => p.productId === id || p._id === id || p.id === id
+                    );
+
+                    const merchantProduct = merchantProducts.find(p => p._id === id || p.id === id);
+                    if (merchantProduct) {
+                        const normalized = normalizeSelectedProduct(merchantProduct, offerType);
+                        if (existingProduct && existingProduct.offerPrice !== undefined) {
+                            normalized.offerPrice = existingProduct.offerPrice;
+                        }
+                        return normalized;
+                    }
+
+                    const fallbackProduct = fallbackProducts.find(
+                        (product) => product?.productId === id || product?._id === id || product?.id === id
+                    );
+
+                    if (!fallbackProduct) {
+                        if (existingProduct) {
+                            return existingProduct;
+                        }
+                        return null;
+                    }
+
+                    const normalized = normalizeSelectedProduct(fallbackProduct, offerType);
+                    if (existingProduct && existingProduct.offerPrice !== undefined) {
+                        normalized.offerPrice = existingProduct.offerPrice;
+                    }
+                    return normalized;
+                })
+                .filter(Boolean);
+        });
+    }, [selectedIds, merchantProducts, offerType, offerData]);
+
+    const handleDiscountPriceChange = (productId, value) => {
+        // Strip any non-numeric and non-decimal characters
+        const cleanedValue = value.replace(/[^0-9.]/g, "");
+
+        // Handle double decimals
+        const firstDecimalIndex = cleanedValue.indexOf(".");
+        let finalValue = cleanedValue;
+        if (firstDecimalIndex !== -1) {
+            const beforeDecimal = cleanedValue.slice(0, firstDecimalIndex + 1);
+            const borderAfterDecimal = cleanedValue.slice(firstDecimalIndex + 1).replace(/\./g, "");
+            finalValue = beforeDecimal + borderAfterDecimal;
+        }
+
+        setSelectedProducts((prevProducts) => {
+            return prevProducts.map((p) => {
+                const id = p.productId || p._id || p.id;
+                if (id === productId) {
+                    return {
+                        ...p,
+                        offerPrice: finalValue,
+                    };
                 }
+                return p;
+            });
+        });
+    };
 
-                const fallbackProduct = fallbackProducts.find(
-                    (product) => product?.productId === id || product?._id === id || product?.id === id
-                );
+    // Helper to calculate active days (inclusive of both start and end date)
+    const getActiveDays = () => {
+        if (!fromDate || !toDate) return 0;
+        const start = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate());
+        const end = new Date(toDate.getFullYear(), toDate.getMonth(), toDate.getDate());
+        const diffTime = end - start;
+        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1;
+        return diffDays > 0 ? diffDays : 0;
+    };
 
-                if (!fallbackProduct) {
-                    return null;
-                }
-
-                return normalizeSelectedProduct(fallbackProduct, offerType);
-            })
-            .filter(Boolean);
-
-        setSelectedProducts(selectedProds);
-    }, [selectedIds, merchantProducts, offerData]);
+    // Helper to calculate expiry days from today to toDate
+    const getDaysUntilExpiry = () => {
+        if (!toDate) return 0;
+        const today = new Date();
+        const todayZero = new Date(today.getTime());
+        todayZero.setHours(0, 0, 0, 0);
+        const end = new Date(toDate.getFullYear(), toDate.getMonth(), toDate.getDate());
+        const diffTime = end - todayZero;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays;
+    };
 
     const clearAllFields = () => {
         setTitle("");
@@ -618,7 +692,11 @@ export default function AddOfferPage({ navigation, route }) {
 
                         {showOffers && (
                             <View style={{ marginTop: 10 }}>
-                                <OfferScroll products={selectedProducts} offerType={offerType} />
+                                <OfferScroll
+                                    products={selectedProducts}
+                                    offerType={offerType}
+                                    onChangeDiscountPrice={handleDiscountPriceChange}
+                                />
                             </View>
                         )}
 
@@ -744,6 +822,31 @@ export default function AddOfferPage({ navigation, route }) {
                                 </View>
                             </TouchableOpacity>
                         </View>
+
+                        {fromDate && toDate && (
+                            <View style={styles.validitySummary}>
+                                <View style={styles.summaryItem}>
+                                    <MaterialIcons name="date-range" size={18} color="#157a4f" />
+                                    <Text style={styles.summaryText}>
+                                        Active Days: <Text style={styles.summaryText}>{getActiveDays()} {getActiveDays() === 1 ? "day" : "days"}</Text>
+                                    </Text>
+                                </View>
+                                <View style={styles.summaryItem}>
+                                    <MaterialIcons name="timer" size={18} color="#e53935" />
+                                    <Text style={styles.summaryText}>Promotion Expiry:
+                                        {getDaysUntilExpiry() > 1 ? (
+                                            ` Offer ends in ${getDaysUntilExpiry()} days`
+                                        ) : getDaysUntilExpiry() === 1 ? (
+                                            " Offer ends in 1 day"
+                                        ) : getDaysUntilExpiry() === 0 ? (
+                                            " Offer ends today"
+                                        ) : (
+                                            " Offer expired"
+                                        )}
+                                    </Text>
+                                </View>
+                            </View>
+                        )}
 
                         {showPicker && (
                             <DateTimePicker
@@ -1072,5 +1175,24 @@ const styles = StyleSheet.create({
     flaggedButtonText: {
         color: "#fff",
         ...textPresets.body,
+    },
+    validitySummary: {
+        backgroundColor: "#f5f5f5",
+        borderRadius: 8,
+        padding: 10,
+        marginTop: 10,
+        justifyContent: "space-around",
+        borderWidth: 1,
+        borderColor: "#e0e0e0",
+    },
+    summaryItem: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginVertical: 6,
+        gap: 3
+    },
+    summaryText: {
+        ...textPresets.label,
+        color: "#333",
     },
 });

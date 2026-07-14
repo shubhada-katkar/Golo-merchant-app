@@ -1,16 +1,19 @@
 import React, { useMemo, useState, useEffect, useCallback } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { Entypo } from "@expo/vector-icons";
 import All from "../components/All";
 import Accepted from "../components/Accepted";
-import Completed  from "../components/Completed";
+import Completed from "../components/Completed";
+import Pending from "../components/Pending";
+import Rejected from "../components/Rejected";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL as CONFIG_BASE_URL } from "../config";
 import { enrichOrderDetails } from "../services/orderService";
 import { textPresets } from "../theme/typography";
 
-export default function Orders() {    const navigation = useNavigation();    const [activeTab, setactiveTab] = useState("All");
+export default function Orders() {
+    const navigation = useNavigation(); const [activeTab, setactiveTab] = useState("All");
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const BASE_URL = (process.env.EXPO_PUBLIC_API_URL || CONFIG_BASE_URL || "").replace(/\/+$/, "");
@@ -38,8 +41,8 @@ export default function Orders() {    const navigation = useNavigation();    con
             const list = Array.isArray(data)
                 ? data
                 : Array.isArray(data?.data)
-                ? data.data
-                : data?.orders || [];
+                    ? data.data
+                    : data?.orders || [];
 
             const enrichedList = await Promise.all(
                 list.map((order) => enrichOrderDetails(order, token).catch(() => order))
@@ -59,9 +62,9 @@ export default function Orders() {    const navigation = useNavigation();    con
     }, [fetchOrders]);
 
     useFocusEffect(
-      React.useCallback(() => {
-        fetchOrders();
-      }, [fetchOrders])
+        React.useCallback(() => {
+            fetchOrders();
+        }, [fetchOrders])
     );
 
     const totalAmount = useMemo(
@@ -75,6 +78,14 @@ export default function Orders() {    const navigation = useNavigation();    con
     );
     const acceptedOrders = useMemo(
         () => orders.filter((o) => ["accepted"].includes(String(o?.status || "").toLowerCase())),
+        [orders]
+    );
+    const pendingOrders = useMemo(
+        () => orders.filter((o) => ["pending", "new", "claimed"].includes(String(o?.status || "").toLowerCase())),
+        [orders]
+    );
+    const rejectedOrders = useMemo(
+        () => orders.filter((o) => ["rejected"].includes(String(o?.status || "").toLowerCase())),
         [orders]
     );
 
@@ -155,32 +166,46 @@ export default function Orders() {    const navigation = useNavigation();    con
     };
 
     return (
-        <View style={{flex:1}}>
+        <View style={{ flex: 1 }}>
 
             <View style={{ paddingVertical: 12 }}>
                 <View style={styles.card1}>
-                    <Text style={{ ...textPresets.body
-                     }}>Total Orders</Text>
-                    <Text style={{...textPresets.body, color:"#157a4f"
-                    }}>{totalCount} Orders</Text>     
-                    </View>                   
+                    <Text style={{
+                        ...textPresets.body
+                    }}>Total Orders</Text>
+                    <Text style={{
+                        ...textPresets.body, color: "#157a4f"
+                    }}>{totalCount} Orders</Text>
+                </View>
             </View>
 
-            <View style={styles.row1}>
-                <TouchableOpacity onPress={() => setactiveTab("All")}
-                    style={[styles.row1button, activeTab == "All" && styles.ActiveTab]}>
-                    <Text style={[styles.row1text, activeTab == "All" && styles.ActiveTabText]}>All</Text>
-                </TouchableOpacity>
+            <View style={{ marginBottom: 6 }}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row1Scroll}>
+                    <TouchableOpacity onPress={() => setactiveTab("All")}
+                        style={[styles.row1button, activeTab == "All" && styles.ActiveTab]}>
+                        <Text style={[styles.row1text, activeTab == "All" && styles.ActiveTabText]}>All</Text>
+                    </TouchableOpacity>
 
-                <TouchableOpacity onPress={() => setactiveTab("Accepted")}
-                    style={[styles.row1button, activeTab == "Accepted" && styles.ActiveTab]}>
-                    <Text style={[styles.row1text, activeTab == "Accepted" && styles.ActiveTabText]}>Accepted</Text>
-                </TouchableOpacity>
+                    <TouchableOpacity onPress={() => setactiveTab("Pending")}
+                        style={[styles.row1button, activeTab == "Pending" && styles.ActiveTab]}>
+                        <Text style={[styles.row1text, activeTab == "Pending" && styles.ActiveTabText]}>Pending</Text>
+                    </TouchableOpacity>
 
-                <TouchableOpacity onPress={() => setactiveTab("Completed")}
-                    style={[styles.row1button, activeTab == "Completed" && styles.ActiveTab]}>
-                    <Text style={[styles.row1text, activeTab == "Completed" && styles.ActiveTabText]}>Completed</Text>
-                </TouchableOpacity>
+                    <TouchableOpacity onPress={() => setactiveTab("Accepted")}
+                        style={[styles.row1button, activeTab == "Accepted" && styles.ActiveTab]}>
+                        <Text style={[styles.row1text, activeTab == "Accepted" && styles.ActiveTabText]}>Accepted</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity onPress={() => setactiveTab("Completed")}
+                        style={[styles.row1button, activeTab == "Completed" && styles.ActiveTab]}>
+                        <Text style={[styles.row1text, activeTab == "Completed" && styles.ActiveTabText]}>Completed</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity onPress={() => setactiveTab("Rejected")}
+                        style={[styles.row1button, activeTab == "Rejected" && styles.ActiveTab]}>
+                        <Text style={[styles.row1text, activeTab == "Rejected" && styles.ActiveTabText]}>Rejected</Text>
+                    </TouchableOpacity>
+                </ScrollView>
             </View>
 
             {loading ? (
@@ -190,8 +215,10 @@ export default function Orders() {    const navigation = useNavigation();    con
             ) : (
                 <>
                     {activeTab == "All" && <All orders={orders} onStatusChange={updateOrderStatus} onViewOrder={(order) => navigation.navigate("OrderDetailPage", { order })} onRefresh={fetchOrders} onDelete={deleteOrder} />}
+                    {activeTab == "Pending" && <Pending orders={pendingOrders} onStatusChange={updateOrderStatus} />}
                     {activeTab == "Accepted" && <Accepted orders={acceptedOrders} onRefresh={fetchOrders} onComplete={(order) => navigation.navigate("OrderDetailPage", { order })} onDelete={deleteOrder} />}
                     {activeTab == "Completed" && <Completed orders={completedOrders} onViewOrder={(order) => navigation.navigate("OrderDetailPage", { order })} onRefresh={fetchOrders} onDelete={deleteOrder} />}
+                    {activeTab == "Rejected" && <Rejected orders={rejectedOrders} onDelete={deleteOrder} />}
                 </>
             )}
 
@@ -204,27 +231,28 @@ const styles = StyleSheet.create({
         paddingHorizontal: 22,
         justifyContent: "space-between",
         flexDirection: "row",
-        alignItems: "center",   
+        alignItems: "center",
     },
-    row1: {
+    row1Scroll: {
         flexDirection: "row",
-        paddingHorizontal:12,
-        gap:8,
-        paddingBottom:8
+        paddingHorizontal: 12,
+        gap: 8,
+        paddingBottom: 8,
     },
     row1text: {
         color: "white",
         paddingHorizontal: 6,
         ...textPresets.body,
-        lineHeight:Math.round(14 * 1.5)
+        lineHeight: Math.round(14 * 1.5)
     },
     row1button: {
-        flex:1,
+        paddingHorizontal: 16,
         borderRadius: 20,
         backgroundColor: "#bebebe",
         paddingVertical: 6,
         alignItems: "center",
-        justifyContent:"center"
+        justifyContent: "center",
+        minWidth: 80,
     },
     ActiveTab: {
         backgroundColor: "#ffffff",

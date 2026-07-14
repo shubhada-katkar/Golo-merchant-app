@@ -1,45 +1,23 @@
 import React from "react";
 import {
-  View, StyleSheet, Image, Text,
+  View, StyleSheet, Image, Text, TextInput,
 } from "react-native";
 import { textPresets } from "../theme/typography";
 
-export default function OfferScroll({ products = [] }) {
+export default function OfferScroll({ products = [], onChangeDiscountPrice }) {
   if (!products || products.length === 0) {
     return null;
   }
 
-  const isSingle = products.length === 1;
-
   const renderItem = (item, index) => {
     const imageUri = item.image?.url || item.imageUrl || item.images?.[0] || "";
     const name = item.productname || item.name || item.productName || "Product";
-    const originalPrice = Number(item.originalPrice ?? item.price ?? item.offerPrice ?? 0);
-    const offerPrice = Number(item.offerPrice ?? item.price ?? item.originalPrice ?? 0);
-    const hasDiscount = offerPrice !== originalPrice && originalPrice > 0;
+    const originalPrice = Number(item.originalPrice ?? item.price ?? 0);
+
+    // Use the raw string/number value from state, default to original price
+    const offerPriceVal = item.offerPrice !== undefined && item.offerPrice !== null ? item.offerPrice : originalPrice;
+    const offerPriceNum = Number(offerPriceVal);
     const key = item._id || item.id || item.productId || `${name}-${index}`;
-
-    if (isSingle) {
-      return (
-        <View key={key} style={styles.singleCard}>
-          {imageUri ? (
-            <Image source={{ uri: imageUri }} style={styles.singleImage} />
-          ) : (
-            <View style={[styles.singleImage, styles.imagePlaceholder]}>
-              <Text style={styles.imagePlaceholderText}>No Image</Text>
-            </View>
-          )}
-
-          <View style={styles.singleTextbox}>
-            <Text style={styles.singleNameText} numberOfLines={2}>{name}</Text>
-            <Text style={styles.singleText}>Price: Rs. {offerPrice.toFixed(2)}</Text>
-            {hasDiscount && (
-              <Text style={styles.singleText}>Original: Rs. {originalPrice.toFixed(2)}</Text>
-            )}
-          </View>
-        </View>
-      );
-    }
 
     return (
       <View key={key} style={styles.card}>
@@ -53,9 +31,21 @@ export default function OfferScroll({ products = [] }) {
 
         <View style={styles.textbox}>
           <Text style={styles.nameText} numberOfLines={2}>{name}</Text>
-          <Text style={styles.text}>Price: Rs. {offerPrice.toFixed(2)}</Text>
-          {hasDiscount && (
-            <Text style={styles.text}>Original: Rs. {originalPrice.toFixed(2)}</Text>
+          <Text style={styles.text}>Original Price: Rs. {originalPrice.toFixed(2)}</Text>
+          {onChangeDiscountPrice ? (
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Discount Price (Rs.):</Text>
+              <TextInput
+                style={styles.discountInput}
+                value={offerPriceVal.toString()}
+                keyboardType="numeric"
+                onChangeText={(val) => onChangeDiscountPrice(key, val)}
+              />
+            </View>
+          ) : (
+            <Text style={styles.text}>
+              Price: Rs. {Number.isFinite(offerPriceNum) ? offerPriceNum.toFixed(2) : originalPrice.toFixed(2)}
+            </Text>
           )}
         </View>
       </View>
@@ -64,7 +54,7 @@ export default function OfferScroll({ products = [] }) {
 
   return (
     <View style={styles.container}>
-      <View style={isSingle ? styles.singleListContainer : styles.listContainer}>
+      <View style={styles.listContainer}>
         {products.map(renderItem)}
       </View>
     </View>
@@ -77,30 +67,28 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     borderWidth: 1,
     borderColor: "#ccc",
-    paddingVertical: 10,
+    paddingVertical: 12,
     marginVertical: 10,
   },
   listContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-    paddingHorizontal: 10,
+    flexDirection: "column",
+    gap: 12,
+    paddingHorizontal: 12,
   },
   card: {
-    flexBasis: "48%",
-    flexGrow: 1,
-    maxWidth: "48%",
-    borderRadius: 15,
+    flexDirection: "row",
+    borderRadius: 12,
     borderColor: "#000000",
     borderWidth: 1,
     padding: 10,
     backgroundColor: "#f8f8f8",
+    alignItems: "center",
   },
   image: {
-    borderRadius: 12,
+    borderRadius: 10,
     borderColor: "#d7d7d7",
-    width: "100%",
-    aspectRatio: 1.25,
+    width: 90,
+    height: 90,
   },
   imagePlaceholder: {
     alignItems: "center",
@@ -112,49 +100,42 @@ const styles = StyleSheet.create({
     ...textPresets.label
   },
   textbox: {
-    paddingTop: 10,
+    flex: 1,
+    paddingLeft: 12,
+    justifyContent: "center",
   },
   nameText: {
     color: "#111",
-    marginBottom: 2,
+    marginBottom: 4,
+    fontWeight: "bold",
     ...textPresets.label
   },
   text: {
-    color: "#333",
+    color: "#555",
     ...textPresets.label
   },
-
-  // Single-product layout
-  singleListContainer: {
-    paddingHorizontal: 10,
-  },
-  singleCard: {
+  inputContainer: {
+    marginTop: 6,
     flexDirection: "row",
-    borderRadius: 15,
-    borderColor: "#000000",
-    borderWidth: 1,
-    padding: 12,
-    backgroundColor: "#f8f8f8",
     alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    paddingHorizontal: 8,
+    height: 38,
   },
-  singleImage: {
-    borderRadius: 12,
-    borderColor: "#d7d7d7",
-    width: 130,
-    height: 130,
-  },
-  singleTextbox: {
-    flex: 1,
-    paddingLeft: 14,
-    justifyContent: "center",
-  },
-  singleNameText: {
-    color: "#111",
-    marginBottom: 6,
-    ...textPresets.label
-  },
-  singleText: {
+  inputLabel: {
     color: "#333",
-    ...textPresets.label
+    fontSize: 12,
+    marginRight: 4,
+    ...textPresets.label,
+  },
+  discountInput: {
+    flex: 1,
+    color: "#111",
+    fontSize: 14,
+    paddingVertical: 2,
+    fontWeight: "bold",
   },
 });

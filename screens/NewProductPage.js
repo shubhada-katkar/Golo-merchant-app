@@ -121,9 +121,21 @@ export default function NewProductPage({ navigation, route }) {
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
 
   const categoryOptions = [
-    { label: "Clothing", value: "Clothing" },
-    { label: "Electronics", value: "Electronics" },
-    { label: "Food and Groceries", value: "Food and Groceries" },
+    { label: "Food & Restaurants", value: "Food & Restaurants" },
+    { label: "Home Services", value: "Home Services" },
+    { label: "Beauty & Wellness", value: "Beauty & Wellness" },
+    { label: "Healthcare & Medical", value: "Healthcare & Medical" },
+    { label: "Hotels & Accommodation", value: "Hotels & Accommodation" },
+    { label: "Shopping & Retail", value: "Shopping & Retail" },
+    { label: "Education & Training", value: "Education & Training" },
+    { label: "Real Estate", value: "Real Estate" },
+    { label: "Events & Entertainment", value: "Events & Entertainment" },
+    { label: "Professional Services", value: "Professional Services" },
+    { label: "Automotive Services", value: "Automotive Services" },
+    { label: "Home Improvement", value: "Home Improvement" },
+    { label: "Fitness & Sports", value: "Fitness & Sports" },
+    { label: "Daily Needs & Utilities", value: "Daily Needs & Utilities" },
+    { label: "Local Businesses & Vendors", value: "Local Businesses & Vendors" },
   ];
 
   const [selectedImages, setSelectedImages] = useState([]);

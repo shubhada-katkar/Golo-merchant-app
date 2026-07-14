@@ -1,4 +1,4 @@
-import React, { useState, useContext, useCallback, useEffect } from "react";
+import React, { useState, useContext, useCallback, useEffect, useRef } from "react";
 import { View, TouchableOpacity, Text, StyleSheet, Image, ScrollView, Alert, TextInput, Platform, ActivityIndicator } from "react-native";
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
@@ -103,6 +103,13 @@ export default function BannerPage({ navigation, route }) {
     const [flaggedModalVisible, setFlaggedModalVisible] = useState(false);
     const [isFetchingEdit, setIsFetchingEdit] = useState(false);
 
+    const [locations, setLocations] = useState([]);
+    const [locationInputText, setLocationInputText] = useState("");
+    const [locationSuggestions, setLocationSuggestions] = useState([]);
+    const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const debounceTimer = useRef(null);
+
     // ── Pre-populate form when editing ─────────────────────────
     useEffect(() => {
         if (!isEditMode || !editData) return;
@@ -118,6 +125,11 @@ export default function BannerPage({ navigation, route }) {
         // Image
         if (editData.imageUrl) setBannerImage(editData.imageUrl);
 
+        // Locations
+        if (Array.isArray(editData.targetCities)) {
+            setLocations(editData.targetCities);
+        }
+
         // Dates – backend stores as Date[] (ISO strings); normalise to "YYYY-MM-DD" keys
         const rawDates = Array.isArray(editData.selectedDates) ? editData.selectedDates : [];
         const dateKeys = rawDates
@@ -127,6 +139,128 @@ export default function BannerPage({ navigation, route }) {
         // Deduplicate
         setSelectedDates([...new Set(dateKeys)]);
     }, [isEditMode]); // only run once on mount if editing
+
+    // ── Location autocomplete via Nominatim ────────────────────
+    const fetchLocationSuggestions = useCallback(async (query) => {
+        const trimmed = (query || "").trim();
+        if (!trimmed || trimmed.length < 2) {
+            setLocationSuggestions([]);
+            setSuggestionsLoading(false);
+            return;
+        }
+        setSuggestionsLoading(true);
+        try {
+            const params = new URLSearchParams({
+                q: trimmed,
+                format: "json",
+                addressdetails: "1",
+                limit: "6",
+                "accept-language": "en",
+            });
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/search?${params.toString()}`,
+                { headers: { "User-Agent": "GoloMerchantApp/1.0" } }
+            );
+            const data = await response.json();
+            const seen = new Set();
+            const suggestions = (data || []).map((item) => {
+                const addr = item.address || {};
+                const city = addr.city || addr.town || addr.village || addr.state_district || addr.county || "";
+                const state = addr.state || "";
+                const country = addr.country || "";
+                const label = [city, state, country].filter(Boolean).join(", ") || item.display_name || trimmed;
+                return { id: String(item.place_id), label, city };
+            }).filter((s) => {
+                if (!s.city || seen.has(s.city.toLowerCase())) return false;
+                seen.add(s.city.toLowerCase());
+                return true;
+            });
+            setLocationSuggestions(suggestions);
+        } catch (err) {
+            console.warn("Location suggestion error:", err);
+            setLocationSuggestions([]);
+        } finally {
+            setSuggestionsLoading(false);
+        }
+    }, []);
+
+    const handleLocationInputChange = useCallback((text) => {
+        setLocationInputText(text);
+        setLocationSuggestions([]);
+        if (debounceTimer.current) clearTimeout(debounceTimer.current);
+        debounceTimer.current = setTimeout(() => fetchLocationSuggestions(text), 400);
+    }, [fetchLocationSuggestions]);
+
+    const handleSelectSuggestion = useCallback((suggestion) => {
+        const cityName = suggestion.city || suggestion.label;
+        if (locations.length >= 7) {
+            Alert.alert("Limit reached", "You can specify up to 7 locations only.");
+            return;
+        }
+        if (locations.some((l) => l.toLowerCase() === cityName.toLowerCase())) {
+            Alert.alert("Duplicate", "This location is already in your list.");
+            return;
+        }
+        setLocations([...locations, cityName]);
+        setLocationInputText("");
+        setLocationSuggestions([]);
+    }, [locations]);
+
+    const handleAddLocation = () => {
+        const trimmed = locationInputText.trim();
+        if (!trimmed) return;
+        if (locations.length >= 7) {
+            Alert.alert("Limit reached", "You can specify up to 7 locations only.");
+            return;
+        }
+        if (locations.includes(trimmed)) {
+            Alert.alert("Duplicate location", "This location has already been added.");
+            return;
+        }
+        setLocations([...locations, trimmed]);
+        setLocationInputText("");
+        setLocationSuggestions([]);
+    };
+
+    const handleRemoveLocation = (locToRemove) => {
+        setLocations(locations.filter((loc) => loc !== locToRemove));
+    };
+
+    // ── Delete banner ───────────────────────────────────────────
+    const handleDelete = async () => {
+        if (!isEditMode || !editRequestId) return;
+        Alert.alert(
+            "Delete Banner",
+            "Are you sure you want to permanently delete this banner promotion? This action cannot be undone.",
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            setIsDeleting(true);
+                            const token = (await AsyncStorage.getItem("merchantToken")) || (await AsyncStorage.getItem("accessToken"));
+                            const response = await fetch(`${BASE_URL}/banners/promotions/${editRequestId}`, {
+                                method: "DELETE",
+                                headers: { Authorization: `Bearer ${token}` },
+                            });
+                            if (!response.ok) {
+                                const err = await response.json().catch(() => ({}));
+                                throw new Error(err?.message || "Could not delete banner.");
+                            }
+                            Alert.alert("Deleted", "Banner promotion has been deleted.");
+                            navigation.navigate("BannerList");
+                        } catch (e) {
+                            Alert.alert("Error", e?.message || "Please try again.");
+                        } finally {
+                            setIsDeleting(false);
+                        }
+                    },
+                },
+            ]
+        );
+    };
 
     const formatDateKey = (date) => {
         const y = date.getFullYear();
@@ -185,6 +319,14 @@ export default function BannerPage({ navigation, route }) {
             Alert.alert("No dates selected", "Please select at least one visibility date.");
             return;
         }
+        if (!isEditMode && locations.length === 0) {
+            Alert.alert("Missing locations", "Please add at least one target location.");
+            return;
+        }
+        if (locations.length > 7) {
+            Alert.alert("Too many locations", "You can specify up to 7 locations only.");
+            return;
+        }
         if (!BASE_URL) {
             Alert.alert("Configuration error", "API base URL is not configured.");
             return;
@@ -229,6 +371,8 @@ export default function BannerPage({ navigation, route }) {
 
             const method = isEditMode ? "PUT" : "POST";
 
+            // NOTE: UpdateBannerPromotionDto does NOT include targetCities
+            // (backend forbidNonWhitelisted: true), so we only send it on create.
             const bodyPayload = isEditMode
                 ? {
                     bannerTitle: bannerTitle.trim(),
@@ -246,6 +390,7 @@ export default function BannerPage({ navigation, route }) {
                     dailyRate: RATE_PER_DAY,
                     platformFee: PLATFORM_FEE,
                     recommendedSize: "1920 x 520 px",
+                    targetCities: locations,
                 };
 
             const response = await fetch(url, {
@@ -351,6 +496,77 @@ export default function BannerPage({ navigation, route }) {
                         </View>
                     )}
 
+                    {/* BANNER LOCATIONS (MAX 7) */}
+                    <Text style={[styles.label, { color: colors.subtext, marginTop: 18 }]}>BANNER LOCATIONS (MAX 7)</Text>
+                    <View style={{ position: "relative" }}>
+                        <View style={styles.locationInputRow}>
+                            <TextInput
+                                style={[
+                                    styles.input,
+                                    {
+                                        flex: 1,
+                                        color: colors.text,
+                                        borderColor: locationSuggestions.length > 0 ? (colors.success || "#157a4f") : colors.border,
+                                        backgroundColor: colors.inputBackground,
+                                        marginRight: 8,
+                                        marginBottom: 0,
+                                    }
+                                ]}
+                                placeholder="Search city / area (e.g. Kolhapur)"
+                                placeholderTextColor={colors.subtext}
+                                value={locationInputText}
+                                onChangeText={handleLocationInputChange}
+                                onSubmitEditing={handleAddLocation}
+                                returnKeyType="done"
+                            />
+                            <TouchableOpacity
+                                style={[
+                                    styles.addLocationBtn,
+                                    { backgroundColor: colors.success || "#157a4f" }
+                                ]}
+                                onPress={handleAddLocation}
+                            >
+                                {suggestionsLoading
+                                    ? <ActivityIndicator size="small" color="#fff" />
+                                    : <Feather name="plus" size={20} color="#fff" />}
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Autocomplete dropdown */}
+                        {locationSuggestions.length > 0 && (
+                            <View style={[styles.suggestionsDropdown, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}>
+                                {locationSuggestions.map((s) => (
+                                    <TouchableOpacity
+                                        key={s.id}
+                                        style={styles.suggestionItem}
+                                        onPress={() => handleSelectSuggestion(s)}
+                                    >
+                                        <Feather name="map-pin" size={14} color={colors.subtext} style={{ marginRight: 8 }} />
+                                        <Text style={[styles.suggestionText, { color: colors.text }]} numberOfLines={1}>{s.label}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        )}
+                    </View>
+
+                    {locations.length > 0 ? (
+                        <View style={[styles.chipsWrap, { marginTop: 10 }]}>
+                            {locations.map((loc, idx) => (
+                                <View key={idx} style={[styles.chip, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}>
+                                    <Feather name="map-pin" size={12} color={colors.subtext} style={{ marginRight: 4 }} />
+                                    <Text style={{ ...textPresets.label }}>{loc}</Text>
+                                    <TouchableOpacity onPress={() => handleRemoveLocation(loc)} style={{ marginLeft: 6 }}>
+                                        <Feather name="x" size={14} color={colors.subtext} />
+                                    </TouchableOpacity>
+                                </View>
+                            ))}
+                        </View>
+                    ) : (
+                        <Text style={[styles.noDatesText, { color: colors.subtext, marginTop: 6 }]}>
+                            No target locations added yet. (Min 1, max 7)
+                        </Text>
+                    )}
+
                     <Text style={[styles.label, { color: colors.subtext, marginTop: 18 }]}>UPLOAD BANNER</Text>
                     <TouchableOpacity
                         style={[styles.uploadBox, { borderColor: colors.border }]}
@@ -428,7 +644,7 @@ export default function BannerPage({ navigation, route }) {
                                     }}
                                 />
                                 <TouchableOpacity
-                                    style={[styles.submitBtn, { backgroundColor: colors.success || "#157a4f", marginTop: 12 }]}
+                                    style={[styles.submitBtn, { backgroundColor: colors.success || "#f5b849", marginTop: 12 }]}
                                     onPress={() => setShowDatePicker(false)}
                                 >
                                     <Text style={styles.submitBtnText}>Done ({selectedDaysCount} selected)</Text>
@@ -467,16 +683,33 @@ export default function BannerPage({ navigation, route }) {
                     </View>
 
                     <TouchableOpacity
-                        style={[styles.submitBtn, { backgroundColor: colors.success || "#157a4f", opacity: isSubmitting || isUploadingImage ? 0.7 : 1 }]}
+                        style={[styles.submitBtn, { backgroundColor: colors.success || "#f5b849", opacity: isSubmitting || isUploadingImage ? 0.7 : 1 }]}
                         onPress={handleSubmit}
                         disabled={isSubmitting || isUploadingImage}
                     >
                         {isSubmitting || isUploadingImage ? (
                             <ActivityIndicator color="#fff" />
                         ) : (
-                            <Text style={styles.submitBtnText}>{isEditMode ? "Update Banner" : "Submit For Approval"}</Text>
+                            <Text style={styles.submitBtnText}>{isEditMode ? "Update Banner" : "Post Banner"}</Text>
                         )}
                     </TouchableOpacity>
+
+                    {/* Delete button — only shown in edit mode */}
+                    {isEditMode && (
+                        <TouchableOpacity
+                            style={[styles.deleteBtn, { opacity: isDeleting ? 0.7 : 1 }]}
+                            onPress={handleDelete}
+                            disabled={isDeleting}
+                        >
+                            {isDeleting
+                                ? <ActivityIndicator color="#e0483e" />
+                                : <>
+                                    <Feather name="trash-2" size={16} color="#e0483e" style={{ marginRight: 6 }} />
+                                    <Text style={styles.deleteBtnText}>Delete This Banner</Text>
+                                </>
+                            }
+                        </TouchableOpacity>
+                    )}
 
                     <Text style={[styles.footnote, { color: colors.subtext }]}>
                         Request status will be shown in Banner Promotions list as Under Review, Rejected, or Approved. Pay option appears after approval.
@@ -697,10 +930,10 @@ const styles = StyleSheet.create({
         ...textPresets.label
     },
     totalLabel: {
-        ...textPresets.label
+        ...textPresets.body
     },
     totalValue: {
-        ...textPresets.label
+        ...textPresets.body
     },
     submitBtn: {
         borderRadius: 14,
@@ -711,6 +944,54 @@ const styles = StyleSheet.create({
     submitBtnText: {
         color: "#fff",
         ...textPresets.body
+    },
+    locationInputRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginTop: 6,
+        marginBottom: 0,
+    },
+    addLocationBtn: {
+        borderRadius: 12,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    suggestionsDropdown: {
+        borderWidth: 1,
+        borderRadius: 12,
+        marginTop: 4,
+        overflow: "hidden",
+    },
+    suggestionItem: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingHorizontal: 14,
+        paddingVertical: 11,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: "#e5e5e5",
+    },
+    suggestionText: {
+        flex: 1,
+        fontSize: 13,
+        fontFamily: "Medium",
+    },
+    deleteBtn: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        borderWidth: 1.5,
+        borderColor: "#e0483e",
+        borderRadius: 14,
+        paddingVertical: 12,
+        marginTop: 14,
+    },
+    deleteBtnText: {
+        color: "#e0483e",
+        fontFamily: "SemiBold",
+        fontSize: 14,
+        lineHeight: Math.round(14 * 1.5),
     },
     footnote: {
         ...textPresets.caption,
