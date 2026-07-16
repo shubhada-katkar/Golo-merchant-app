@@ -20,6 +20,46 @@ export default function Overview() {
     const [uniqueClaimedCustomers, setUniqueClaimedCustomers] = useState(0);
     const [recentOrders, setRecentOrders] = useState([]);
     const [visitsTrend, setVisitsTrend] = useState({ labels: [], values: [] });
+    const [trendPeriod, setTrendPeriod] = useState("weekly");
+
+    const getActiveData = () => {
+        if (trendPeriod === "weekly") {
+            return {
+                labels: visitsTrend.labels || [],
+                values: visitsTrend.values || [],
+            };
+        } else {
+            const labels = [];
+            const values = [];
+            const now = new Date();
+
+            // Generate labels for 30 days
+            for (let i = 29; i >= 0; i--) {
+                const d = new Date(now);
+                d.setDate(now.getDate() - i);
+                const lbl = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+                labels.push(lbl);
+                values.push(0);
+            }
+
+            // Overwrite the last items with available trend values from backend
+            const bLabels = visitsTrend.labels || [];
+            const bValues = visitsTrend.values || [];
+            const startIdx = Math.max(0, 30 - bValues.length);
+
+            for (let i = 0; i < bValues.length; i++) {
+                const destIdx = startIdx + i;
+                if (destIdx < 30) {
+                    values[destIdx] = Number(bValues[i] || 0);
+                    if (bLabels[i]) {
+                        labels[destIdx] = bLabels[i];
+                    }
+                }
+            }
+
+            return { labels, values };
+        }
+    };
 
     const normalizeImageUrl = (value) => {
         if (!value) return null;
@@ -263,31 +303,54 @@ export default function Overview() {
 
             <View style={{ flexDirection: "row", paddingHorizontal: 16 }}>
                 <View style={styles.graph}>
-                    <View style={{ flexDirection: "row", alignContent: "center", justifyContent: "space-between" }}>
-                        <View style={{ flexDirection: "row", alignItems: "center" }}>
-                            <Text style={{ ...textPresets.label }}>
-                                Shop Visits
-                            </Text>
-                            <Octicons name="graph" size={16} color="green" style={{ paddingLeft: 8 }} />
-                        </View>
-                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                            <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: "#ef4444" }} />
-                            <Text style={{ ...textPresets.label, color: "#ef4444" }}>
-                                Live
-                            </Text>
-                        </View>
+                    <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 6 }}>
+                        <Text style={{ ...textPresets.label }}>
+                            Shop Visits
+                        </Text>
+                        <Octicons name="graph" size={16} color="green" style={{ paddingLeft: 8 }} />
                     </View>
+
+                    <View style={{ flexDirection: 'row', backgroundColor: '#f3f4f6', borderRadius: 8, padding: 2, alignSelf: "flex-end" }}>
+                        <TouchableOpacity
+                            style={{
+                                paddingVertical: 4,
+                                paddingHorizontal: 12,
+                                borderRadius: 6,
+                                backgroundColor: trendPeriod === 'weekly' ? '#157a4f' : 'transparent',
+                            }}
+                            onPress={() => setTrendPeriod('weekly')}
+                        >
+                            <Text style={{ ...textPresets.caption, color: trendPeriod === 'weekly' ? '#ffffff' : '#6b7280', fontWeight: '600' }}>
+                                Weekly
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={{
+                                paddingVertical: 4,
+                                paddingHorizontal: 12,
+                                borderRadius: 6,
+                                backgroundColor: trendPeriod === 'monthly' ? '#157a4f' : 'transparent',
+                            }}
+                            onPress={() => setTrendPeriod('monthly')}
+                        >
+                            <Text style={{ ...textPresets.caption, color: trendPeriod === 'monthly' ? '#ffffff' : '#6b7280', fontWeight: '600' }}>
+                                Monthly
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+
 
                     {/* Bar chart with Y axis (numbers) and X axis (dates) */}
                     {visitsTrend.values && visitsTrend.values.length > 0 ? (
                         (() => {
-                            const vals = visitsTrend.values.map(v => Number(v || 0));
+                            const { labels: activeLabels, values: activeValues } = getActiveData();
+                            const vals = activeValues.map(v => Number(v || 0));
                             const max = Math.max(...vals, 1);
                             const chartHeight = 120;
                             const steps = 3; // number of ticks on Y axis
 
                             return (
-                                <View style={{ marginTop: 12 }}>
+                                <View style={{ marginTop: 6 }}>
                                     <View style={{ flexDirection: 'row' }}>
                                         {/* Y axis labels */}
                                         <View style={{ width: 26, height: chartHeight, justifyContent: 'space-between', alignItems: 'flex-end', paddingRight: 2 }}>
@@ -306,39 +369,82 @@ export default function Overview() {
                                         {/* Y axis line */}
                                         <View style={{ width: 1, height: chartHeight, backgroundColor: '#cbd5e1' }} />
 
-                                        {/* Bars container with horizontal grid lines and visible X axis */}
-                                        <View style={{ flex: 1, height: chartHeight, position: 'relative' }}>
-                                            {/* Horizontal grid lines matching Y ticks */}
-                                            {Array.from({ length: steps + 1 }).map((_, gi) => {
-                                                const top = Math.round((gi / steps) * chartHeight);
-                                                return (
-                                                    <View
-                                                        key={"grid-" + gi}
-                                                        style={{ position: 'absolute', left: 0, right: 0, top: top, height: 1, backgroundColor: '#e6eef2' }}
-                                                    />
-                                                );
-                                            })}
+                                        {/* Scrollable / Non-scrollable area */}
+                                        {trendPeriod === "monthly" ? (
+                                            <ScrollView horizontal={true} showsHorizontalScrollIndicator={true} style={{ flex: 1 }}>
+                                                <View style={{ width: activeLabels.length * 45 }}>
+                                                    {/* Bars container */}
+                                                    <View style={{ height: chartHeight, position: 'relative', borderBottomWidth: 1, borderBottomColor: '#cbd5e1' }}>
+                                                        {/* Horizontal grid lines */}
+                                                        {Array.from({ length: steps + 1 }).map((_, gi) => {
+                                                            const top = Math.round((gi / steps) * chartHeight);
+                                                            return (
+                                                                <View
+                                                                    key={"grid-" + gi}
+                                                                    style={{ position: 'absolute', left: 0, right: 0, top: top, height: 1, backgroundColor: '#e6eef2' }}
+                                                                />
+                                                            );
+                                                        })}
 
-                                            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-end', borderBottomWidth: 1, borderBottomColor: '#cbd5e1' }}>
-                                                {vals.map((v, i) => {
-                                                    const barHeight = Math.max(6, Math.round((v / max) * chartHeight));
-                                                    return (
-                                                        <View key={i} style={{ flex: 1, alignItems: 'center', marginHorizontal: 4 }}>
-                                                            <View style={{ width: 12, borderRadius: 4, backgroundColor: '#34d399', height: barHeight }} />
+                                                        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-end' }}>
+                                                            {vals.map((v, i) => {
+                                                                const barHeight = Math.max(6, Math.round((v / max) * chartHeight));
+                                                                return (
+                                                                    <View key={i} style={{ width: 45, alignItems: 'center' }}>
+                                                                        <View style={{ width: 14, borderRadius: 4, backgroundColor: '#34d399', height: barHeight }} />
+                                                                    </View>
+                                                                );
+                                                            })}
                                                         </View>
-                                                    );
-                                                })}
-                                            </View>
-                                        </View>
-                                    </View>
+                                                    </View>
 
-                                    {/* X axis labels (dates) */}
-                                    <View style={{ flexDirection: 'row', marginTop: 6, paddingLeft: 28 }}>
-                                        {visitsTrend.labels.map((lbl, i) => (
-                                            <View key={i} style={{ flex: 1, alignItems: 'center', marginHorizontal: 4 }}>
-                                                <Text style={{ ...textPresets.caption, color: '#6b7280' }}>{lbl || ''}</Text>
+                                                    {/* X axis labels (dates) */}
+                                                    <View style={{ flexDirection: 'row', marginTop: 6 }}>
+                                                        {activeLabels.map((lbl, i) => (
+                                                            <View key={i} style={{ width: 45, alignItems: 'center' }}>
+                                                                <Text style={{ ...textPresets.caption, color: '#6b7280', fontSize: 9 }} numberOfLines={1}>{lbl || ''}</Text>
+                                                            </View>
+                                                        ))}
+                                                    </View>
+                                                </View>
+                                            </ScrollView>
+                                        ) : (
+                                            <View style={{ flex: 1 }}>
+                                                {/* Bars container */}
+                                                <View style={{ height: chartHeight, position: 'relative', borderBottomWidth: 1, borderBottomColor: '#cbd5e1' }}>
+                                                    {/* Horizontal grid lines */}
+                                                    {Array.from({ length: steps + 1 }).map((_, gi) => {
+                                                        const top = Math.round((gi / steps) * chartHeight);
+                                                        return (
+                                                            <View
+                                                                key={"grid-" + gi}
+                                                                style={{ position: 'absolute', left: 0, right: 0, top: top, height: 1, backgroundColor: '#e6eef2' }}
+                                                            />
+                                                        );
+                                                    })}
+
+                                                    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-end' }}>
+                                                        {vals.map((v, i) => {
+                                                            const barHeight = Math.max(6, Math.round((v / max) * chartHeight));
+                                                            return (
+                                                                <View key={i} style={{ flex: 1, alignItems: 'center', marginHorizontal: 4 }}>
+                                                                    <View style={{ width: 12, borderRadius: 4, backgroundColor: '#34d399', height: barHeight }} />
+                                                                </View>
+                                                            );
+                                                        })}
+                                                    </View>
+                                                </View>
+
+                                                {/* X axis labels (dates) */}
+                                                <View style={{ flexDirection: 'row', marginTop: 6 }}>
+                                                    {activeLabels.map((lbl, i) => (
+                                                        <View key={i} style={{ flex: 1, alignItems: 'center', marginHorizontal: 4 }}>
+                                                            <Text style={{ ...textPresets.caption, color: '#6b7280' }} numberOfLines={1}>{lbl || ''}</Text>
+                                                        </View>
+                                                    ))}
+                                                </View>
                                             </View>
-                                        ))}
+                                        )}
                                     </View>
                                 </View>
                             );
@@ -542,7 +648,7 @@ const styles = StyleSheet.create({
         shadowRadius: 10,
         shadowOffset: { height: 4, width: 3 },
         paddingVertical: 10,
-        paddingLeft: 6,
+        paddingHorizontal: 6,
         paddingRight: 10,
         backgroundColor: "white",
         shadowOpacity: 0.25,

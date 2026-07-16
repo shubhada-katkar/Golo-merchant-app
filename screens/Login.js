@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect, useRef } from "react";
-import { View, TouchableOpacity, Text, TextInput, StyleSheet, Alert } from "react-native";
+import { View, TouchableOpacity, Text, TextInput, StyleSheet, Alert, Linking } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ThemeContext } from "../theme/ThemeContext";
 import { Dimensions } from "react-native";
@@ -9,6 +9,8 @@ import { BASE_URL } from "../config";
 import { saveAuthData } from "../services/authService";
 import { startMerchantNotificationPolling } from "../services/notificationService";
 import { textPresets } from "../theme/typography";
+
+const MERCHANT_REGISTER_URL = "https://golo-frontend-inky.vercel.app/merchant";
 
 export default function Login({ navigation, route }) {
   const { colors } = useContext(ThemeContext);
@@ -62,6 +64,20 @@ export default function Login({ navigation, route }) {
     }
     const text = await response.text();
     return { message: text || "Request failed" };
+  };
+
+  // ================= REGISTER (opens webpage) =================
+  const handleRegisterPress = async () => {
+    try {
+      const supported = await Linking.canOpenURL(MERCHANT_REGISTER_URL);
+      if (supported) {
+        await Linking.openURL(MERCHANT_REGISTER_URL);
+      } else {
+        Alert.alert("Error", "Unable to open the registration page");
+      }
+    } catch (err) {
+      Alert.alert("Error", "Unable to open the registration page");
+    }
   };
 
   // ================= LOGIN =================
@@ -280,12 +296,12 @@ export default function Login({ navigation, route }) {
     <SafeAreaView style={{ flex: 1 }}>
       <View style={{ flex: 1, backgroundColor: "#f5b849" }} />
       <View style={{ flex: 1, backgroundColor: "#ffffff" }} />
- 
+
       <View style={styles.centerContainer}>
 
         {!forgotMode && (
-          <Text style={{ ...textPresets.title,color: "#ffffff", }}>
-          Login To Your Account</Text>
+          <Text style={{ ...textPresets.title, color: "#ffffff", }}>
+            Login To Your Account</Text>
         )}
         {forgotMode && (
           <Text style={{ ...textPresets.title, color: "#ffffff", }}>
@@ -362,8 +378,9 @@ export default function Login({ navigation, route }) {
                   onPress={handleSendOtp}
                   disabled={otpCooldown > 0 || otpLoading}>
 
-                  <Text style={{ color: "white", ...textPresets.subtitle
-                   }}>
+                  <Text style={{
+                    color: "white", ...textPresets.subtitle
+                  }}>
                     {otpLoading
                       ? "Sending..."
                       : otpCooldown > 0
@@ -436,11 +453,12 @@ export default function Login({ navigation, route }) {
         {!forgotMode ? (
           <>
             <View style={{ alignItems: "center", flexDirection: "row", marginTop: 10 }}>
-              <Text style={{ ...textPresets.body
-               }}>
+              <Text style={{
+                ...textPresets.body
+              }}>
                 Don't Have An Account?
               </Text>
-              <TouchableOpacity onPress={() => navigation.navigate("Registration")}>
+              <TouchableOpacity onPress={handleRegisterPress}>
                 <Text style={styles.link}>Register Here</Text>
               </TouchableOpacity>
             </View>
@@ -460,7 +478,8 @@ export default function Login({ navigation, route }) {
         )}
       </View>
     </SafeAreaView>
-  ); }
+  );
+}
 
 const { width, height } = Dimensions.get("window");
 const styles = StyleSheet.create({
@@ -522,7 +541,7 @@ const styles = StyleSheet.create({
     ...textPresets.caption,
     color: "#333",
     textAlign: "center",
-    
+
   },
   inputpassword: {
     flexDirection: "row",

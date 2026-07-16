@@ -36,18 +36,33 @@ function getErrorMessageFromResponse(data) {
   return candidates.join(" ");
 }
 
+// Returns true only when the backend explicitly rejected the image/video as
+// containing inappropriate content (i.e. the image IS unsafe).
+// Deliberately excludes Vision API infrastructure errors (e.g. credentials
+// missing, network failure) so those don't incorrectly trigger the popup.
 function isModerationFailureResponse(data) {
   const message = getErrorMessageFromResponse(data)
     .toLowerCase()
     .replace(/\s+/g, " ")
     .trim();
 
-  const rejectionPhrases = [
+  const contentRejectionPhrases = [
     "one or more images contain inappropriate content and cannot be uploaded",
     "the uploaded video contains inappropriate content and cannot be published",
   ];
 
-  return rejectionPhrases.some((phrase) => message.includes(phrase));
+  return contentRejectionPhrases.some((phrase) => message.includes(phrase));
+}
+
+// Returns true when the Vision API itself errored (credentials, quota, network)
+// so we can surface a plain alert instead of the inappropriate-content popup.
+function isModerationApiErrorResponse(data) {
+  const message = getErrorMessageFromResponse(data)
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return message.includes("image moderation failed");
 }
 
 function getVideoFileName(videoUrl) {
@@ -153,6 +168,10 @@ export default function NewProductPage({ navigation, route }) {
   useEffect(() => {
     const showSub = Keyboard.addListener("keyboardDidShow", () => setIsKeyboardVisible(true));
     const hideSub = Keyboard.addListener("keyboardDidHide", () => setIsKeyboardVisible(false));
+
+    // Clear any stale moderation flag from previous sessions so safe images
+    // don't trigger the popup the next time the merchant opens this screen.
+    AsyncStorage.removeItem("golo_images_flagged").catch(() => { });
 
     const loadMerchantProfile = async () => {
       try {
@@ -476,12 +495,18 @@ export default function NewProductPage({ navigation, route }) {
         navigation.goBack();
       } else {
         if (isModerationFailureResponse(data)) {
+          // Image contained inappropriate content — show the popup and persist flag.
           try {
             await AsyncStorage.setItem("golo_images_flagged", "true");
           } catch (error) {
             console.warn("Failed to set moderation flag", error);
           }
           setFlaggedModalVisible(true);
+          return;
+        }
+        if (isModerationApiErrorResponse(data)) {
+          // Vision API infrastructure error — plain alert, no persistent flag.
+          alert("Image moderation is temporarily unavailable. Please try again in a moment.");
           return;
         }
         alert(data.message || "Something went wrong");
@@ -700,7 +725,7 @@ export default function NewProductPage({ navigation, route }) {
                   <Text style={[styles.text, { color: colors.text, paddingTop: 0 }]}>Stock Quantity</Text>
                   <TextInput
                     style={styles.input}
-                    placeholder="Enter stock quantity"
+                    placeholder="Enter stock"
                     keyboardType="numeric"
                     value={form.stockQuantity}
                     onChangeText={(text) => setForm({ ...form, stockQuantity: text })}

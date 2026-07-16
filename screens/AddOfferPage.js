@@ -926,7 +926,8 @@ export default function AddOfferPage({ navigation, route }) {
                                 <MaterialIcons name="check-circle" size={20} color="#fff" />
                                 <Text style={{
                                     color: "#fff",
-                                    lineHeight: Math.round(14 * 1.5)
+                                    lineHeight: Math.round(14 * 1.5),
+                                    ...textPresets.body
                                 }}>
                                     {isBannerUploading ? "Uploading Offer..." : isSaving ? (offerData ? "Updating..." : "Saving...") : offerData ? "Update Offer" : "Add Offer"}
                                 </Text>
@@ -947,7 +948,7 @@ export default function AddOfferPage({ navigation, route }) {
                                     onPress={handleDelete}
                                     disabled={isSaving || isDeleting}
                                 >
-                                    <Text style={{ color: "#fff", lineHeight: Math.round(14 * 1.5) }}>
+                                    <Text style={{ color: "#fff", lineHeight: Math.round(14 * 1.5), ...textPresets.body }}>
                                         {isDeleting ? "Deleting..." : "Delete Offer"}
                                     </Text>
                                 </TouchableOpacity>
