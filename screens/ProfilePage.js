@@ -3,7 +3,7 @@ import { View, TouchableOpacity, Text, StyleSheet, Image, Switch, ScrollView, Al
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { MaterialCommunityIcons, MaterialIcons, Feather, AntDesign } from "@expo/vector-icons";
+import { MaterialCommunityIcons, MaterialIcons, Feather, AntDesign, EvilIcons } from "@expo/vector-icons";
 import { ThemeContext } from "../theme/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { clearAuthStorage, getValidToken } from "../services/authService";
@@ -14,50 +14,50 @@ import { Linking } from "react-native";
 import { textPresets } from "../theme/typography";
 
 export default function ProfilePage({ navigation }) {
-        const { theme, colors, toggleTheme } = useContext(ThemeContext);
-        const [loadingLogout, setLoadingLogout] = useState(false);
-    
-        // ================= LOGOUT =================
-        const handleLogout = async () => {
-          Alert.alert("Confirm Logout", "Are you sure you want to logout?", [
+    const { theme, colors, toggleTheme } = useContext(ThemeContext);
+    const [loadingLogout, setLoadingLogout] = useState(false);
+
+    // ================= LOGOUT =================
+    const handleLogout = async () => {
+        Alert.alert("Confirm Logout", "Are you sure you want to logout?", [
             { text: "Cancel", style: "cancel" },
             {
-              text: "Logout",
-              style: "destructive",
-              onPress: async () => {
-                try {
-                  setLoadingLogout(true);
+                text: "Logout",
+                style: "destructive",
+                onPress: async () => {
+                    try {
+                        setLoadingLogout(true);
 
-                  const token        = await AsyncStorage.getItem("merchantToken");
-                  const refreshToken = await AsyncStorage.getItem("merchantRefreshToken");
+                        const token = await AsyncStorage.getItem("merchantToken");
+                        const refreshToken = await AsyncStorage.getItem("merchantRefreshToken");
 
-                  try {
-                    if (token) {
-                      await fetch(`${BASE_URL}/users/logout`, {
-                        method: "POST",
-                        headers: {
-                          "Content-Type": "application/json",
-                          Authorization: `Bearer ${token}`,
-                        },
-                        body: JSON.stringify({ refreshToken: refreshToken || null }),
-                      });
+                        try {
+                            if (token) {
+                                await fetch(`${BASE_URL}/users/logout`, {
+                                    method: "POST",
+                                    headers: {
+                                        "Content-Type": "application/json",
+                                        Authorization: `Bearer ${token}`,
+                                    },
+                                    body: JSON.stringify({ refreshToken: refreshToken || null }),
+                                });
+                            }
+                        } catch (logoutError) {
+                            console.log("Logout API error:", logoutError);
+                        }
+
+                        await clearAuthStorage();
+
+                        navigation.reset({ index: 0, routes: [{ name: "Login" }] });
+                    } catch (err) {
+                        Alert.alert("Logout failed", "Please try again");
+                    } finally {
+                        setLoadingLogout(false);
                     }
-                  } catch (logoutError) {
-                    console.log("Logout API error:", logoutError);
-                  }
-
-                  await clearAuthStorage();
-
-                  navigation.reset({ index: 0, routes: [{ name: "Login" }] });
-                } catch (err) {
-                  Alert.alert("Logout failed", "Please try again");
-                } finally {
-                  setLoadingLogout(false);
-                }
-              },
+                },
             },
-          ]);
-        };
+        ]);
+    };
 
     const [shopName, setShopName] = useState("Shop Name");
     const [profileImage, setProfileImage] = useState(require("../assets/profile.png"));
@@ -134,102 +134,113 @@ export default function ProfilePage({ navigation }) {
         }, [])
     );
 
-return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-         <LinearGradient
-            colors={["#f8a812", "#fad081", "#f8f6f265"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            style={{height: 200, position: "absolute", top: 0, left: 0, right: 0, zIndex: 0}}
+    return (
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+            <LinearGradient
+                colors={["#f8a812", "#fad081", "#f8f6f265"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={{ height: 200, position: "absolute", top: 0, left: 0, right: 0, zIndex: 0 }}
             />
-         <Topbar />
+            <Topbar />
 
-        <View style={styles.row1}>
-            <TouchableOpacity onPress={() => navigation.goBack()}>
-                <MaterialIcons name="arrow-back-ios" size={22} color={colors.text} style={{ padding: 10 }} />
-            </TouchableOpacity>
-            <Text style={{ ...textPresets.title, flex: 1 }}>Profile</Text>
-        </View>
-
-        <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1 }} />
-        <ScrollView contentContainerStyle={{ paddingBottom: 90 }} showsVerticalScrollIndicator={false}>
-
-        {/* Banner + Avatar */}
-        <View style={styles.bannerContainer}>
-                <Image source={profileImage} style={styles.image} />
-        {/* Name + meta */}
-            <View style={styles.nameBlock}>
-            <Text style={[styles.shopName, { color: colors.text }]}>{shopName}</Text>
+            <View style={styles.row1}>
+                <TouchableOpacity onPress={() => navigation.goBack()}>
+                    <MaterialIcons name="arrow-back-ios" size={22} color={colors.text} style={{ padding: 10 }} />
+                </TouchableOpacity>
+                <Text style={{ ...textPresets.title, flex: 1 }}>Profile</Text>
             </View>
-        </View>
 
-        {/* Menu */}
-        <View style={styles.menuContainer}>
+            <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1 }} />
+            <ScrollView contentContainerStyle={{ paddingBottom: 90 }} showsVerticalScrollIndicator={false}>
 
-            <Text style={[styles.sectionHeader, { color: colors.text }]}>GENERAL SETTINGS</Text>
+                {/* Banner + Avatar */}
+                <View style={styles.bannerContainer}>
+                    <Image source={profileImage} style={styles.image} />
+                    {/* Name + meta */}
+                    <View style={styles.nameBlock}>
+                        <Text style={[styles.shopName, { color: colors.text }]}>{shopName}</Text>
+                    </View>
+                </View>
 
-            <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]} onPress={() => navigation.navigate("ProfileSettingsPage")}>
-                <View style={styles.iconCircle}>
-                    <MaterialCommunityIcons name="account-cog-outline" size={20} color="#157a4f" />
-                </View>
-                <View style={styles.menuText}>
-                    <Text style={[styles.menuTitle, { color: colors.text }]}>Profile Settings</Text>
-                    <Text style={[styles.menuSub, { color: colors.subText || "#888" }]}>Manage your business information</Text>
-                </View>
-                <Feather name="chevron-right" size={20} color={colors.subText || "#aaa"} />
-            </TouchableOpacity>
+                {/* Menu */}
+                <View style={styles.menuContainer}>
 
-            <Text style={[styles.sectionHeader, { color: colors.text, marginTop: 18 }]}>PROMOTE AND UPGRADE</Text>
+                    <Text style={[styles.sectionHeader, { color: colors.text }]}>GENERAL SETTINGS</Text>
 
-            <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]} onPress={() => navigation.navigate("BannerList")}>
-                <View style={styles.iconCircle}>
-                    <Feather name="list" size={20} color="#157a4f" />
-                </View>
-                <View style={styles.menuText}>
-                    <Text style={[styles.menuTitle, { color: colors.text }]}>Banners</Text>
-                    <Text style={[styles.menuSub, { color: colors.subText || "#888" }]}>Attract More Customers with Every Banner.</Text>
-                </View>
-                <Feather name="chevron-right" size={20} color={colors.subText || "#aaa"} />
-            </TouchableOpacity>
+                    <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]} onPress={() => navigation.navigate("ProfileSettingsPage")}>
+                        <View style={styles.iconCircle}>
+                            <MaterialCommunityIcons name="account-cog-outline" size={20} color="#157a4f" />
+                        </View>
+                        <View style={styles.menuText}>
+                            <Text style={[styles.menuTitle, { color: colors.text }]}>Profile Settings</Text>
+                            <Text style={[styles.menuSub, { color: colors.subText || "#888" }]}>Manage your business information</Text>
+                        </View>
+                        <Feather name="chevron-right" size={20} color={colors.subText || "#aaa"} />
+                    </TouchableOpacity>
 
-            <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]} onPress={() => navigation.navigate("UpgradePlanPage")}>
-                <View style={styles.iconCircle}>
-                    <MaterialCommunityIcons name="crown-outline" size={20} color="#157a4f" />
-                </View>
-                <View style={styles.menuText}>
-                    <Text style={[styles.menuTitle, { color: colors.text }]}>Upgrade Your Plan</Text>
-                    <Text style={[styles.menuSub, { color: colors.subText || "#888" }]}>Enhance your business with premium features.</Text>
-                </View>
-                <Feather name="chevron-right" size={20} color={colors.subText || "#aaa"} />
-            </TouchableOpacity>            
-            
-            <Text style={[styles.sectionHeader, { color: colors.text, marginTop: 18 }]}>REWARDS & SUPPORT</Text>
+                    <Text style={[styles.sectionHeader, { color: colors.text, marginTop: 18 }]}>PROMOTE AND UPGRADE</Text>
 
-            <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]} onPress={() => navigation.navigate("LoyaltyPage")}>
-                <View style={styles.iconCircle}>
-                    <MaterialCommunityIcons name="trophy-outline" size={20} color="#157a4f" />
-                </View>
-                <View style={styles.menuText}>
-                    <Text style={[styles.menuTitle, { color: colors.text }]}>Loyalty Rewards</Text>
-                    <Text style={[styles.menuSub, { color: colors.subText || "#888" }]}>View your current program status</Text>
-                </View>
-                <Feather name="chevron-right" size={20} color={colors.subText || "#aaa"} />
-            </TouchableOpacity>
+                    <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]} onPress={() => navigation.navigate("BannerList")}>
+                        <View style={styles.iconCircle}>
+                            <Feather name="list" size={20} color="#157a4f" />
+                        </View>
+                        <View style={styles.menuText}>
+                            <Text style={[styles.menuTitle, { color: colors.text }]}>Banners</Text>
+                            <Text style={[styles.menuSub, { color: colors.subText || "#888" }]}>Attract More Customers with Every Banner.</Text>
+                        </View>
+                        <Feather name="chevron-right" size={20} color={colors.subText || "#aaa"} />
+                    </TouchableOpacity>
 
-            <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]}
-            onPress={() => Linking.openURL("https://golo.co.in/merchant/help")}>
-                <View style={styles.iconCircle}>
-                    <AntDesign name="question-circle" size={20} color="#157a4f" />
-                </View>
-                <View style={styles.menuText}>
-                    <Text style={[styles.menuTitle, { color: colors.text }]}>Help Center</Text>
-                    <Text style={[styles.menuSub, { color: colors.subText || "#888" }]}>FAQs and customer support</Text>
-                </View>
-                <Feather name="chevron-right" size={20} color={colors.subText || "#aaa"} />
-            </TouchableOpacity>
+                    <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]} onPress={() => navigation.navigate("UpgradePlanPage")}>
+                        <View style={styles.iconCircle}>
+                            <MaterialCommunityIcons name="crown-outline" size={20} color="#157a4f" />
+                        </View>
+                        <View style={styles.menuText}>
+                            <Text style={[styles.menuTitle, { color: colors.text }]}>Upgrade Your Plan</Text>
+                            <Text style={[styles.menuSub, { color: colors.subText || "#888" }]}>Enhance your business with premium features.</Text>
+                        </View>
+                        <Feather name="chevron-right" size={20} color={colors.subText || "#aaa"} />
+                    </TouchableOpacity>
 
-            {/* Dark Mode row */}
-           {/* <View style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]}>
+                    <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]} onPress={() => navigation.navigate("TransactionPage")}>
+                        <View style={styles.iconCircle}>
+                            <AntDesign name="credit-card" size={20} color="#157a4f" />
+                        </View>
+                        <View style={styles.menuText}>
+                            <Text style={[styles.menuTitle, { color: colors.text }]}>View Transactions</Text>
+                            <Text style={[styles.menuSub, { color: colors.subText || "#888" }]}>Track your transaction history</Text>
+                        </View>
+                        <Feather name="chevron-right" size={20} color={colors.subText || "#aaa"} />
+                    </TouchableOpacity>
+
+                    <Text style={[styles.sectionHeader, { color: colors.text, marginTop: 18 }]}>REWARDS & SUPPORT</Text>
+
+                    <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]} onPress={() => navigation.navigate("LoyaltyPage")}>
+                        <View style={styles.iconCircle}>
+                            <MaterialCommunityIcons name="trophy-outline" size={20} color="#157a4f" />
+                        </View>
+                        <View style={styles.menuText}>
+                            <Text style={[styles.menuTitle, { color: colors.text }]}>Loyalty Rewards</Text>
+                            <Text style={[styles.menuSub, { color: colors.subText || "#888" }]}>View your current program status</Text>
+                        </View>
+                        <Feather name="chevron-right" size={20} color={colors.subText || "#aaa"} />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]}
+                        onPress={() => Linking.openURL("https://golo.co.in/merchant/help")}>
+                        <View style={styles.iconCircle}>
+                            <AntDesign name="question-circle" size={20} color="#157a4f" />
+                        </View>
+                        <View style={styles.menuText}>
+                            <Text style={[styles.menuTitle, { color: colors.text }]}>Help Center</Text>
+                            <Text style={[styles.menuSub, { color: colors.subText || "#888" }]}>FAQs and customer support</Text>
+                        </View>
+                        <Feather name="chevron-right" size={20} color={colors.subText || "#aaa"} />
+                    </TouchableOpacity>
+
+                    {/* Dark Mode row */}
+                    {/* <View style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]}>
                 <View style={styles.iconCircle}>
                     <MaterialCommunityIcons name="weather-night" size={20} color="#157a4f" />
                 </View>
@@ -245,29 +256,29 @@ return (
                 />
             </View> */}
 
-            {/* Divider before Sign Out */}
-            <View style={[styles.divider, { backgroundColor: colors.divider || "#eee" }]} />
+                    {/* Divider before Sign Out */}
+                    <View style={[styles.divider, { backgroundColor: colors.divider || "#eee" }]} />
 
-            <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]} onPress={handleLogout} disabled={loadingLogout}>
-                <View style={[styles.iconCircle, { backgroundColor: "#fff0f0" }]}>
-                    <MaterialIcons name="logout" size={20} color="#ff6b6b" />
+                    <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]} onPress={handleLogout} disabled={loadingLogout}>
+                        <View style={[styles.iconCircle, { backgroundColor: "#fff0f0" }]}>
+                            <MaterialIcons name="logout" size={20} color="#ff6b6b" />
+                        </View>
+                        <View style={styles.menuText}>
+                            <Text style={[styles.menuTitle, { color: "#ff6b6b" }]}>
+                                {loadingLogout ? "Logging out..." : "Sign Out"}
+                            </Text>
+                        </View>
+                        <Feather name="chevron-right" size={20} color="#ff6b6b" />
+                    </TouchableOpacity>
+
                 </View>
-                <View style={styles.menuText}>
-                    <Text style={[styles.menuTitle, { color: "#ff6b6b" }]}>
-                        {loadingLogout ? "Logging out..." : "Sign Out"}
-                    </Text>
-                </View>
-                <Feather name="chevron-right" size={20} color="#ff6b6b" />
-            </TouchableOpacity>
+            </ScrollView>
 
-        </View>
-        </ScrollView>
-
-        <SafeAreaView edges={["bottom"]} style={{ width: "100%", bottom: 0, position: "absolute" }}>
-            <Bottombar />
+            <SafeAreaView edges={["bottom"]} style={{ width: "100%", bottom: 0, position: "absolute" }}>
+                <Bottombar />
+            </SafeAreaView>
         </SafeAreaView>
-    </SafeAreaView>
-);
+    );
 }
 
 const styles = StyleSheet.create({
@@ -287,7 +298,7 @@ const styles = StyleSheet.create({
     bannerContainer: {
         flexDirection: "row",
         alignItems: "center",
-        padding:26,
+        padding: 26,
     },
     nameBlock: {
         paddingHorizontal: 24,
@@ -331,7 +342,7 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     menuTitle: {
-       ...textPresets.body
+        ...textPresets.body
     },
     menuSub: {
         marginTop: 1,

@@ -1,10 +1,10 @@
 import React, { useState, useContext, useEffect, useRef } from "react";
-import { View, TouchableOpacity, Text, TextInput, StyleSheet, Alert, Linking } from "react-native";
+import { View, TouchableOpacity, Text, TextInput, StyleSheet, Alert, Linking, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ThemeContext } from "../theme/ThemeContext";
 import { Dimensions } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Entypo } from "@expo/vector-icons";
+import { Entypo, Feather, AntDesign, FontAwesome } from "@expo/vector-icons";
 import { BASE_URL } from "../config";
 import { saveAuthData } from "../services/authService";
 import { startMerchantNotificationPolling } from "../services/notificationService";
@@ -78,6 +78,17 @@ export default function Login({ navigation, route }) {
     } catch (err) {
       Alert.alert("Error", "Unable to open the registration page");
     }
+  };
+
+  // ================= SOCIAL LOGIN (static placeholders for now) =================
+  const handleGooglePress = () => {
+    // TODO: wire up Google OAuth
+    Alert.alert("Coming Soon", "Google sign-in will be available soon");
+  };
+
+  const handleFacebookPress = () => {
+    // TODO: wire up Facebook OAuth
+    Alert.alert("Coming Soon", "Facebook sign-in will be available soon");
   };
 
   // ================= LOGIN =================
@@ -293,287 +304,380 @@ export default function Login({ navigation, route }) {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <View style={{ flex: 1, backgroundColor: "#f5b849" }} />
-      <View style={{ flex: 1, backgroundColor: "#ffffff" }} />
-
-      <View style={styles.centerContainer}>
-
-        {!forgotMode && (
-          <Text style={{ ...textPresets.title, color: "#ffffff", }}>
-            Login To Your Account</Text>
-        )}
-        {forgotMode && (
-          <Text style={{ ...textPresets.title, color: "#ffffff", }}>
-            Forgot Password</Text>
-        )}
-
-        <View style={styles.card}>
-          {!forgotMode ? (
-            // ============ NORMAL LOGIN ============
-            <>
-              <Text style={styles.text}>Email</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter email"
-                value={email}
-                onChangeText={setEmail}
-              />
-
-              <Text style={styles.text}>Password</Text>
-              <View style={styles.inputpassword}>
-                <TextInput style={{ flex: 1, ...textPresets.body }}
-                  placeholder="Enter password"
-                  secureTextEntry={!visiblepass}
-                  value={password}
-                  onChangeText={setPassword}
-                />
-                {!visiblepass ? (
-                  <TouchableOpacity style={{ padding: 14 }} onPress={() => setvisiblepass(true)}>
-                    <Entypo name="eye-with-line" size={20} />
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity style={{ padding: 14 }} onPress={() => setvisiblepass(false)}>
-                    <Entypo name="eye" size={20} />
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              <TouchableOpacity onPress={() => {
-                setForgotMode(true);
-                setPassword("");
-              }} style={{ alignSelf: "flex-end" }}>
-                <Text style={styles.link}>Forgot Password?</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={handleLogin}
-                style={[styles.button, loading && { opacity: 0.6 }]}
-                disabled={loading}
-              >
-                <Text style={{ ...textPresets.subtitle, color: "white" }}>
-                  {loading ? "Logging in..." : "Login"}
-                </Text>
-              </TouchableOpacity>
-            </>
-
-          ) : (
-            // ============ FORGOT PASSWORD ============
-            <>
-              <Text style={styles.text}>Email</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter registered email"
-                value={email}
-                onChangeText={setEmail}
-              />
-
-              {!otpSent ? (
-
-                <TouchableOpacity
-                  style={[
-                    styles.button,
-                    (otpCooldown > 0 || otpLoading) && { opacity: 0.6 }
-                  ]}
-                  onPress={handleSendOtp}
-                  disabled={otpCooldown > 0 || otpLoading}>
-
-                  <Text style={{
-                    color: "white", ...textPresets.subtitle
-                  }}>
-                    {otpLoading
-                      ? "Sending..."
-                      : otpCooldown > 0
-                        ? `Sent ✓ (${otpCooldown}s)`
-                        : "Send OTP"}
-                  </Text>
-
-                </TouchableOpacity>
-              ) : (
-
-                <>
-                  <Text style={styles.text}>OTP</Text>
-                  <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 10 }}>
-                    <View style={styles.otpRow}>
-                      {otpDigits.map((digit, index) => (
-                        <TextInput
-                          key={`otp-${index}`}
-                          ref={(ref) => (otpRefs.current[index] = ref)}
-                          style={styles.otpBox}
-                          keyboardType="numeric"
-                          maxLength={1}
-                          value={digit}
-                          onChangeText={(value) => handleOtpChange(index, value)}
-                          onKeyPress={(event) => handleOtpKeyPress(index, event)}
-                          textAlign="center"
-                          placeholder="-"
-                          placeholderTextColor="#999"
-                        />
-                      ))}
-                    </View>
-                  </View>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.verifybutton,
-                      verifyLoading && { opacity: 0.6 }
-                    ]}
-                    onPress={handleVerifyOtp}
-                    disabled={verifyLoading}
-                  >
-                    <Text style={{ color: "white", ...textPresets.subtitle }}>
-                      {verifyLoading ? "Verifying..." : "Verify"}
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.smallButton,
-                      (otpCooldown > 0 || otpLoading) && { opacity: 0.6 }
-                    ]}
-                    onPress={handleSendOtp}
-                    disabled={otpCooldown > 0 || otpLoading}
-                  >
-                    <Text style={{ color: "white", ...textPresets.subtitle }}>
-                      {otpLoading
-                        ? "Resending..."
-                        : otpCooldown > 0
-                          ? `Resend OTP (${otpCooldown}s)`
-                          : "Resend OTP"}
-                    </Text>
-                  </TouchableOpacity>
-
-                  <Text style={styles.noteText}>
-                    OTP valid for {otpValidSeconds > 0 ? formatTimer(otpValidSeconds) : "00:00"}
-                  </Text>
-                </>)}
-            </>)}
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.headerBlock}>
+          <Text style={styles.title}>
+            {forgotMode ? "Forgot Password" : "Merchant Portal Login"}
+          </Text>
+          {!forgotMode && (
+            <Text style={styles.subtitle}>Manage Your Store & Campaigns</Text>
+          )}
         </View>
 
-        {!forgotMode ? (
+        {!forgotMode && (
           <>
-            <View style={{ alignItems: "center", flexDirection: "row", marginTop: 10 }}>
-              <Text style={{
-                ...textPresets.body
-              }}>
-                Don't Have An Account?
+            {/* ============ SOCIAL LOGIN (static) ============ */}
+            <View style={styles.socialRow}>
+              <TouchableOpacity style={styles.socialButton} onPress={handleGooglePress}>
+                <AntDesign name="google" size={18} color="#EA4335" />
+                <Text style={styles.socialText}>Google</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.socialButton} onPress={handleFacebookPress}>
+                <FontAwesome name="facebook-square" size={18} color="#1877F2" />
+                <Text style={styles.socialText}>Facebook</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>OR SIGN IN WITH</Text>
+              <View style={styles.dividerLine} />
+            </View>
+          </>
+        )}
+
+        {!forgotMode ? (
+          // ============ NORMAL LOGIN ============
+          <>
+            <Text style={styles.label}>Email</Text>
+            <View style={styles.inputWrapper}>
+              <Feather name="mail" size={18} color="#9CA3AF" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your email"
+                placeholderTextColor="#9CA3AF"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                value={email}
+                onChangeText={setEmail}
+              />
+            </View>
+
+            <Text style={styles.label}>Password</Text>
+            <View style={styles.inputWrapper}>
+              <Feather name="lock" size={18} color="#9CA3AF" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your password"
+                placeholderTextColor="#9CA3AF"
+                secureTextEntry={!visiblepass}
+                value={password}
+                onChangeText={setPassword}
+              />
+              <TouchableOpacity
+                style={styles.eyeButton}
+                onPress={() => setvisiblepass((prev) => !prev)}
+              >
+                <Entypo name={visiblepass ? "eye" : "eye-with-line"} size={18} color="#9CA3AF" />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => {
+                setForgotMode(true);
+                setPassword("");
+              }}
+              style={styles.forgotLink}
+            >
+              <Text style={styles.link}>Forgot Password?</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleLogin}
+              style={[styles.button, loading && { opacity: 0.6 }]}
+              disabled={loading}
+            >
+              <Text style={styles.buttonText}>
+                {loading ? "Logging in..." : "Continue"}
               </Text>
+            </TouchableOpacity>
+
+            <View style={styles.registerRow}>
+              <Text style={styles.registerText}>New to Ad Network Group? </Text>
               <TouchableOpacity onPress={handleRegisterPress}>
-                <Text style={styles.link}>Register Here</Text>
+                <Text style={styles.registerLink}>Register Now</Text>
               </TouchableOpacity>
             </View>
           </>
-
         ) : (
+          // ============ FORGOT PASSWORD ============
+          <>
+            <Text style={styles.label}>Email</Text>
+            <View style={styles.inputWrapper}>
+              <Feather name="mail" size={18} color="#9CA3AF" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Enter registered email"
+                placeholderTextColor="#9CA3AF"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                value={email}
+                onChangeText={setEmail}
+              />
+            </View>
 
-          <View style={{ alignItems: "center", flexDirection: "row", marginTop: 10 }}>
-            <TouchableOpacity onPress={() => {
-              setForgotMode(false);
-              setOtp("");
-              setOtpSent(false);
-            }}>
-              <Text style={styles.link}>Back To Login</Text>
-            </TouchableOpacity>
-          </View>
+            {!otpSent ? (
+              <TouchableOpacity
+                style={[styles.button, (otpCooldown > 0 || otpLoading) && { opacity: 0.6 }]}
+                onPress={handleSendOtp}
+                disabled={otpCooldown > 0 || otpLoading}
+              >
+                <Text style={styles.buttonText}>
+                  {otpLoading
+                    ? "Sending..."
+                    : otpCooldown > 0
+                      ? `Sent ✓ (${otpCooldown}s)`
+                      : "Send OTP"}
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <>
+                <Text style={styles.label}>OTP</Text>
+                <View style={styles.otpRow}>
+                  {otpDigits.map((digit, index) => (
+                    <TextInput
+                      key={`otp-${index}`}
+                      ref={(ref) => (otpRefs.current[index] = ref)}
+                      style={styles.otpBox}
+                      keyboardType="numeric"
+                      maxLength={1}
+                      value={digit}
+                      onChangeText={(value) => handleOtpChange(index, value)}
+                      onKeyPress={(event) => handleOtpKeyPress(index, event)}
+                      textAlign="center"
+                      placeholder="-"
+                      placeholderTextColor="#9CA3AF"
+                    />
+                  ))}
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.button, verifyLoading && { opacity: 0.6 }]}
+                  onPress={handleVerifyOtp}
+                  disabled={verifyLoading}
+                >
+                  <Text style={styles.buttonText}>
+                    {verifyLoading ? "Verifying..." : "Verify"}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.secondaryButton, (otpCooldown > 0 || otpLoading) && { opacity: 0.6 }]}
+                  onPress={handleSendOtp}
+                  disabled={otpCooldown > 0 || otpLoading}
+                >
+                  <Text style={styles.secondaryButtonText}>
+                    {otpLoading
+                      ? "Resending..."
+                      : otpCooldown > 0
+                        ? `Resend OTP (${otpCooldown}s)`
+                        : "Resend OTP"}
+                  </Text>
+                </TouchableOpacity>
+
+                <Text style={styles.noteText}>
+                  OTP valid for {otpValidSeconds > 0 ? formatTimer(otpValidSeconds) : "00:00"}
+                </Text>
+              </>
+            )}
+
+            <View style={styles.registerRow}>
+              <TouchableOpacity
+                onPress={() => {
+                  setForgotMode(false);
+                  setOtp("");
+                  setOtpSent(false);
+                }}
+              >
+                <Text style={styles.registerLink}>Back To Login</Text>
+              </TouchableOpacity>
+            </View>
+          </>
         )}
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
-const { width, height } = Dimensions.get("window");
+const { width } = Dimensions.get("window");
+const CONTENT_WIDTH = width * 0.86;
+
 const styles = StyleSheet.create({
-  card: {
+  safeArea: {
+    flex: 1,
     backgroundColor: "#ffffff",
-    width: width * 0.85,
-    minHeight: height * 0.35,
-    borderRadius: 20,
-    padding: 16,
-    gap: 10,
-    borderWidth: 0.5,
-    borderColor: "#000000"
   },
-  text: {
+  scrollContent: {
+    flexGrow: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 40,
+  },
+  headerBlock: {
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  title: {
+    ...textPresets.title,
+    color: "#111827",
+    textAlign: "center",
+  },
+  subtitle: {
+    ...textPresets.body,
+    color: "#9CA3AF",
+    marginTop: 4,
+    textAlign: "center",
+  },
+  socialRow: {
+    flexDirection: "row",
+    width: CONTENT_WIDTH,
+    justifyContent: "space-between",
+    marginBottom: 20,
+  },
+  socialButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    width: CONTENT_WIDTH * 0.47,
+    paddingVertical: 12,
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#ffffff",
+  },
+  socialText: {
+    ...textPresets.body,
+    fontWeight: "600",
+    color: "#374151",
+  },
+  dividerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: CONTENT_WIDTH,
+    marginBottom: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#E5E7EB",
+  },
+  dividerText: {
+    ...textPresets.caption,
+    color: "#9CA3AF",
+    marginHorizontal: 10,
+    letterSpacing: 0.5,
+  },
+  label: {
     ...textPresets.subtitle,
+    fontWeight: "600",
+    color: "#111827",
+    width: CONTENT_WIDTH,
+    marginBottom: 6,
+  },
+  inputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: CONTENT_WIDTH,
+    backgroundColor: "#F9FAFB",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    paddingHorizontal: 12,
+    marginBottom: 16,
+  },
+  inputIcon: {
+    marginRight: 8,
   },
   input: {
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: "#000000",
-    ...textPresets.body
-  },
-  otpInput: {
-    borderRadius: 10,
-    paddingHorizontal: 12,
     flex: 1,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: "#000000",
-    ...textPresets.body
+    paddingVertical: 12,
+    ...textPresets.body,
+    color: "#111827",
   },
-  button: {
-    backgroundColor: "#157a4f",
-    borderRadius: 10,
-    padding: 12,
-    alignItems: "center",
-    marginTop: 10,
+  eyeButton: {
+    padding: 6,
   },
-  verifybutton: {
-    backgroundColor: "#157a4f",
-    padding: 12,
-    borderRadius: 12,
+  forgotLink: {
+    alignSelf: "flex-end",
+    width: CONTENT_WIDTH,
+    alignItems: "flex-end",
+    marginBottom: 20,
+    marginRight: 10
   },
   link: {
     ...textPresets.body,
-    color: "#4caf50",
-    paddingHorizontal: 10,
+    color: "#157a4f",
+    fontWeight: "600",
   },
-  smallButton: {
+  button: {
     backgroundColor: "#157a4f",
-    borderRadius: 10,
-    padding: 10,
+    borderRadius: 30,
+    paddingVertical: 14,
     alignItems: "center",
-    marginTop: 10,
+    width: CONTENT_WIDTH,
   },
-  noteText: {
-    marginTop: 8,
-    ...textPresets.caption,
-    color: "#333",
-    textAlign: "center",
-
+  buttonText: {
+    ...textPresets.subtitle,
+    color: "#ffffff",
   },
-  inputpassword: {
-    flexDirection: "row",
-    alignItems: "center",
+  secondaryButton: {
     backgroundColor: "#ffffff",
-    borderRadius: 10,
-    paddingLeft: 12,
-    justifyContent: "space-between",
+    borderRadius: 30,
     borderWidth: 1,
-    borderColor: "#000000",
+    borderColor: "#157a4f",
+    paddingVertical: 12,
+    alignItems: "center",
+    width: CONTENT_WIDTH,
+    marginTop: 12,
+  },
+  secondaryButtonText: {
+    ...textPresets.body,
+    color: "#157a4f",
+    lineHeight: Math.round(14 * 1.5)
+  },
+  registerRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 20,
+  },
+  registerText: {
+    ...textPresets.body,
+    color: "#6B7280",
+    lineHeight: Math.round(14 * 1.5)
+  },
+  registerLink: {
+    ...textPresets.body,
+    color: "#157a4f",
+    lineHeight: Math.round(14 * 1.5)
   },
   otpRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    width: "100%",
+    width: CONTENT_WIDTH,
+    marginBottom: 16,
   },
   otpBox: {
     width: 42,
-    height: 60,
+    height: 56,
     borderWidth: 1,
-    borderColor: "#000000",
+    borderColor: "#E5E7EB",
+    backgroundColor: "#F9FAFB",
     borderRadius: 10,
-    marginHorizontal: 2,
-    ...textPresets.body
+    ...textPresets.body,
+    color: "#111827",
+    lineHeight: Math.round(14 * 1.5)
   },
-  centerContainer: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
-    justifyContent: "center",
-    alignItems: "center",
+  noteText: {
+    marginTop: 10,
+    ...textPresets.caption,
+    color: "#6B7280",
+    textAlign: "center",
   },
 });

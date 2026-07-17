@@ -1,9 +1,9 @@
 import React, { useState, useContext } from "react";
-import { View, TouchableOpacity, Text, TextInput, StyleSheet, Alert } from "react-native";
+import { View, TouchableOpacity, Text, TextInput, StyleSheet, Alert, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ThemeContext } from "../theme/ThemeContext";
 import { Dimensions } from "react-native";
-import { Entypo } from "@expo/vector-icons";
+import { Entypo, Feather } from "@expo/vector-icons";
 import { BASE_URL } from "../config";
 import { textPresets } from "../theme/typography";
 
@@ -19,6 +19,7 @@ export default function ResetPassword({ navigation, route }) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [visiblepass, setVisiblepass] = useState(false);
+  const [visibleConfirmPass, setVisibleConfirmPass] = useState(false);
 
   const parseResponse = async (response) => {
     const contentType = response.headers.get("content-type") || "";
@@ -89,114 +90,155 @@ export default function ResetPassword({ navigation, route }) {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <View style={{ flex: 1, backgroundColor: "#f5b849" }} />
-      <View style={{ flex: 1, backgroundColor: "#ffffff" }} />
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.headerBlock}>
+          <Text style={styles.title}>Reset Password</Text>
+          <Text style={styles.subtitle}>Set a new password for your account</Text>
+        </View>
 
-      <View style={styles.centerContainer}>
-        <Text style={{ color: "#ffffff", ...textPresets.subtitle }}>
-          Reset Password
-        </Text>
+        <Text style={styles.label}>New Password</Text>
+        <View style={styles.inputWrapper}>
+          <Feather name="lock" size={18} color="#9CA3AF" style={styles.inputIcon} />
+          <TextInput
+            style={styles.input}
+            placeholder="Enter new password"
+            placeholderTextColor="#9CA3AF"
+            secureTextEntry={!visiblepass}
+            value={newPassword}
+            onChangeText={setNewPassword}
+          />
+          <TouchableOpacity
+            style={styles.eyeButton}
+            onPress={() => setVisiblepass((prev) => !prev)}
+          >
+            <Entypo name={visiblepass ? "eye" : "eye-with-line"} size={18} color="#9CA3AF" />
+          </TouchableOpacity>
+        </View>
 
-        <View style={styles.card}>
-          <Text style={styles.text}>New Password</Text>
-          <View style={styles.inputpassword}>
-            <TextInput
-              style={{ ...textPresets.body }}
-              placeholder="Enter new password"
-              secureTextEntry={!visiblepass}
-              value={newPassword}
-              onChangeText={setNewPassword}
-            />
-            <TouchableOpacity style={{ padding: 14 }} onPress={() => setVisiblepass((prev) => !prev)}>
-              <Entypo name={visiblepass ? "eye" : "eye-with-line"} size={20} />
-            </TouchableOpacity>
-          </View>
-
-          <Text style={styles.text}>Confirm Password</Text>
+        <Text style={styles.label}>Confirm Password</Text>
+        <View style={styles.inputWrapper}>
+          <Feather name="lock" size={18} color="#9CA3AF" style={styles.inputIcon} />
           <TextInput
             style={styles.input}
             placeholder="Confirm new password"
-            secureTextEntry={!visiblepass}
+            placeholderTextColor="#9CA3AF"
+            secureTextEntry={!visibleConfirmPass}
             value={confirmPassword}
             onChangeText={setConfirmPassword}
           />
-
           <TouchableOpacity
-            onPress={handlePasswordReset}
-            style={[styles.button, loading && { opacity: 0.6 }]}
-            disabled={loading}
+            style={styles.eyeButton}
+            onPress={() => setVisibleConfirmPass((prev) => !prev)}
           >
-            <Text style={{ color: "white", ...textPresets.subtitle }}>
-              {loading ? "Resetting..." : "Reset Password"}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => navigation.navigate("Login", { email: email.trim().toLowerCase() })}
-            style={{ marginTop: 12, alignItems: "center" }}
-          >
-            <Text style={styles.link}>Back to Login</Text>
+            <Entypo name={visibleConfirmPass ? "eye" : "eye-with-line"} size={18} color="#9CA3AF" />
           </TouchableOpacity>
         </View>
-      </View>
+
+        <TouchableOpacity
+          onPress={handlePasswordReset}
+          style={[styles.button, loading && { opacity: 0.6 }]}
+          disabled={loading}
+        >
+          <Text style={styles.buttonText}>
+            {loading ? "Resetting..." : "Reset Password"}
+          </Text>
+        </TouchableOpacity>
+
+        <View style={styles.registerRow}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate("Login", { email: email.trim().toLowerCase() })}
+          >
+            <Text style={styles.registerLink}>Back to Login</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
-const { width, height } = Dimensions.get("window");
+const { width } = Dimensions.get("window");
+const CONTENT_WIDTH = width * 0.86;
+
 const styles = StyleSheet.create({
-  card: {
+  safeArea: {
+    flex: 1,
     backgroundColor: "#ffffff",
-    width: width * 0.85,
-    minHeight: height * 0.5,
-    borderRadius: 20,
-    padding: 16,
-    gap: 10,
-    borderWidth: 0.5,
-    borderColor: "#000000",
   },
-  text: {
-    ...textPresets.body
+  scrollContent: {
+    flexGrow: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 40,
+  },
+  headerBlock: {
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  title: {
+    ...textPresets.title,
+    color: "#111827",
+    textAlign: "center",
+  },
+  subtitle: {
+    ...textPresets.body,
+    color: "#9CA3AF",
+    marginTop: 4,
+    textAlign: "center",
+  },
+  label: {
+    ...textPresets.subtitle,
+    fontWeight: "600",
+    color: "#111827",
+    width: CONTENT_WIDTH,
+    marginBottom: 6,
+  },
+  inputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: CONTENT_WIDTH,
+    backgroundColor: "#F9FAFB",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    paddingHorizontal: 12,
+    marginBottom: 16,
+  },
+  inputIcon: {
+    marginRight: 8,
   },
   input: {
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: "#000000",
-    ...textPresets.body
+    flex: 1,
+    paddingVertical: 12,
+    ...textPresets.body,
+    color: "#111827",
+  },
+  eyeButton: {
+    padding: 6,
   },
   button: {
     backgroundColor: "#157a4f",
-    borderRadius: 10,
-    padding: 12,
+    borderRadius: 30,
+    paddingVertical: 14,
     alignItems: "center",
-    marginTop: 10,
+    width: CONTENT_WIDTH,
+    marginTop: 8,
   },
-  link: {
-    color: "#4caf50",
-    paddingHorizontal: 10,
-    ...textPresets.body
+  buttonText: {
+    ...textPresets.subtitle,
+    color: "#ffffff",
   },
-  inputpassword: {
+  registerRow: {
     flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#ffffff",
-    borderRadius: 10,
-    paddingLeft: 12,
-    justifyContent: "space-between",
-    borderWidth: 1,
-    borderColor: "#000000",
-    ...textPresets.body,
-    lineHeight:Math.round(14 * 1.5)
-  },
-  centerContainer: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
     justifyContent: "center",
     alignItems: "center",
+    marginTop: 20,
+  },
+  registerLink: {
+    ...textPresets.body,
+    color: "#157a4f",
   },
 });

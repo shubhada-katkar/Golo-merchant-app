@@ -95,6 +95,10 @@ export default function BannerPage({ navigation, route }) {
     const [category, setCategory] = useState(BANNER_CATEGORIES[0]);
     const [categoryOpen, setCategoryOpen] = useState(false);
     const [bannerImage, setBannerImage] = useState(null);
+    // Tracks whether the user picked a brand-new local image during edit mode.
+    // Needed because the backend PUT route skips image moderation, so we must
+    // run a moderation pre-check on the frontend before issuing the PUT.
+    const [imageChangedDuringEdit, setImageChangedDuringEdit] = useState(false);
 
     const [selectedDates, setSelectedDates] = useState([]); // array of "YYYY-MM-DD" strings
     const [showDatePicker, setShowDatePicker] = useState(false);
@@ -287,10 +291,13 @@ export default function BannerPage({ navigation, route }) {
         });
         if (!result.canceled && result.assets?.length) {
             setBannerImage(result.assets[0].uri);
-            // Clear flagged marker when user uploads a new image
+            // Mark that a new image was selected during edit so we know to run
+            // a moderation pre-check before the PUT (backend PUT skips isImageSafe).
+            if (isEditMode) setImageChangedDuringEdit(true);
+            // Clear any previously stored flagged marker when user picks a new image
             try { await AsyncStorage.removeItem('golo_images_flagged'); } catch (e) { }
         }
-    }, []);
+    }, [isEditMode]);
 
     const toggleDate = useCallback((key) => {
         setSelectedDates((prev) =>
@@ -347,6 +354,7 @@ export default function BannerPage({ navigation, route }) {
             setIsSubmitting(true);
             let imageUrl = bannerImage;
 
+            // Upload local image to Cloudinary first (applies to both create & edit)
             if (!/^https?:\/\//i.test(bannerImage)) {
                 setIsUploadingImage(true);
                 const uploadResult = await uploadImageToCloudinary(bannerImage, "golo/banner-promotions");
@@ -362,6 +370,71 @@ export default function BannerPage({ navigation, route }) {
             if (!token) {
                 Alert.alert("Login required", "Please log in again to continue.");
                 return;
+            }
+
+            // ── Edit mode with a new image: run the same moderation pre-check ──
+            // The backend PUT route skips isImageSafe, so we fire a temporary POST
+            // (which DOES run moderation) to screen the new Cloudinary URL.
+            // On pass: the probe record is deleted and we proceed with PUT.
+            // On fail: the moderation modal is shown, same as the create flow.
+            if (isEditMode && imageChangedDuringEdit) {
+                const probePayload = {
+                    bannerTitle: bannerTitle.trim() || "Moderation Check",
+                    bannerCategory: category,
+                    imageUrl,
+                    selectedDates: selectedDates.length ? selectedDates : [new Date().toISOString().slice(0, 10)],
+                    totalPrice: 0,
+                    dailyRate: RATE_PER_DAY,
+                    platformFee: PLATFORM_FEE,
+                    recommendedSize: "1920 x 520 px",
+                    targetCities: locations.length ? locations : ["Moderation"],
+                };
+
+                const probeResponse = await fetch(`${BASE_URL}/banners/promotions/request`, {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(probePayload),
+                });
+
+                const probePayloadResult = await probeResponse.json().catch(() => ({}));
+
+                if (!probeResponse.ok) {
+                    // Check if this is a moderation failure from the probe POST
+                    const isModerationError = isModerationFailureResponse(probePayloadResult);
+                    if (isModerationError) {
+                        try {
+                            await AsyncStorage.setItem('golo_images_flagged', 'true');
+                        } catch (e) {
+                            console.warn('Failed to set flagged marker during edit probe', e);
+                        }
+                        setFlaggedModalVisible(true);
+                        return;
+                    }
+                    // Non-moderation error on probe (e.g. validation) — fall through
+                    // and attempt the actual PUT anyway, so the user isn't blocked
+                    // unnecessarily by an unrelated probe issue.
+                } else {
+                    // Probe passed moderation — delete the temporary record to keep
+                    // the list clean before doing the real PUT.
+                    const probeRequestId =
+                        probePayloadResult?.data?.requestId ||
+                        probePayloadResult?.requestId ||
+                        null;
+                    if (probeRequestId) {
+                        try {
+                            await fetch(`${BASE_URL}/banners/promotions/${probeRequestId}`, {
+                                method: "DELETE",
+                                headers: { Authorization: `Bearer ${token}` },
+                            });
+                        } catch (cleanupErr) {
+                            // Non-fatal — the record will be orphaned but moderation passed
+                            console.warn("Probe cleanup failed:", cleanupErr);
+                        }
+                    }
+                }
             }
 
             // ── Edit mode → PUT, Create mode → POST ───────────
@@ -404,7 +477,8 @@ export default function BannerPage({ navigation, route }) {
 
             const payload = await response.json().catch(() => ({}));
             if (!response.ok) {
-                // Check if this is a moderation failure
+                // Check if this is a moderation failure (covers create mode and
+                // any future case where PUT may also run moderation)
                 const isModerationError = isModerationFailureResponse(payload);
 
                 if (isModerationError) {
@@ -426,8 +500,9 @@ export default function BannerPage({ navigation, route }) {
                     ? "Your banner promotion has been updated successfully."
                     : "Your banner promotion request has been sent for review."
             );
-            // Clear the moderation flag since submission succeeded
+            // Clear the moderation flag and reset the changed-image tracker
             try { await AsyncStorage.removeItem("golo_images_flagged"); } catch (e) { }
+            setImageChangedDuringEdit(false);
             navigation.navigate("BannerList");
         } catch (error) {
             Alert.alert("Submission failed", error?.message || "Please try again.");
@@ -498,56 +573,58 @@ export default function BannerPage({ navigation, route }) {
 
                     {/* BANNER LOCATIONS (MAX 7) */}
                     <Text style={[styles.label, { color: colors.subtext, marginTop: 18 }]}>BANNER LOCATIONS (MAX 7)</Text>
-                    <View style={{ position: "relative" }}>
-                        <View style={styles.locationInputRow}>
-                            <TextInput
-                                style={[
-                                    styles.input,
-                                    {
-                                        flex: 1,
-                                        color: colors.text,
-                                        borderColor: locationSuggestions.length > 0 ? (colors.success || "#157a4f") : colors.border,
-                                        backgroundColor: colors.inputBackground,
-                                        marginRight: 8,
-                                        marginBottom: 0,
-                                    }
-                                ]}
-                                placeholder="Search city / area (e.g. Kolhapur)"
-                                placeholderTextColor={colors.subtext}
-                                value={locationInputText}
-                                onChangeText={handleLocationInputChange}
-                                onSubmitEditing={handleAddLocation}
-                                returnKeyType="done"
-                            />
-                            <TouchableOpacity
-                                style={[
-                                    styles.addLocationBtn,
-                                    { backgroundColor: colors.success || "#157a4f" }
-                                ]}
-                                onPress={handleAddLocation}
-                            >
-                                {suggestionsLoading
-                                    ? <ActivityIndicator size="small" color="#fff" />
-                                    : <Feather name="plus" size={20} color="#fff" />}
-                            </TouchableOpacity>
-                        </View>
-
-                        {/* Autocomplete dropdown */}
-                        {locationSuggestions.length > 0 && (
-                            <View style={[styles.suggestionsDropdown, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}>
-                                {locationSuggestions.map((s) => (
-                                    <TouchableOpacity
-                                        key={s.id}
-                                        style={styles.suggestionItem}
-                                        onPress={() => handleSelectSuggestion(s)}
-                                    >
-                                        <Feather name="map-pin" size={14} color={colors.subtext} style={{ marginRight: 8 }} />
-                                        <Text style={[styles.suggestionText, { color: colors.text }]} numberOfLines={1}>{s.label}</Text>
-                                    </TouchableOpacity>
-                                ))}
+                    {!isEditMode ? (
+                        <View style={{ position: "relative" }}>
+                            <View style={styles.locationInputRow}>
+                                <TextInput
+                                    style={[
+                                        styles.input,
+                                        {
+                                            flex: 1,
+                                            color: colors.text,
+                                            borderColor: locationSuggestions.length > 0 ? (colors.success || "#157a4f") : colors.border,
+                                            backgroundColor: colors.inputBackground,
+                                            marginRight: 8,
+                                            marginBottom: 0,
+                                        }
+                                    ]}
+                                    placeholder="Search city / area (e.g. Kolhapur)"
+                                    placeholderTextColor={colors.subtext}
+                                    value={locationInputText}
+                                    onChangeText={handleLocationInputChange}
+                                    onSubmitEditing={handleAddLocation}
+                                    returnKeyType="done"
+                                />
+                                <TouchableOpacity
+                                    style={[
+                                        styles.addLocationBtn,
+                                        { backgroundColor: colors.success || "#157a4f" }
+                                    ]}
+                                    onPress={handleAddLocation}
+                                >
+                                    {suggestionsLoading
+                                        ? <ActivityIndicator size="small" color="#fff" />
+                                        : <Feather name="plus" size={20} color="#fff" />}
+                                </TouchableOpacity>
                             </View>
-                        )}
-                    </View>
+
+                            {/* Autocomplete dropdown */}
+                            {locationSuggestions.length > 0 && (
+                                <View style={[styles.suggestionsDropdown, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}>
+                                    {locationSuggestions.map((s) => (
+                                        <TouchableOpacity
+                                            key={s.id}
+                                            style={styles.suggestionItem}
+                                            onPress={() => handleSelectSuggestion(s)}
+                                        >
+                                            <Feather name="map-pin" size={14} color={colors.subtext} style={{ marginRight: 8 }} />
+                                            <Text style={[styles.suggestionText, { color: colors.text }]} numberOfLines={1}>{s.label}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            )}
+                        </View>
+                    ) : null}
 
                     {locations.length > 0 ? (
                         <View style={[styles.chipsWrap, { marginTop: 10 }]}>
@@ -555,15 +632,22 @@ export default function BannerPage({ navigation, route }) {
                                 <View key={idx} style={[styles.chip, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}>
                                     <Feather name="map-pin" size={12} color={colors.subtext} style={{ marginRight: 4 }} />
                                     <Text style={{ ...textPresets.label }}>{loc}</Text>
-                                    <TouchableOpacity onPress={() => handleRemoveLocation(loc)} style={{ marginLeft: 6 }}>
-                                        <Feather name="x" size={14} color={colors.subtext} />
-                                    </TouchableOpacity>
+                                    {!isEditMode && (
+                                        <TouchableOpacity onPress={() => handleRemoveLocation(loc)} style={{ marginLeft: 6 }}>
+                                            <Feather name="x" size={14} color={colors.subtext} />
+                                        </TouchableOpacity>
+                                    )}
                                 </View>
                             ))}
                         </View>
                     ) : (
                         <Text style={[styles.noDatesText, { color: colors.subtext, marginTop: 6 }]}>
                             No target locations added yet. (Min 1, max 7)
+                        </Text>
+                    )}
+                    {isEditMode && (
+                        <Text style={{ color: colors.subtext, fontSize: 12, marginTop: 8, fontStyle: "italic" }}>
+                            * Locations cannot be modified for an active promotion.
                         </Text>
                     )}
 
@@ -592,13 +676,15 @@ export default function BannerPage({ navigation, route }) {
                 <View style={styles.card}>
                     <View style={styles.datesHeaderRow}>
                         <Text style={[styles.cardTitle, { color: colors.text }]}>Promotion Dates</Text>
-                        <TouchableOpacity
-                            style={[styles.addDateBtn, { backgroundColor: colors.success || "#157a4f" }]}
-                            onPress={() => setShowDatePicker(true)}
-                        >
-                            <Feather name="plus" size={16} color="#fff" />
-                            <Text style={styles.addDateBtnText}>Add date</Text>
-                        </TouchableOpacity>
+                        {!isEditMode && (
+                            <TouchableOpacity
+                                style={[styles.addDateBtn, { backgroundColor: colors.success || "#157a4f" }]}
+                                onPress={() => setShowDatePicker(true)}
+                            >
+                                <Feather name="plus" size={16} color="#fff" />
+                                <Text style={styles.addDateBtnText}>Add date</Text>
+                            </TouchableOpacity>
+                        )}
                     </View>
 
                     {selectedDaysCount === 0 ? (
@@ -610,12 +696,20 @@ export default function BannerPage({ navigation, route }) {
                             {selectedDates.map((key) => (
                                 <View key={key} style={[styles.chip, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}>
                                     <Text style={{ ...textPresets.label }}>{formatDateLabel(key)}</Text>
-                                    <TouchableOpacity onPress={() => removeDate(key)} style={{ marginLeft: 6 }}>
-                                        <Feather name="x" size={14} color={colors.subtext} />
-                                    </TouchableOpacity>
+                                    {!isEditMode && (
+                                        <TouchableOpacity onPress={() => removeDate(key)} style={{ marginLeft: 6 }}>
+                                            <Feather name="x" size={14} color={colors.subtext} />
+                                        </TouchableOpacity>
+                                    )}
                                 </View>
                             ))}
                         </View>
+                    )}
+
+                    {isEditMode && (
+                        <Text style={{ color: colors.subtext, fontSize: 12, marginTop: 8, fontStyle: "italic" }}>
+                            * Dates cannot be modified for an active promotion.
+                        </Text>
                     )}
 
                     <Text style={[styles.selectedDaysSummary, { color: colors.text }]}>

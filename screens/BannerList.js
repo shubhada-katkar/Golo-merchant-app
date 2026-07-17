@@ -61,22 +61,17 @@ export default function BannerList({ navigation }) {
         const normalizedStatus = String(item?.status || "").toLowerCase();
         const paymentStatus = String(item?.paymentStatus || "").toLowerCase();
 
-        if (normalizedStatus === "approved" && paymentStatus !== "paid") {
-            return { label: "Approved", bg: "#E3EEFD", text: "#2563EB", canPay: true };
-        }
-        if (normalizedStatus === "active" || paymentStatus === "paid") {
+        const canPay = normalizedStatus === "approved" && paymentStatus !== "paid";
+        const isActive = normalizedStatus === "active" || paymentStatus === "paid";
+        const isExpired = normalizedStatus === "expired";
+
+        if (isActive) {
             return { label: "Active", bg: "#E3F8EA", text: "#15803D", canPay: false };
         }
-        if (normalizedStatus === "rejected") {
-            return { label: "Rejected", bg: "#FDE3E3", text: "#DC2626", canPay: false };
-        }
-        if (normalizedStatus === "under_review") {
-            return { label: "Under Review", bg: "#FFF4D6", text: "#B7791F", canPay: false };
-        }
-        if (normalizedStatus === "expired") {
+        if (isExpired) {
             return { label: "Expired", bg: "#F3F4F6", text: "#6B7280", canPay: false };
         }
-        return { label: "Pending", bg: colors.divider, text: colors.subtext, canPay: false };
+        return { label: null, bg: null, text: null, canPay };
     };
 
     const handlePayNow = async (item) => {
@@ -102,6 +97,9 @@ export default function BannerList({ navigation }) {
     };
 
     const filteredBanners = banners.filter((item) => {
+        if (String(item?.status || "").toLowerCase() === "deleted") {
+            return false;
+        }
         const keyword = (item?.bannerTitle || "").toLowerCase();
         return keyword.includes(search.toLowerCase());
     });
@@ -168,9 +166,11 @@ export default function BannerList({ navigation }) {
                                         <Text style={{ ...textPresets.body }}>{item?.bannerTitle || "Banner"}</Text>
                                         <Text style={{ ...textPresets.caption }}>{item?.bannerCategory || "General"}</Text>
                                     </View>
-                                    <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
-                                        <Text style={{ color: statusStyle.text, ...textPresets.caption }}>{statusStyle.label}</Text>
-                                    </View>
+                                    {statusStyle.label ? (
+                                        <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
+                                            <Text style={{ color: statusStyle.text, ...textPresets.caption }}>{statusStyle.label}</Text>
+                                        </View>
+                                    ) : null}
                                 </View>
 
                                 <View style={[styles.divider, { backgroundColor: colors.divider }]} />
@@ -196,7 +196,7 @@ export default function BannerList({ navigation }) {
                                         </TouchableOpacity>
                                     ) : null}
 
-                                    {["under_review", "pending", "rejected", "approved"].includes(String(item?.status || "").toLowerCase()) && String(item?.paymentStatus || "").toLowerCase() !== "paid" ? (
+                                    {String(item?.status || "").toLowerCase() === "active" || String(item?.paymentStatus || "").toLowerCase() === "paid" ? (
                                         <TouchableOpacity
                                             style={styles.editBtn}
                                             onPress={() => navigation.navigate("BannerPage", { editData: item })}
@@ -235,6 +235,6 @@ const styles = StyleSheet.create({
     paybtn: { flexDirection: "row", alignItems: "center", paddingVertical: 8, borderRadius: 12, backgroundColor: "#f5b849", justifyContent: "center", width: "100%", alignSelf: "center", marginVertical: 5 },
     loaderBox: { alignItems: "center", justifyContent: "center", paddingVertical: 24 },
     emptyBox: { alignItems: "center", justifyContent: "center", paddingVertical: 24 },
-    bannerActionsRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 },
+    bannerActionsRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2, alignSelf: "flex-end" },
     editBtn: { flexDirection: "row", alignItems: "center", paddingVertical: 11, paddingHorizontal: 14, borderRadius: 12, backgroundColor: "#157a4f", justifyContent: "center" },
 });
