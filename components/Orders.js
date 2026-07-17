@@ -235,24 +235,24 @@ const styles = StyleSheet.create({
     },
     row1Scroll: {
         flexDirection: "row",
-        paddingHorizontal: 12,
+        paddingHorizontal: 14,
         gap: 8,
-        paddingBottom: 8,
+        paddingBottom: 10,
     },
     row1text: {
         color: "white",
         paddingHorizontal: 6,
         ...textPresets.body,
-        lineHeight: Math.round(14 * 1.5)
+        lineHeight: Math.round(14 * 1.5),
+        textAlign: "center"
     },
     row1button: {
-        paddingHorizontal: 16,
         borderRadius: 20,
         backgroundColor: "#bebebe",
         paddingVertical: 6,
         alignItems: "center",
         justifyContent: "center",
-        minWidth: 80,
+        width: 100
     },
     ActiveTab: {
         backgroundColor: "#ffffff",

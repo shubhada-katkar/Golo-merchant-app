@@ -76,11 +76,7 @@ export default function PaymentPage({ navigation, route }) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <MaterialIcons name="arrow-back-ios" size={22} color={colors.text} style={{ padding: 10 }} />
         </TouchableOpacity>
-        <Text
-          style={{
-            paddingLeft: 5, flex: 1, ...textPresets.title
-          }}
-        >
+        <Text style={{ paddingLeft: 5, flex: 1, ...textPresets.title }}>
           Payment
         </Text>
       </View>
@@ -162,48 +158,48 @@ export default function PaymentPage({ navigation, route }) {
         </TouchableOpacity>
       </View>
 
-{/* Duration selection modal - centered */}
-<Modal
-  visible={durationModalVisible}
-  transparent
-  animationType="fade"
-  onRequestClose={() => setDurationModalVisible(false)}
-  statusBarTranslucent
->
-  <Pressable style={styles.centeredOverlay} onPress={() => setDurationModalVisible(false)}>
-    <Pressable style={[styles.centeredModal, { backgroundColor: colors.card || "#fff" }]}>
-      <Text style={[styles.modalTitle, { color: colors.text }]}>Select Duration</Text>
-      {DURATIONS.map((d) => {
-        const active = d.months === selectedMonths;
-        return (
-          <TouchableOpacity
-            key={d.months}
-            style={[styles.modalOptionRow, active && styles.modalOptionRowActive]}
-            onPress={() => handleSelectDuration(d.months)}
-            activeOpacity={0.7}
-          >
-            <Text
-              style={[
-                styles.modalOptionText,
-                { color: active ? "#157a4f" : colors.text },
-              ]}
-            >
-              {d.label}
-            </Text>
-            {active && <Ionicons name="checkmark-circle" size={20} color="#157a4f" />}
-          </TouchableOpacity>
-        );
-      })}
-      <TouchableOpacity
-        style={styles.centeredCancelButton}
-        onPress={() => setDurationModalVisible(false)}
-        activeOpacity={0.7}
+      {/* Duration selection modal - centered */}
+      <Modal
+        visible={durationModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDurationModalVisible(false)}
+        statusBarTranslucent
       >
-        <Text style={[styles.centeredCancelText, { color: colors.text }]}>Cancel</Text>
-      </TouchableOpacity>
-    </Pressable>
-  </Pressable>
-</Modal>
+        <Pressable style={styles.centeredOverlay} onPress={() => setDurationModalVisible(false)}>
+          <Pressable style={[styles.centeredModal, { backgroundColor: colors.card || "#fff" }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Select Duration</Text>
+            {DURATIONS.map((d) => {
+              const active = d.months === selectedMonths;
+              return (
+                <TouchableOpacity
+                  key={d.months}
+                  style={[styles.modalOptionRow, active && styles.modalOptionRowActive]}
+                  onPress={() => handleSelectDuration(d.months)}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.modalOptionText,
+                      { color: active ? "#157a4f" : colors.text },
+                    ]}
+                  >
+                    {d.label}
+                  </Text>
+                  {active && <Ionicons name="checkmark-circle" size={20} color="#157a4f" />}
+                </TouchableOpacity>
+              );
+            })}
+            <TouchableOpacity
+              style={styles.centeredCancelButton}
+              onPress={() => setDurationModalVisible(false)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.centeredCancelText, { color: colors.text }]}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Change plan modal */}
       <Modal
@@ -436,26 +432,26 @@ const styles = StyleSheet.create({
     color: "#8a8a8a",
   },
   centeredOverlay: {
-  flex: 1,
-  backgroundColor: "rgba(0,0,0,0.4)",
-  justifyContent: "center",
-  alignItems: "center",
-  paddingHorizontal: 30,
-},
-centeredModal: {
-  width: "100%",
-  borderRadius: 20,
-  padding: 20,
-},
-centeredCancelButton: {
-  alignItems: "center",
-  paddingVertical: 12,
-  marginTop: 4,
-  borderWidth: 1,
-  borderColor: "#157a4f",
-  borderRadius: 12,
-},
-centeredCancelText: {
-  ...textPresets.body,
-},
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 30,
+  },
+  centeredModal: {
+    width: "100%",
+    borderRadius: 20,
+    padding: 20,
+  },
+  centeredCancelButton: {
+    alignItems: "center",
+    paddingVertical: 12,
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: "#157a4f",
+    borderRadius: 12,
+  },
+  centeredCancelText: {
+    ...textPresets.body,
+  },
 });
