@@ -13,7 +13,7 @@ import OfferScroll from "../components/OfferScroll";
 import { ThemeContext } from "../theme/ThemeContext";
 import Dropdown from "../components/Dropdown";
 import { fetchMerchantProducts } from "../services/merchantProducts";
-import { MaterialIcons, Ionicons, Feather } from "@expo/vector-icons";
+import { MaterialIcons, Ionicons, Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Alert } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { uploadImageToCloudinary } from "../services/cloudinaryService";
@@ -172,6 +172,9 @@ export default function AddOfferPage({ navigation, route }) {
     const [bannerImage, setBannerImage] = useState(null); // local URI
     const [isBannerUploading, setIsBannerUploading] = useState(false);
     const [flaggedModalVisible, setFlaggedModalVisible] = useState(false);
+    const [upgradeModalVisible, setUpgradeModalVisible] = useState(false);
+    const [currentPlanName, setCurrentPlanName] = useState("");
+    const [offerLimit, setOfferLimit] = useState(0);
 
     const [selectedIds, setSelectedIds] = useState([]);
     const [selectedProducts, setSelectedProducts] = useState([]);
@@ -491,6 +494,53 @@ export default function AddOfferPage({ navigation, route }) {
         if (isDarkMode && (!Number.isFinite(Number(stars)) || Number(stars) < 1 || Number(stars) > 50)) {
             alert("Loyalty points must be between 1 and 50");
             return;
+        }
+
+        if (!offerData) {
+            try {
+                const accessToken = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+                const storedMerchantId = await AsyncStorage.getItem("merchantId");
+
+                if (accessToken && storedMerchantId) {
+                    const subRes = await fetch(`${BASE_URL}/merchants/${storedMerchantId}/subscription`, {
+                        headers: { Authorization: `Bearer ${accessToken}` }
+                    });
+                    if (subRes.ok) {
+                        const subData = await subRes.json();
+                        const maxMonthlyOffers = subData?.planFeatures?.maxMonthlyOffers ?? 2;
+                        const planName = subData?.name || "Free Tier";
+
+                        setCurrentPlanName(planName);
+                        setOfferLimit(maxMonthlyOffers);
+
+                        if (maxMonthlyOffers !== -1) {
+                            const resOffers = await fetch(`${BASE_URL}/offers/my?page=1&limit=100`, {
+                                headers: { Authorization: `Bearer ${accessToken}` },
+                            });
+                            if (resOffers.ok) {
+                                const result = await resOffers.json();
+                                const offers = Array.isArray(result) ? result : (result?.data && Array.isArray(result.data)) ? result.data : [];
+
+                                const isActiveOffer = (item) => {
+                                    const raw = item.endDate || item.validTo || item.expiresAt || item.endsAt || item.expiredAt;
+                                    if (!raw) return false;
+                                    const endDate = new Date(raw);
+                                    if (isNaN(endDate.getTime())) return false;
+                                    return endDate.getTime() > Date.now();
+                                };
+                                const activeOffersCount = offers.filter(isActiveOffer).length;
+
+                                if (activeOffersCount >= maxMonthlyOffers) {
+                                    setUpgradeModalVisible(true);
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("Verification error:", err);
+            }
         }
 
         try {
@@ -938,7 +988,7 @@ export default function AddOfferPage({ navigation, route }) {
                                 <TouchableOpacity style={[styles.rowButton, { backgroundColor: "#e93c3c" }]}
                                     onPress={clearAllFields} >
                                     <MaterialIcons name="cancel" size={20} color="#fff" />
-                                    <Text style={{ color: "white", lineHeight: Math.round(14 * 1.5) }}>Discard</Text>
+                                    <Text style={{ color: "white", lineHeight: Math.round(14 * 1.5), ...textPresets.body }}>Discard</Text>
                                 </TouchableOpacity>
                             }
 
@@ -1012,6 +1062,64 @@ export default function AddOfferPage({ navigation, route }) {
                         >
                             <Text style={styles.flaggedButtonText}>I Understand, Go Back</Text>
                         </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Plan Limit / Upgrade modal */}
+            <Modal
+                visible={upgradeModalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setUpgradeModalVisible(false)}
+                statusBarTranslucent
+            >
+                <View style={styles.upgradeModalOverlay}>
+                    <View style={styles.upgradeModalCard}>
+                        {/* Close button in top-right */}
+                        <TouchableOpacity
+                            style={styles.upgradeModalCloseButton}
+                            onPress={() => setUpgradeModalVisible(false)}
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                            <Feather name="x" size={20} color="#9ca3af" />
+                        </TouchableOpacity>
+
+                        {/* Crown Icon Container */}
+                        <View style={styles.upgradeModalIconCircle}>
+                            <MaterialCommunityIcons name="crown-outline" size={30} color="#f59e0b" />
+                        </View>
+
+                        {/* Title */}
+                        <Text style={styles.upgradeModalTitle}>Plan Limit Reached</Text>
+
+                        {/* Description */}
+                        <Text style={styles.upgradeModalDescription}>
+                            {currentPlanName || "Free Tier"} merchants can only add up to {offerLimit} offers. Please upgrade to a higher plan.
+                        </Text>
+
+                        {/* Actions Row */}
+                        <View style={styles.upgradeModalActionsRow}>
+                            <TouchableOpacity
+                                style={styles.upgradeModalSecondaryButton}
+                                onPress={() => setUpgradeModalVisible(false)}
+                                activeOpacity={0.85}
+                            >
+                                <Text style={styles.upgradeModalSecondaryButtonText}>Maybe Later</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.upgradeModalPrimaryButton}
+                                onPress={() => {
+                                    setUpgradeModalVisible(false);
+                                    navigation.navigate("UpgradePlanPage");
+                                }}
+                                activeOpacity={0.85}
+                            >
+                                <Text style={styles.upgradeModalPrimaryButtonText}>Upgrade Plan</Text>
+                                <Feather name="arrow-right" size={18} color="#fff" />
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </View>
             </Modal>
@@ -1195,5 +1303,89 @@ const styles = StyleSheet.create({
     summaryText: {
         ...textPresets.label,
         color: "#333",
+    },
+    upgradeModalOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(0, 0, 0, 0.4)",
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    upgradeModalCard: {
+        width: "90%",
+        maxWidth: 385,
+        backgroundColor: "#ffffff",
+        borderRadius: 24,
+        paddingHorizontal: 24,
+        paddingTop: 36,
+        paddingBottom: 24,
+        alignItems: "center",
+        position: "relative",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+        elevation: 8,
+    },
+    upgradeModalCloseButton: {
+        position: "absolute",
+        top: 16,
+        right: 16,
+        zIndex: 10,
+    },
+    upgradeModalIconCircle: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: "#fef3c7",
+        justifyContent: "center",
+        alignItems: "center",
+        marginBottom: 20,
+    },
+    upgradeModalTitle: {
+        color: "#1f2937",
+        textAlign: "center",
+        marginBottom: 10,
+        ...textPresets.subtitle
+    },
+    upgradeModalDescription: {
+        color: "#4b5563",
+        textAlign: "center",
+        paddingHorizontal: 10,
+        marginBottom: 28,
+        ...textPresets.label
+    },
+    upgradeModalActionsRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        width: "100%",
+        gap: 12,
+    },
+    upgradeModalSecondaryButton: {
+        flex: 1,
+        height: 48,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: "#e5e7eb",
+        backgroundColor: "#ffffff",
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    upgradeModalSecondaryButtonText: {
+        color: "#4b5563",
+        ...textPresets.label
+    },
+    upgradeModalPrimaryButton: {
+        flex: 1,
+        height: 48,
+        borderRadius: 12,
+        backgroundColor: "#157a4f",
+        justifyContent: "center",
+        alignItems: "center",
+        flexDirection: "row",
+        gap: 5
+    },
+    upgradeModalPrimaryButtonText: {
+        color: "#ffffff",
+        ...textPresets.label
     },
 });

@@ -7,7 +7,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
-import { MaterialIcons, Feather, Ionicons } from "@expo/vector-icons";
+import { MaterialIcons, Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { ThemeContext } from "../theme/ThemeContext";
 import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -133,6 +133,9 @@ export default function NewProductPage({ navigation, route }) {
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [merchantStoreSubCategory, setMerchantStoreSubCategory] = useState("");
   const [flaggedModalVisible, setFlaggedModalVisible] = useState(false);
+  const [upgradeModalVisible, setUpgradeModalVisible] = useState(false);
+  const [currentPlanName, setCurrentPlanName] = useState("");
+  const [productLimit, setProductLimit] = useState(0);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
 
   const categoryOptions = [
@@ -346,6 +349,51 @@ export default function NewProductPage({ navigation, route }) {
     setIsSaving(true);
 
     try {
+      if (!isEdit) {
+        try {
+          const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+          const merchantId = await AsyncStorage.getItem("merchantId");
+          if (token && merchantId) {
+            const subRes = await fetch(`${BASE_URL}/merchants/${merchantId}/subscription`, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            if (subRes.ok) {
+              const subData = await subRes.json();
+              const maxProducts = subData?.planFeatures?.maxProducts ?? 5;
+              const planName = subData?.name || "Free Tier";
+
+              setCurrentPlanName(planName);
+              setProductLimit(maxProducts);
+
+              if (maxProducts !== -1) {
+                let prodRes = await fetch(`${BASE_URL}/products/merchant`, {
+                  headers: { Authorization: `Bearer ${token}` },
+                });
+                if (!prodRes.ok && prodRes.status === 404) {
+                  prodRes = await fetch(`${BASE_URL}/merchant/products`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                  });
+                }
+                if (prodRes.ok) {
+                  const prodData = await prodRes.json();
+                  const list = Array.isArray(prodData)
+                    ? prodData
+                    : prodData?.products || prodData?.data?.products || prodData?.data || [];
+
+                  if (list.length >= maxProducts) {
+                    setIsSaving(false);
+                    setUpgradeModalVisible(true);
+                    return;
+                  }
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Verification error:", err);
+        }
+      }
+
       try {
         const storedFlag = await AsyncStorage.getItem("golo_images_flagged");
         if (storedFlag === "true") {
@@ -816,6 +864,64 @@ export default function NewProductPage({ navigation, route }) {
           </View>
         </View>
       </Modal>
+
+      {/* Plan Limit / Upgrade modal */}
+      <Modal
+        visible={upgradeModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setUpgradeModalVisible(false)}
+        statusBarTranslucent
+      >
+        <View style={styles.upgradeModalOverlay}>
+          <View style={styles.upgradeModalCard}>
+            {/* Close button in top-right */}
+            <TouchableOpacity
+              style={styles.upgradeModalCloseButton}
+              onPress={() => setUpgradeModalVisible(false)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Feather name="x" size={20} color="#9ca3af" />
+            </TouchableOpacity>
+
+            {/* Crown Icon Container */}
+            <View style={styles.upgradeModalIconCircle}>
+              <MaterialCommunityIcons name="crown-outline" size={30} color="#f59e0b" />
+            </View>
+
+            {/* Title */}
+            <Text style={styles.upgradeModalTitle}>Plan Limit Reached</Text>
+
+            {/* Description */}
+            <Text style={styles.upgradeModalDescription}>
+              {currentPlanName || "Free Tier"} merchants can only add up to {productLimit} products. Please upgrade to a higher plan.
+            </Text>
+
+            {/* Actions Row */}
+            <View style={styles.upgradeModalActionsRow}>
+              <TouchableOpacity
+                style={styles.upgradeModalSecondaryButton}
+                onPress={() => setUpgradeModalVisible(false)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.upgradeModalSecondaryButtonText}>Maybe Later</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.upgradeModalPrimaryButton}
+                onPress={() => {
+                  setUpgradeModalVisible(false);
+                  navigation.navigate("UpgradePlanPage");
+                }}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.upgradeModalPrimaryButtonText}>Upgrade Plan</Text>
+                <Feather name="arrow-right" size={18} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1118,5 +1224,89 @@ const styles = StyleSheet.create({
   flaggedButtonText: {
     color: "#fff",
     ...textPresets.body,
+  },
+  upgradeModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  upgradeModalCard: {
+    width: "90%",
+    maxWidth: 385,
+    backgroundColor: "#ffffff",
+    borderRadius: 24,
+    paddingHorizontal: 24,
+    paddingTop: 36,
+    paddingBottom: 24,
+    alignItems: "center",
+    position: "relative",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  upgradeModalCloseButton: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    zIndex: 10,
+  },
+  upgradeModalIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "#fef3c7",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  upgradeModalTitle: {
+    color: "#1f2937",
+    textAlign: "center",
+    marginBottom: 10,
+    ...textPresets.subtitle,
+  },
+  upgradeModalDescription: {
+    color: "#4b5563",
+    textAlign: "center",
+    paddingHorizontal: 10,
+    marginBottom: 28,
+    ...textPresets.label
+  },
+  upgradeModalActionsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+    gap: 12,
+  },
+  upgradeModalSecondaryButton: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    backgroundColor: "#ffffff",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  upgradeModalSecondaryButtonText: {
+    color: "#4b5563",
+    ...textPresets.label
+  },
+  upgradeModalPrimaryButton: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: "#157a4f",
+    justifyContent: "center",
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 5
+  },
+  upgradeModalPrimaryButtonText: {
+    ...textPresets.label,
+    color: "#ffffff",
   },
 });

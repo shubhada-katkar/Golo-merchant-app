@@ -43,8 +43,8 @@ export default function AllReviewsPage({ navigation }) {
           const list = Array.isArray(data?.data)
             ? data.data
             : Array.isArray(data)
-            ? data
-            : [];
+              ? data
+              : [];
           setReviews(list);
         } catch (error) {
           console.log("AllReviewsPage fetch error:", error);
@@ -61,23 +61,24 @@ export default function AllReviewsPage({ navigation }) {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}> 
-            <LinearGradient
-                colors={["#f8a812", "#fad081", "#f8f6f265"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 0, y: 1 }}
-                style={{height: 220, position: "absolute", top: 0, left: 0, right: 0, zIndex: 0}}
-            />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <LinearGradient
+        colors={["#f8a812", "#fad081", "#f8f6f265"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={{ height: 220, position: "absolute", top: 0, left: 0, right: 0, zIndex: 0 }}
+      />
       <Topbar />
-       <View style={styles.row1}>
-                    <TouchableOpacity style={{padding:10}} onPress={() => navigation.goBack()}>
-                        <MaterialIcons name="arrow-back-ios" size={22} color={colors.text}/>
-                    </TouchableOpacity>
-                    <Text style={{ ...textPresets.title
-                    }}>All Reviews</Text>
-        </View>
+      <View style={styles.row1}>
+        <TouchableOpacity style={{ padding: 10 }} onPress={() => navigation.goBack()}>
+          <MaterialIcons name="arrow-back-ios" size={22} color={colors.text} />
+        </TouchableOpacity>
+        <Text style={{
+          ...textPresets.title
+        }}>All Reviews</Text>
+      </View>
 
-        <View style={{ height: 1, backgroundColor: colors.divider, marginBottom: 10 }} />
+      <View style={{ height: 1, backgroundColor: colors.divider, marginBottom: 10 }} />
 
       <ScrollView contentContainerStyle={styles.content}>
         {loading ? (
@@ -93,24 +94,24 @@ export default function AllReviewsPage({ navigation }) {
             const rating = resolveRating(item);
             return (
               <View key={item._id || item.id || Math.random()} style={styles.reviewCard}>
-               
-                <View style={{flexDirection:"row", alignItems:"center", justifyContent:"space-between"}}>
-                <View style={{flexDirection:"row", gap:4, alignItems:"center"}}>
-                <MaterialCommunityIcons name="account-circle-outline" size={18} color="#157a4f"/> 
-                <Text style={styles.userName}>{item.userName || item.userEmail || "Customer"}</Text>
-                </View>
-                
-                <View style={styles.starRow}>
-                  {Array.from({ length: 5 }).map((_, index) => (
-                    <AntDesign
-                      key={index}
-                      name="star"
-                      size={18}
-                      color={index < rating ? "yellow" : "#d1d5db"}
-                    />
-                  ))}
-               
-                </View>
+
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                  <View style={{ flexDirection: "row", gap: 4, alignItems: "center" }}>
+                    <MaterialCommunityIcons name="account-circle-outline" size={18} color="#157a4f" />
+                    <Text style={styles.userName}>{item.userName || item.userEmail || "Customer"}</Text>
+                  </View>
+
+                  <View style={styles.starRow}>
+                    {Array.from({ length: 5 }).map((_, index) => (
+                      <AntDesign
+                        key={index}
+                        name="star"
+                        size={18}
+                        color={index < rating ? "yellow" : "#d1d5db"}
+                      />
+                    ))}
+
+                  </View>
                 </View>
 
                 <Text style={[styles.reviewText, { color: colors.text }]}>{item.content || "No review content."}</Text>
@@ -127,18 +128,18 @@ export default function AllReviewsPage({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-        row1: {
-        alignItems: "center",
-        flexDirection: "row",
-        paddingVertical: 8,
-        paddingHorizontal: 14
-    },
+  row1: {
+    alignItems: "center",
+    flexDirection: "row",
+    paddingVertical: 8,
+    paddingHorizontal: 14
+  },
   container: {
     flex: 1,
   },
   content: {
     paddingHorizontal: 18,
-    paddingBottom: 90,
+    paddingBottom: 20,
   },
   loadingBox: {
     paddingTop: 24,
@@ -161,16 +162,16 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 },
     elevation: 3,
-    borderWidth:0.5,
-    borderColor:"#157a4f"
+    borderWidth: 0.5,
+    borderColor: "#157a4f"
   },
   starRow: {
     flexDirection: "row",
     marginBottom: 10,
   },
   userName: {
-   ...textPresets.body,
-    color:"#157a4f",
+    ...textPresets.body,
+    color: "#157a4f",
     lineHeight: Math.round(14 * 1.5),
   },
   reviewText: {

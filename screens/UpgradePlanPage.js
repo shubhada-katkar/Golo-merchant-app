@@ -1,5 +1,5 @@
 import React, { useContext } from "react";
-import { View, TouchableOpacity, Text, StyleSheet, ScrollView } from "react-native";
+import { View, TouchableOpacity, Text, StyleSheet, ScrollView, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ThemeContext } from "../theme/ThemeContext";
 import { BASE_URL } from "../config";
@@ -7,64 +7,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import Topbar from "../components/Topbar";
 import { MaterialIcons, Ionicons, FontAwesome5 } from "@expo/vector-icons";
 import { textPresets } from "../theme/typography";
-
-export const PLANS = [
-  {
-    id: "basic",
-    name: "GOLO BASIC",
-    tagline: "Perfect for small shops getting started",
-    price: "999",
-    icon: "bolt",
-    popular: false,
-    features: [
-      "Up to 50 active products",
-      "Basic analytics dashboard",
-      "Standard customer support",
-      "1 banner promotion/month",
-      "Basic loyalty points system",
-      "Email notifications",
-      "Mobile app access",
-    ],
-  },
-  {
-    id: "pro",
-    name: "GOLO PRO",
-    tagline: "For growing businesses that need more",
-    price: "2,499",
-    icon: "trending-up",
-    popular: true,
-    features: [
-      "Up to 500 active products",
-      "Advanced analytics & insights",
-      "Priority customer support",
-      "5 banner promotions/month",
-      "Advanced loyalty program",
-      "Multi-location support",
-      "Custom promotions & deals",
-      "Email + chat support",
-      "API access (basic)",
-    ],
-  },
-  {
-    id: "premium",
-    name: "GOLO PREMIUM",
-    tagline: "Maximum power for enterprise",
-    price: "4,999",
-    icon: "crown",
-    popular: false,
-    features: [
-      "Unlimited active products",
-      "Real-time advanced analytics",
-      "24/7 dedicated support",
-      "Unlimited banner promotions",
-      "Enterprise loyalty program",
-      "Unlimited locations",
-      "Full API access & integrations",
-      "Custom branding & reports",
-      "Fraud protection suite",
-    ],
-  },
-];
 
 function PlanIcon({ icon, size = 22 }) {
   if (icon === "bolt") return <Ionicons name="flash" size={size} color="#157a4f" />;
@@ -74,11 +16,76 @@ function PlanIcon({ icon, size = 22 }) {
 
 export default function UpgradePlanPage({ navigation, route }) {
   const { colors } = useContext(ThemeContext);
+  const [plans, setPlans] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(null);
 
- const handleSelectPlan = (planId) => {
-  const plan = PLANS.find((p) => p.id === planId);
-  navigation.navigate("PaymentPage", { plan });
-};
+  const fetchRealTimePlans = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch(`${BASE_URL}/subscriptions/plans`);
+      if (response.ok) {
+        const fetchedPlans = await response.json();
+        if (Array.isArray(fetchedPlans) && fetchedPlans.length > 0) {
+          // Include all plans, including the default Free Tier
+          const mappedPlans = fetchedPlans.map((plan) => {
+            const lowerName = plan.name.toLowerCase();
+            let icon = "bolt";
+            let tagline = plan.description || "Perfect for small shops getting started";
+            let popular = plan.isPopular;
+
+            if (lowerName.includes("pro") || lowerName.includes("starter") || lowerName.includes("basic")) {
+              if (lowerName.includes("pro")) {
+                icon = "trending-up";
+                tagline = plan.description || "For growing businesses that need more";
+                popular = true;
+              } else {
+                icon = "bolt";
+                tagline = plan.description || "Perfect for small shops getting started";
+                popular = false;
+              }
+            } else if (lowerName.includes("premium") || lowerName.includes("crown") || lowerName.includes("enterprise")) {
+              icon = "crown";
+              tagline = plan.description || "Maximum power for enterprise";
+              popular = false;
+            }
+
+            return {
+              id: plan.id,
+              name: plan.name.toUpperCase(),
+              originalName: plan.name,
+              tagline: tagline,
+              price: Number(plan.price).toLocaleString("en-IN"),
+              icon: icon,
+              popular: popular,
+              features: plan.displayFeatures || [],
+            };
+          });
+          setPlans(mappedPlans);
+        } else {
+          setPlans([]);
+          setError("No plans are available right now.");
+        }
+      } else {
+        setError("Couldn't load plans. Please try again.");
+      }
+    } catch (err) {
+      console.error("Error fetching real time plans:", err);
+      setError("Couldn't load plans. Please check your connection.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    fetchRealTimePlans();
+  }, [fetchRealTimePlans]);
+
+  const handleSelectPlan = (planId) => {
+    const plan = plans.find((p) => p.id === planId);
+    navigation.navigate("PaymentPage", { plan, plans });
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
@@ -125,56 +132,77 @@ export default function UpgradePlanPage({ navigation, route }) {
         </View>
 
         {/* Plan cards */}
-        {PLANS.map((plan) => (
-          <View
-            key={plan.id}
-            style={[
-              styles.card,
-              { backgroundColor: colors.card || "#fff" },
-              plan.popular && styles.cardPopular,
-            ]}
-          >
-            {plan.popular && (
-              <View style={styles.popularBadge}>
-                <Text style={styles.popularBadgeText}>MOST POPULAR</Text>
-              </View>
-            )}
-
-            <View style={styles.cardHeaderRow}>
-              <View style={styles.iconCircle}>
-                <PlanIcon icon={plan.icon} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.planName, { color: colors.text }]}>{plan.name}</Text>
-                <Text style={styles.planTagline}>{plan.tagline}</Text>
-              </View>
-            </View>
-
-            <View style={styles.priceRow}>
-              <Text style={[styles.priceText, { color: colors.text }]}>
-                ₹{plan.price}
-                <Text style={styles.priceSuffix}>/month</Text>
-              </Text>
-            </View>
-
-            <View style={styles.featuresList}>
-              {plan.features.map((feature, idx) => (
-                <View key={idx} style={styles.featureRow}>
-                  <Ionicons name="checkmark" size={18} color="#157a4f" />
-                  <Text style={[styles.featureText, { color: colors.text }]}>{feature}</Text>
-                </View>
-              ))}
-            </View>
-
+        {loading ? (
+          <View style={{ paddingVertical: 40, justifyContent: "center", alignItems: "center" }}>
+            <ActivityIndicator size="large" color="#157a4f" />
+            <Text style={{ marginTop: 10, color: colors.text, ...textPresets.body }}>Loading plans...</Text>
+          </View>
+        ) : error ? (
+          <View style={{ paddingVertical: 40, justifyContent: "center", alignItems: "center" }}>
+            <Ionicons name="alert-circle-outline" size={32} color="#c0392b" />
+            <Text style={{ marginTop: 10, marginBottom: 16, color: colors.text, ...textPresets.body, textAlign: "center" }}>
+              {error}
+            </Text>
             <TouchableOpacity
-              style={styles.selectButton}
-              onPress={() => handleSelectPlan(plan.id)}
+              style={[styles.selectButton, { paddingHorizontal: 24 }]}
+              onPress={fetchRealTimePlans}
               activeOpacity={0.85}
             >
-              <Text style={styles.selectButtonText}>Select Plan</Text>
+              <Text style={styles.selectButtonText}>Retry</Text>
             </TouchableOpacity>
           </View>
-        ))}
+        ) : (
+          plans.map((plan) => (
+            <View
+              key={plan.id}
+              style={[
+                styles.card,
+                { backgroundColor: colors.card || "#fff" },
+                plan.popular && styles.cardPopular,
+              ]}
+            >
+              {plan.popular && (
+                <View style={styles.popularBadge}>
+                  <Text style={styles.popularBadgeText}>MOST POPULAR</Text>
+                </View>
+              )}
+
+              <View style={styles.cardHeaderRow}>
+                <View style={styles.iconCircle}>
+                  <PlanIcon icon={plan.icon} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.planName, { color: colors.text }]}>{plan.name}</Text>
+                  <Text style={styles.planTagline}>{plan.tagline}</Text>
+                </View>
+              </View>
+
+              <View style={styles.priceRow}>
+                <Text style={[styles.priceText, { color: colors.text }]}>
+                  ₹{plan.price}
+                  <Text style={styles.priceSuffix}>/month</Text>
+                </Text>
+              </View>
+
+              <View style={styles.featuresList}>
+                {plan.features.map((feature, idx) => (
+                  <View key={idx} style={styles.featureRow}>
+                    <Ionicons name="checkmark" size={18} color="#157a4f" />
+                    <Text style={[styles.featureText, { color: colors.text }]}>{feature}</Text>
+                  </View>
+                ))}
+              </View>
+
+              <TouchableOpacity
+                style={styles.selectButton}
+                onPress={() => handleSelectPlan(plan.id)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.selectButtonText}>Select Plan</Text>
+              </TouchableOpacity>
+            </View>
+          ))
+        )}
 
         {/* Need help choosing card */}
         <View style={[styles.helpCard, { backgroundColor: colors.card || "#fff" }]}>

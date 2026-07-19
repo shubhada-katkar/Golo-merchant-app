@@ -1,5 +1,5 @@
 import React, { useContext, useState, useMemo } from "react";
-import { View, TouchableOpacity, Text, StyleSheet, ScrollView, Modal, Pressable } from "react-native";
+import { View, TouchableOpacity, Text, StyleSheet, ScrollView, Modal, Pressable, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ThemeContext } from "../theme/ThemeContext";
 import { BASE_URL } from "../config";
@@ -7,6 +7,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import Topbar from "../components/Topbar";
 import { MaterialIcons, Ionicons, FontAwesome5 } from "@expo/vector-icons";
 import { PLANS } from "./UpgradePlanPage";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { textPresets } from "../theme/typography";
 
 const DURATIONS = [
@@ -25,9 +26,11 @@ function PlanIcon({ icon, size = 22 }) {
 export default function PaymentPage({ navigation, route }) {
   const { colors } = useContext(ThemeContext);
   const [plan, setPlan] = useState(route.params?.plan);
+  const plansList = route.params?.plans || PLANS;
   const [selectedMonths, setSelectedMonths] = useState(1);
   const [durationModalVisible, setDurationModalVisible] = useState(false);
   const [planModalVisible, setPlanModalVisible] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const monthlyPrice = useMemo(
     () => Number(String(plan?.price || "0").replace(/,/g, "")),
@@ -40,8 +43,50 @@ export default function PaymentPage({ navigation, route }) {
   const formatCurrency = (value) => value.toLocaleString("en-IN");
 
   const handlePayNow = async () => {
-    // TODO: wire this up to your payment gateway
-    console.log("Pay now:", { planId: plan?.id, months: selectedMonths, amount: totalAmount });
+    setIsProcessing(true);
+    try {
+      const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+      if (!token) {
+        Alert.alert("Session Expired", "Please login again.");
+        navigation.replace("Login");
+        return;
+      }
+
+      const response = await fetch(`${BASE_URL}/subscriptions/subscribe`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          planName: plan.originalName || plan.name,
+          billingCycle: selectedMonths === 12 ? "yearly" : "monthly"
+        })
+      });
+
+      const resData = await response.json();
+      if (!response.ok) {
+        throw new Error(resData?.message || "Failed to activate subscription plan.");
+      }
+
+      Alert.alert(
+        "Payment Successful",
+        `Your subscription to ${plan.name} has been activated successfully!`,
+        [
+          {
+            text: "OK",
+            onPress: () => {
+              navigation.navigate("HomePage");
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error("Payment error:", error);
+      Alert.alert("Subscription Failed", error.message || "An error occurred during payment.");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleChangePlan = (newPlan) => {
@@ -153,8 +198,15 @@ export default function PaymentPage({ navigation, route }) {
 
       {/* Fixed pay button */}
       <View style={[styles.footer, { backgroundColor: colors.background }]}>
-        <TouchableOpacity style={styles.payButton} onPress={handlePayNow} activeOpacity={0.85}>
-          <Text style={styles.payButtonText}>Pay ₹{formatCurrency(totalAmount)}</Text>
+        <TouchableOpacity
+          style={[styles.payButton, isProcessing && { opacity: 0.6 }]}
+          onPress={handlePayNow}
+          disabled={isProcessing}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.payButtonText}>
+            {isProcessing ? "Processing..." : `Pay ₹${formatCurrency(totalAmount)}`}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -213,7 +265,7 @@ export default function PaymentPage({ navigation, route }) {
           <Pressable style={[styles.modalSheet, { backgroundColor: colors.card || "#fff" }]}>
             <View style={styles.modalHandle} />
             <Text style={[styles.modalTitle, { color: colors.text }]}>Choose a Plan</Text>
-            {PLANS.map((p) => {
+            {plansList.map((p) => {
               const active = p.id === plan.id;
               return (
                 <TouchableOpacity
