@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useContext, useCallback, useRef } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, KeyboardAvoidingView,
-Platform, Modal, ActivityIndicator, FlatList, Dimensions, Keyboard } from "react-native";
+import {
+  View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, KeyboardAvoidingView,
+  Platform, Modal, ActivityIndicator, FlatList, Dimensions, Keyboard
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -244,7 +246,7 @@ export default function ProfileSettingsPage({ navigation }) {
       const merchantJson = merchantRes.ok ? await merchantRes.json() : null;
       const userProfileRes = await userProfilePromise;
       const userProfileJson = userProfileRes.ok ? await userProfileRes.json() : null;
-      
+
       // Backend returns { success: true, data: { merchant_object } }
       const merchantData = merchantJson?.data || null;
       const userProfileData = userProfileJson?.data || null;
@@ -304,7 +306,7 @@ export default function ProfileSettingsPage({ navigation }) {
       setStoreAddress(mergedStoreAddress);
       setStoreLatitude(mergedLatitude);
       setStoreLongitude(mergedLongitude);
-      
+
       // Set images with proper normalization
       if (mergedMerchantImage) {
         const normalizedMerchantImage = normalizeImageUrl(mergedMerchantImage);
@@ -645,17 +647,17 @@ export default function ProfileSettingsPage({ navigation }) {
     }
   };
 
- return (
+  return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"} >
         <LinearGradient
-                        colors={["#f8a812", "#fad081", "#f8f6f265"]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 0, y: 1 }}
-                        style={{height: 200, position: "absolute", top: 0, left: 0, right: 0, zIndex: 0}}
-                    />
+          colors={["#f8a812", "#fad081", "#f8f6f265"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={{ height: 200, position: "absolute", top: 0, left: 0, right: 0, zIndex: 0 }}
+        />
         <Topbar />
 
         {/* HEADER */}
@@ -672,43 +674,43 @@ export default function ProfileSettingsPage({ navigation }) {
           keyboardShouldPersistTaps="handled">
 
           {/* BANNER + PROFILE IMAGES */}
-<View style={styles.bannerContainer}>
-  {/* Store/Banner Image */}
-  <TouchableOpacity onPress={pickStoreImage}>
-    <View style={{ position: "relative" }}>
-      <Image
-        source={
-          !storeImage || storeImageError
-            ? require("../assets/profile.png")
-            : { uri: storeImage }
-        }
-        style={styles.storeImage}
-      />
-      <View style={styles.storeCameraIcon}>
-      <MaterialIcons name="camera-alt" size={16} color="#ffffff" /> 
-      </View>
-    </View>
-  </TouchableOpacity>
+          <View style={styles.bannerContainer}>
+            {/* Store/Banner Image */}
+            <TouchableOpacity onPress={pickStoreImage}>
+              <View style={{ position: "relative" }}>
+                <Image
+                  source={
+                    !storeImage || storeImageError
+                      ? require("../assets/profile.png")
+                      : { uri: storeImage }
+                  }
+                  style={styles.storeImage}
+                />
+                <View style={styles.storeCameraIcon}>
+                  <MaterialIcons name="camera-alt" size={16} color="#ffffff" />
+                </View>
+              </View>
+            </TouchableOpacity>
 
-  {/* Profile Image Overlapping Banner */}
-  <TouchableOpacity
-    onPress={pickMerchantImage}
-    style={styles.profileImageWrap}
-  >
-    <Image
-      source={
-        !merchantImage || merchantImageError
-          ? require("../assets/profile.png")
-          : { uri: merchantImage }
-      }
-      style={styles.profileImage}
-    />
+            {/* Profile Image Overlapping Banner */}
+            <TouchableOpacity
+              onPress={pickMerchantImage}
+              style={styles.profileImageWrap}
+            >
+              <Image
+                source={
+                  !merchantImage || merchantImageError
+                    ? require("../assets/profile.png")
+                    : { uri: merchantImage }
+                }
+                style={styles.profileImage}
+              />
 
-    <View style={styles.cameraIcon}>
-      <MaterialIcons name="camera-alt" size={16} color="#fff" />
-    </View>
-  </TouchableOpacity>
-</View>
+              <View style={styles.cameraIcon}>
+                <MaterialIcons name="camera-alt" size={16} color="#fff" />
+              </View>
+            </TouchableOpacity>
+          </View>
 
           {/* PERSONAL INFORMATION CARD */}
           <View style={styles.card}>
@@ -737,14 +739,22 @@ export default function ProfileSettingsPage({ navigation }) {
             />
 
             <Text style={styles.fieldLabel}>EMAIL ADDRESS</Text>
-            <TextInput
-              style={styles.input}
-              value={email}
-              placeholder="Enter email"
-              placeholderTextColor="#999"
-              editable={false}
-              selectTextOnFocus={false}
-            />
+            <View style={styles.lockedInputWrap}>
+              <TextInput
+                style={[styles.input, styles.lockedInput]}
+                value={email}
+                placeholder="Enter email"
+                placeholderTextColor="#999"
+                editable={false}
+                selectTextOnFocus={false}
+              />
+              <MaterialIcons
+                name="lock"
+                size={16}
+                color="#9a9a9a"
+                style={styles.lockedInputIcon}
+              />
+            </View>
           </View>
 
           {/* STORE SPECIFICATIONS CARD */}
@@ -799,13 +809,13 @@ export default function ProfileSettingsPage({ navigation }) {
                 <Picker.Item
                   label={storeCategory ? "Select store sub-category" : "Select store category first"}
                   value=""
-                  style={styles.pickerItem}  />
+                  style={styles.pickerItem} />
                 {subCategoryOptions.map((subCategory) => (
                   <Picker.Item
                     key={subCategory}
                     label={subCategory}
                     value={subCategory}
-                    style={styles.pickerItem}  />
+                    style={styles.pickerItem} />
                 ))}
               </Picker>
             </View>
@@ -855,7 +865,7 @@ export default function ProfileSettingsPage({ navigation }) {
           </View>
 
           <Modal visible={locationModalVisible} animationType="slide">
-            <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>              
+            <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Store Location</Text>
                 <TouchableOpacity onPress={closeLocationModal} style={styles.modalCloseButton}>
@@ -863,7 +873,7 @@ export default function ProfileSettingsPage({ navigation }) {
                 </TouchableOpacity>
               </View>
 
-              <View style={[styles.searchContainer, { borderColor: colors.divider, backgroundColor: colors.background }]}>                
+              <View style={[styles.searchContainer, { borderColor: colors.divider, backgroundColor: colors.background }]}>
                 <TextInput
                   style={[styles.searchInput, { color: colors.text, borderColor: colors.divider }]}
                   value={locationSearchQuery}
@@ -883,21 +893,21 @@ export default function ProfileSettingsPage({ navigation }) {
                     <TouchableOpacity style={[styles.searchResultItem, { borderColor: colors.divider }]} onPress={() => selectSearchResult(item)}>
                       <Text style={[styles.searchResultText, { color: colors.text }]}>{item.displayName || item.address || item.name}</Text>
                     </TouchableOpacity>
-                  )}  />
+                  )} />
               )}
 
-              <View style={[styles.modalMapContainer, { borderColor: colors.divider }]}>                
+              <View style={[styles.modalMapContainer, { borderColor: colors.divider }]}>
                 <WebView
                   ref={webviewRef}
                   originWhitelist={['*']}
                   source={{
                     html: getLeafletMapHtml(
                       tempLocation.latitude ?? DEFAULT_REGION.latitude,
-                      tempLocation.longitude ?? DEFAULT_REGION.longitude ),
+                      tempLocation.longitude ?? DEFAULT_REGION.longitude),
                   }}
                   style={styles.modalMap}
                   scrollEnabled={false}
-                  onMessage={handleWebViewMessage}  />
+                  onMessage={handleWebViewMessage} />
               </View>
 
               <Text style={[styles.modalNote, { color: colors.text }]} numberOfLines={2}>
@@ -914,7 +924,7 @@ export default function ProfileSettingsPage({ navigation }) {
 
         </ScrollView>
       </KeyboardAvoidingView>
-      <Bottombar/>
+      <Bottombar />
     </SafeAreaView>
   );
 }
@@ -923,33 +933,33 @@ const styles = StyleSheet.create({
   row1: { flexDirection: "row", alignItems: "center", padding: 12 },
   title: { ...textPresets.title },
 
- 
-bannerContainer: {
-  width: "100%",
-  position: "relative",
-  marginBottom: 70, // space for overlap
-},
 
-storeImage: {
-  width: "100%",
-  height: 170,
-},
+  bannerContainer: {
+    width: "100%",
+    position: "relative",
+    marginBottom: 70, // space for overlap
+  },
 
-profileImageWrap: {
-  position: "absolute",
-  left: 16,
-  bottom: -50, // pushes circle outside banner
-  zIndex: 10,
-},
+  storeImage: {
+    width: "100%",
+    height: 170,
+  },
 
-profileImage: {
-  width: 110,
-  height: 110,
-  borderRadius: 60,
-  borderWidth: 3,
-  borderColor: "#fff",
-},
- 
+  profileImageWrap: {
+    position: "absolute",
+    left: 16,
+    bottom: -50, // pushes circle outside banner
+    zIndex: 10,
+  },
+
+  profileImage: {
+    width: 110,
+    height: 110,
+    borderRadius: 60,
+    borderWidth: 3,
+    borderColor: "#fff",
+  },
+
   cameraIcon: {
     position: "absolute",
     bottom: 0,
@@ -1004,6 +1014,19 @@ profileImage: {
     borderColor: "#e0e0e0",
     padding: 10,
     ...textPresets.body,
+  },
+  lockedInputWrap: {
+    position: "relative",
+    justifyContent: "center",
+  },
+  lockedInput: {
+    backgroundColor: "#e9e9e9",
+    color: "#8a8a8a",
+    paddingRight: 34,
+  },
+  lockedInputIcon: {
+    position: "absolute",
+    right: 10,
   },
   pickerWrap: {
     backgroundColor: "#f0f0f0",

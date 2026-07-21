@@ -297,7 +297,7 @@ export default function Customers() {
                 <Image source={{ uri: imgUri }} style={styles.likedItemImage} />
               ) : (
                 <View style={[styles.likedItemImage, styles.likedItemImagePlaceholder]}>
-                  <Text style={{ color: "#9ca3af", fontSize: 10 }}>No img</Text>
+                  <Text style={{ color: "#9ca3af", ...textPresets.label }}>No img</Text>
                 </View>
               )}
               <View style={styles.likedItemInfo}>
@@ -330,7 +330,7 @@ export default function Customers() {
                 <Image source={{ uri: imgUri }} style={styles.likedItemImage} />
               ) : (
                 <View style={[styles.likedItemImage, styles.likedItemImagePlaceholder]}>
-                  <Text style={{ color: "#9ca3af", fontSize: 10 }}>No img</Text>
+                  <Text style={{ color: "#9ca3af", ...textPresets.label }}>No img</Text>
                 </View>
               )}
               <View style={styles.likedItemInfo}>
@@ -485,7 +485,7 @@ const styles = StyleSheet.create({
   retentionStatsRow: { flexDirection: "row", justifyContent: "space-around", width: "100%", marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: "#f3f4f6" },
   retentionStatItem: { alignItems: "center", flex: 1 },
   retentionStatDivider: { borderLeftWidth: 1, borderColor: "#f3f4f6" },
-  retentionStatValue: { fontSize: 16, fontWeight: "700", color: "#111827", lineHeight: Math.round(16 * 1.5) },
+  retentionStatValue: { color: "#111827", lineHeight: Math.round(14 * 1.5), ...textPresets.body },
   retentionStatLabel: { color: "#6b7280", marginTop: 2, ...textPresets.label },
   // Liked items — scrollable container with min height
   likedScrollContainer: { minHeight: 80, maxHeight: 260 },
@@ -493,9 +493,9 @@ const styles = StyleSheet.create({
   likedItemImage: { width: 44, height: 44, borderRadius: 8, resizeMode: "cover", backgroundColor: "#e5e7eb" },
   likedItemImagePlaceholder: { alignItems: "center", justifyContent: "center" },
   likedItemInfo: { flex: 1, marginLeft: 10 },
-  likedItemName: { color: "#111827", fontWeight: "600", ...textPresets.body },
+  likedItemName: { color: "#111827", ...textPresets.body },
   likedItemType: { color: "#6b7280", marginTop: 2, ...textPresets.label },
   likedItemCustomers: { color: "#9ca3af", marginTop: 1, ...textPresets.label },
   likedItemBadge: { backgroundColor: "#fef2f2", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
-  likedItemBadgeText: { color: "#e74c3c", fontWeight: "600", ...textPresets.label },
+  likedItemBadgeText: { color: "#e74c3c", ...textPresets.label },
 });

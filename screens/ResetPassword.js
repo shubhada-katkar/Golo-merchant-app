@@ -191,7 +191,6 @@ const styles = StyleSheet.create({
   },
   label: {
     ...textPresets.subtitle,
-    fontWeight: "600",
     color: "#111827",
     width: CONTENT_WIDTH,
     marginBottom: 6,

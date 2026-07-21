@@ -12,7 +12,7 @@ export default function Topbar() {
     const navigation = useNavigation();
     const route = useRoute();
     const currentRoute = route.name;
-    const {colors} = useContext(ThemeContext);
+    const { colors } = useContext(ThemeContext);
     const [unreadCount, setUnreadCount] = useState(0);
     const BASE_URL = (process.env.EXPO_PUBLIC_API_URL || CONFIG_BASE_URL || "").replace(/\/+$/, "");
 
@@ -80,14 +80,15 @@ export default function Topbar() {
                 style={{ height: 50, width: 50, resizeMode: "contain" }} />
 
             <View style={{ flexDirection: "column", paddingHorizontal: 12 }}>
-                <Text style={{ ...textPresets.subtitle
-                 }}>GOLO</Text>
+                <Text style={{
+                    ...textPresets.subtitle
+                }}>GOLO</Text>
             </View>
 
             <View style={styles.rowcontainer}>
-                <TouchableOpacity onPress={()=>navigation.navigate("NotificationsPage")} style={styles.bellButton}>
-                    <FontAwesome name="bell-o" size={24} 
-                    color={currentRoute === "NotificationsPage" ? "#157a4f" : "black"} />
+                <TouchableOpacity onPress={() => navigation.navigate("NotificationsPage")} style={styles.bellButton}>
+                    <FontAwesome name="bell-o" size={24}
+                        color={currentRoute === "NotificationsPage" ? "#157a4f" : "black"} />
                     {unreadCount > 0 ? (
                         <View style={styles.badgeContainer}>
                             <Text style={styles.badgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text>
@@ -102,9 +103,9 @@ export default function Topbar() {
 const styles = StyleSheet.create({
     rowcontainer: {
         flexDirection: "row",
-        marginLeft:"auto",
+        marginLeft: "auto",
         alignItems: "center",
-        gap:18
+        gap: 18
     },
     bellButton: {
         position: "relative",
@@ -124,8 +125,6 @@ const styles = StyleSheet.create({
     },
     badgeText: {
         color: "#fff",
-        fontSize: 10,
-        fontFamily: "Medium",
-        lineHeight: Math.round(10 * 1.5),
+        ...textPresets.caption
     }
 })

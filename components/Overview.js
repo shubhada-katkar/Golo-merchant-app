@@ -320,7 +320,7 @@ export default function Overview() {
                             }}
                             onPress={() => setTrendPeriod('weekly')}
                         >
-                            <Text style={{ ...textPresets.caption, color: trendPeriod === 'weekly' ? '#ffffff' : '#6b7280', fontWeight: '600' }}>
+                            <Text style={{ ...textPresets.caption, color: trendPeriod === 'weekly' ? '#ffffff' : '#6b7280' }}>
                                 Weekly
                             </Text>
                         </TouchableOpacity>
@@ -333,7 +333,7 @@ export default function Overview() {
                             }}
                             onPress={() => setTrendPeriod('monthly')}
                         >
-                            <Text style={{ ...textPresets.caption, color: trendPeriod === 'monthly' ? '#ffffff' : '#6b7280', fontWeight: '600' }}>
+                            <Text style={{ ...textPresets.caption, color: trendPeriod === 'monthly' ? '#ffffff' : '#6b7280' }}>
                                 Monthly
                             </Text>
                         </TouchableOpacity>
@@ -402,7 +402,7 @@ export default function Overview() {
                                                     <View style={{ flexDirection: 'row', marginTop: 6 }}>
                                                         {activeLabels.map((lbl, i) => (
                                                             <View key={i} style={{ width: 45, alignItems: 'center' }}>
-                                                                <Text style={{ ...textPresets.caption, color: '#6b7280', fontSize: 9 }} numberOfLines={1}>{lbl || ''}</Text>
+                                                                <Text style={{ ...textPresets.caption, color: '#6b7280' }} numberOfLines={1}>{lbl || ''}</Text>
                                                             </View>
                                                         ))}
                                                     </View>

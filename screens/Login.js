@@ -553,8 +553,8 @@ const styles = StyleSheet.create({
   },
   socialText: {
     ...textPresets.body,
-    fontWeight: "600",
     color: "#374151",
+    lineHeight: Math.round(14 * 1.5)
   },
   dividerRow: {
     flexDirection: "row",
@@ -575,7 +575,6 @@ const styles = StyleSheet.create({
   },
   label: {
     ...textPresets.subtitle,
-    fontWeight: "600",
     color: "#111827",
     width: CONTENT_WIDTH,
     marginBottom: 6,
@@ -613,7 +612,7 @@ const styles = StyleSheet.create({
   link: {
     ...textPresets.body,
     color: "#157a4f",
-    fontWeight: "600",
+    lineHeight: Math.round(14 * 1.5)
   },
   button: {
     backgroundColor: "#157a4f",

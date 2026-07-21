@@ -143,11 +143,11 @@ export default function BannerList({ navigation }) {
                 {loading ? (
                     <View style={styles.loaderBox}>
                         <ActivityIndicator size="small" color="#f8a812" />
-                        <Text style={{ color: colors.subtext, marginTop: 8, fontFamily: "Medium" }}>Loading requests...</Text>
+                        <Text style={{ color: colors.subtext, marginTop: 8, ...textPresets.body }}>Loading requests...</Text>
                     </View>
                 ) : filteredBanners.length === 0 ? (
                     <View style={styles.emptyBox}>
-                        <Text style={{ color: colors.subtext, fontFamily: "Medium" }}>No banner requests found.</Text>
+                        <Text style={{ color: colors.subtext, ...textPresets.body }}>No banner requests found.</Text>
                     </View>
                 ) : (
                     filteredBanners.map((item) => {

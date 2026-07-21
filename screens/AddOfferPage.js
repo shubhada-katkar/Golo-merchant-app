@@ -178,6 +178,10 @@ export default function AddOfferPage({ navigation, route }) {
 
     const [selectedIds, setSelectedIds] = useState([]);
     const [selectedProducts, setSelectedProducts] = useState([]);
+
+    const [restrictionModalVisible, setRestrictionModalVisible] = useState(false);
+    const [restrictionUntil, setRestrictionUntil] = useState(null);
+    const [countdownText, setCountdownText] = useState("");
     const [merchantProducts, setMerchantProducts] = useState([]);
     const [loadingProducts, setLoadingProducts] = useState(false);
 
@@ -195,9 +199,69 @@ export default function AddOfferPage({ navigation, route }) {
         { label: "New Arrival Offer", value: "New Arrival Offer" },
         { label: "Weekend Offer", value: "Weekend Offer" },
         { label: "Member Exclusive", value: "Member Exclusive" },
+        { label: "Seasonal Offer", value: "Seasonal Offer" },
+        { label: "Happy Hour Deal", value: "Happy Hour Deal" },
+        { label: "First Purchase Offer", value: "First Purchase Offer" },
+        { label: "Referral Offer", value: "Referral Offer" },
         { label: "Loyalty Reward", value: "Loyalty Reward" },
-        { label: "Custom Offer", value: "Custom Offer" },
+        { label: "Clear Stock Sale", value: "Clear Stock Sale" },
+        { label: "Free Gift Offer", value: "Free Gift Offer" },
     ];
+
+    useEffect(() => {
+        const checkRestrictionStatus = async () => {
+            try {
+                const merchantId = await AsyncStorage.getItem("merchantId") || "default";
+                const restrictionKey = `golo_restricted_until:${merchantId}`;
+                const flaggedKey = `golo_images_flagged:${merchantId}`;
+                const untilStr = await AsyncStorage.getItem(restrictionKey);
+                if (untilStr) {
+                    const untilDate = new Date(untilStr);
+                    if (untilDate > new Date()) {
+                        setRestrictionUntil(untilDate);
+                    } else {
+                        await AsyncStorage.removeItem(restrictionKey);
+                        await AsyncStorage.removeItem(flaggedKey);
+                        setRestrictionUntil(null);
+                    }
+                } else {
+                    setRestrictionUntil(null);
+                }
+            } catch (e) {
+                console.warn(e);
+            }
+        };
+        checkRestrictionStatus();
+    }, []);
+
+    useEffect(() => {
+        if (!restrictionUntil) {
+            setCountdownText("");
+            return;
+        }
+        const updateTimer = async () => {
+            const now = new Date();
+            const diffMs = restrictionUntil - now;
+            if (diffMs <= 0) {
+                setRestrictionUntil(null);
+                setCountdownText("");
+                setRestrictionModalVisible(false);
+                try {
+                    const merchantId = await AsyncStorage.getItem("merchantId") || "default";
+                    await AsyncStorage.removeItem(`golo_restricted_until:${merchantId}`);
+                    await AsyncStorage.removeItem(`golo_images_flagged:${merchantId}`);
+                } catch (e) { }
+                return;
+            }
+            const hrs = String(Math.floor(diffMs / 3600000)).padStart(2, "0");
+            const mins = String(Math.floor((diffMs % 3600000) / 60000)).padStart(2, "0");
+            const secs = String(Math.floor((diffMs % 60000) / 1000)).padStart(2, "0");
+            setCountdownText(`${hrs}:${mins}:${secs}`);
+        };
+        updateTimer();
+        const interval = setInterval(updateTimer, 1000);
+        return () => clearInterval(interval);
+    }, [restrictionUntil]);
 
     // Prefill form if editing
     useEffect(() => {
@@ -391,6 +455,10 @@ export default function AddOfferPage({ navigation, route }) {
     };
 
     const pickBannerImage = async () => {
+        if (restrictionUntil && restrictionUntil > new Date()) {
+            setRestrictionModalVisible(true);
+            return;
+        }
         try {
             const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
             if (!permissionResult.granted) {
@@ -408,7 +476,8 @@ export default function AddOfferPage({ navigation, route }) {
             if (!result.canceled && result.assets && result.assets.length > 0) {
                 setBannerImage(result.assets[0].uri);
                 try {
-                    await AsyncStorage.removeItem("golo_images_flagged");
+                    const merchantId = await AsyncStorage.getItem("merchantId") || "default";
+                    await AsyncStorage.removeItem(`golo_images_flagged:${merchantId}`);
                 } catch (error) {
                     console.warn("Failed to clear moderation flag", error);
                 }
@@ -483,6 +552,7 @@ export default function AddOfferPage({ navigation, route }) {
 
     const handleSubmit = async () => {
         if (isSaving || isDeleting) return;
+        const merchantId = await AsyncStorage.getItem("merchantId") || "default";
         if (!title || !offerType || selectedIds.length === 0 || !fromDate || !toDate) {
             alert("Please fill all required fields");
             return;
@@ -499,7 +569,7 @@ export default function AddOfferPage({ navigation, route }) {
         if (!offerData) {
             try {
                 const accessToken = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
-                const storedMerchantId = await AsyncStorage.getItem("merchantId");
+                const storedMerchantId = merchantId;
 
                 if (accessToken && storedMerchantId) {
                     const subRes = await fetch(`${BASE_URL}/merchants/${storedMerchantId}/subscription`, {
@@ -543,9 +613,13 @@ export default function AddOfferPage({ navigation, route }) {
             }
         }
 
+        if (restrictionUntil && restrictionUntil > new Date()) {
+            setRestrictionModalVisible(true);
+            return;
+        }
         try {
             try {
-                const storedFlag = await AsyncStorage.getItem("golo_images_flagged");
+                const storedFlag = await AsyncStorage.getItem(`golo_images_flagged:${merchantId}`);
                 if (storedFlag === "true") {
                     setFlaggedModalVisible(true);
                     return;
@@ -651,9 +725,20 @@ export default function AddOfferPage({ navigation, route }) {
             const responseData = await parseResponseSafely(response);
 
             if (!response.ok) {
+                const isRestricted = response.status === 403 || responseData?.code === "CONTENT_UPLOAD_RESTRICTED";
+                if (isRestricted) {
+                    const until = responseData?.restrictedUntil || new Date(Date.now() + 2 * 3600000).toISOString();
+                    try {
+                        await AsyncStorage.setItem(`golo_restricted_until:${merchantId}`, until);
+                    } catch (error) { }
+                    setRestrictionUntil(new Date(until));
+                    setRestrictionModalVisible(true);
+                    return;
+                }
+
                 if (isModerationFailureResponse(responseData)) {
                     try {
-                        await AsyncStorage.setItem("golo_images_flagged", "true");
+                        await AsyncStorage.setItem(`golo_images_flagged:${merchantId}`, "true");
                     } catch (error) {
                         console.warn("Failed to set moderation flag", error);
                     }
@@ -667,7 +752,7 @@ export default function AddOfferPage({ navigation, route }) {
             }
 
             try {
-                await AsyncStorage.removeItem("golo_images_flagged");
+                await AsyncStorage.removeItem(`golo_images_flagged:${merchantId}`);
             } catch (error) {
                 console.warn("Failed to clear moderation flag after success", error);
             }
@@ -1013,6 +1098,82 @@ export default function AddOfferPage({ navigation, route }) {
             <SafeAreaView edges={["bottom"]} style={{ width: "100%", bottom: 0, position: "absolute" }}>
                 <Bottombar />
             </SafeAreaView>
+
+            {/* Moderation restriction countdown modal */}
+            <Modal
+                visible={restrictionModalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => { }}
+                statusBarTranslucent
+            >
+                <View style={styles.flaggedOverlay}>
+                    <View style={styles.flaggedCard}>
+                        {/* Header row: warning icon + title + close */}
+                        <View style={styles.flaggedHeaderRow}>
+                            <View style={styles.flaggedHeaderTextWrap}>
+                                <View style={styles.flaggedHeaderIconCircle}>
+                                    <Feather name="clock" size={14} color="#d92d20" />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.flaggedHeaderTitle}>Uploading Restricted</Text>
+                                    <Text style={styles.flaggedHeaderSubtitle}>
+                                        Temporary block due to multiple policy violations.
+                                    </Text>
+                                </View>
+                            </View>
+                            <TouchableOpacity
+                                onPress={() => setRestrictionModalVisible(false)}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            >
+                                <Feather name="x" size={20} color="#8a8a8a" />
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Centered big clock icon */}
+                        <View style={styles.flaggedIconWrap}>
+                            <View style={styles.flaggedIconCircle}>
+                                <Feather name="lock" size={30} color="#d92d20" />
+                            </View>
+                        </View>
+
+                        <Text style={styles.flaggedTitle}>Upload Limit Exceeded</Text>
+                        <Text style={styles.flaggedDescription}>
+                            You have been temporarily restricted from uploading content due to multiple inappropriate image submissions. Please wait for the timer to expire.
+                        </Text>
+
+                        {/* Live Countdown Timer UI */}
+                        <View style={{
+                            backgroundColor: "#fef3f2",
+                            borderColor: "#fda29b",
+                            borderWidth: 1,
+                            paddingVertical: 14,
+                            paddingHorizontal: 24,
+                            borderRadius: 12,
+                            alignItems: "center",
+                            justifyContent: "center",
+                            marginVertical: 16,
+                        }}>
+                            <Text style={{
+                                letterSpacing: 2,
+                                color: "#d92d20",
+                                ...textPresets.body,
+                                lineHeight: Math.round(14 * 1.2)
+                            }}>
+                                {countdownText || "00:00:00"}
+                            </Text>
+                        </View>
+
+                        <TouchableOpacity
+                            style={[styles.flaggedButton, { backgroundColor: "#d92d20" }]}
+                            onPress={() => setRestrictionModalVisible(false)}
+                            activeOpacity={0.85}
+                        >
+                            <Text style={styles.flaggedButtonText}>I Understand, Go Back</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
 
             <Modal
                 visible={flaggedModalVisible}

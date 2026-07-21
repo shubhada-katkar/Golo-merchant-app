@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { View, ActivityIndicator, Text, StyleSheet } from "react-native";
 import { getValidToken, clearAuthStorage } from "../services/authService";
+import { textPresets } from "../theme/typography";
 
 /**
  * AuthLoading – shown on every cold start of the merchant app.
@@ -51,7 +52,7 @@ const styles = StyleSheet.create({
   },
   title: {
     marginTop: 16,
-    fontSize: 18,
-    fontFamily: "Medium",
+    ...textPresets.body,
+    lineHeight: Math.round(14 * 1.5)
   },
 });

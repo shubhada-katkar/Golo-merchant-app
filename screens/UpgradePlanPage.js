@@ -319,10 +319,9 @@ const styles = StyleSheet.create({
     ...textPresets.title,
   },
   priceSuffix: {
-    fontFamily: "Medium",
-    fontSize: 15,
     color: "#8a8a8a",
-    lineHeight: Math.round(15 * 1.5)
+    lineHeight: Math.round(14 * 1.5),
+    ...textPresets.body
   },
   featuresList: {
     marginBottom: 20,

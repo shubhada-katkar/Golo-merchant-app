@@ -107,6 +107,10 @@ export default function BannerPage({ navigation, route }) {
     const [flaggedModalVisible, setFlaggedModalVisible] = useState(false);
     const [isFetchingEdit, setIsFetchingEdit] = useState(false);
 
+    const [restrictionModalVisible, setRestrictionModalVisible] = useState(false);
+    const [restrictionUntil, setRestrictionUntil] = useState(null);
+    const [countdownText, setCountdownText] = useState("");
+
     const [locations, setLocations] = useState([]);
     const [locationInputText, setLocationInputText] = useState("");
     const [locationSuggestions, setLocationSuggestions] = useState([]);
@@ -115,6 +119,61 @@ export default function BannerPage({ navigation, route }) {
     const debounceTimer = useRef(null);
 
     // ── Pre-populate form when editing ─────────────────────────
+    useEffect(() => {
+        const checkRestrictionStatus = async () => {
+            try {
+                const merchantId = await AsyncStorage.getItem("merchantId") || "default";
+                const restrictionKey = `golo_restricted_until:${merchantId}`;
+                const flaggedKey = `golo_images_flagged:${merchantId}`;
+                const untilStr = await AsyncStorage.getItem(restrictionKey);
+                if (untilStr) {
+                    const untilDate = new Date(untilStr);
+                    if (untilDate > new Date()) {
+                        setRestrictionUntil(untilDate);
+                    } else {
+                        await AsyncStorage.removeItem(restrictionKey);
+                        await AsyncStorage.removeItem(flaggedKey);
+                        setRestrictionUntil(null);
+                    }
+                } else {
+                    setRestrictionUntil(null);
+                }
+            } catch (e) {
+                console.warn(e);
+            }
+        };
+        checkRestrictionStatus();
+    }, []);
+
+    useEffect(() => {
+        if (!restrictionUntil) {
+            setCountdownText("");
+            return;
+        }
+        const updateTimer = async () => {
+            const now = new Date();
+            const diffMs = restrictionUntil - now;
+            if (diffMs <= 0) {
+                setRestrictionUntil(null);
+                setCountdownText("");
+                setRestrictionModalVisible(false);
+                try {
+                    const merchantId = await AsyncStorage.getItem("merchantId") || "default";
+                    await AsyncStorage.removeItem(`golo_restricted_until:${merchantId}`);
+                    await AsyncStorage.removeItem(`golo_images_flagged:${merchantId}`);
+                } catch (e) { }
+                return;
+            }
+            const hrs = String(Math.floor(diffMs / 3600000)).padStart(2, "0");
+            const mins = String(Math.floor((diffMs % 3600000) / 60000)).padStart(2, "0");
+            const secs = String(Math.floor((diffMs % 60000) / 1000)).padStart(2, "0");
+            setCountdownText(`${hrs}:${mins}:${secs}`);
+        };
+        updateTimer();
+        const interval = setInterval(updateTimer, 1000);
+        return () => clearInterval(interval);
+    }, [restrictionUntil]);
+
     useEffect(() => {
         if (!isEditMode || !editData) return;
 
@@ -280,6 +339,11 @@ export default function BannerPage({ navigation, route }) {
     };
 
     const handlePickImage = useCallback(async () => {
+        const merchantId = await AsyncStorage.getItem("merchantId") || "default";
+        if (restrictionUntil && restrictionUntil > new Date()) {
+            setRestrictionModalVisible(true);
+            return;
+        }
         const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!permission.granted) {
             Alert.alert("Permission required", "Please allow access to your photos to upload a banner.");
@@ -295,9 +359,9 @@ export default function BannerPage({ navigation, route }) {
             // a moderation pre-check before the PUT (backend PUT skips isImageSafe).
             if (isEditMode) setImageChangedDuringEdit(true);
             // Clear any previously stored flagged marker when user picks a new image
-            try { await AsyncStorage.removeItem('golo_images_flagged'); } catch (e) { }
+            try { await AsyncStorage.removeItem('golo_images_flagged:' + merchantId); } catch (e) { }
         }
-    }, [isEditMode]);
+    }, [isEditMode, restrictionUntil]);
 
     const toggleDate = useCallback((key) => {
         setSelectedDates((prev) =>
@@ -314,6 +378,11 @@ export default function BannerPage({ navigation, route }) {
     const totalPayable = subtotal + PLATFORM_FEE;
 
     const handleSubmit = async () => {
+        const merchantId = await AsyncStorage.getItem("merchantId") || "default";
+        if (restrictionUntil && restrictionUntil > new Date()) {
+            setRestrictionModalVisible(true);
+            return;
+        }
         if (!bannerTitle.trim()) {
             Alert.alert("Missing title", "Please enter a banner title.");
             return;
@@ -341,7 +410,7 @@ export default function BannerPage({ navigation, route }) {
 
         // Check if image was flagged from a previous submission
         try {
-            const storedFlag = await AsyncStorage.getItem("golo_images_flagged");
+            const storedFlag = await AsyncStorage.getItem(`golo_images_flagged:${merchantId}`);
             if (storedFlag === "true") {
                 setFlaggedModalVisible(true);
                 return;
@@ -402,11 +471,22 @@ export default function BannerPage({ navigation, route }) {
                 const probePayloadResult = await probeResponse.json().catch(() => ({}));
 
                 if (!probeResponse.ok) {
+                    const isProbeRestricted = probeResponse.status === 403 || probePayloadResult?.code === 'CONTENT_UPLOAD_RESTRICTED';
+                    if (isProbeRestricted) {
+                        const until = probePayloadResult?.restrictedUntil || new Date(Date.now() + 2 * 3600000).toISOString();
+                        try {
+                            await AsyncStorage.setItem(`golo_restricted_until:${merchantId}`, until);
+                        } catch (error) { }
+                        setRestrictionUntil(new Date(until));
+                        setRestrictionModalVisible(true);
+                        return;
+                    }
+
                     // Check if this is a moderation failure from the probe POST
                     const isModerationError = isModerationFailureResponse(probePayloadResult);
                     if (isModerationError) {
                         try {
-                            await AsyncStorage.setItem('golo_images_flagged', 'true');
+                            await AsyncStorage.setItem(`golo_images_flagged:${merchantId}`, 'true');
                         } catch (e) {
                             console.warn('Failed to set flagged marker during edit probe', e);
                         }
@@ -477,13 +557,24 @@ export default function BannerPage({ navigation, route }) {
 
             const payload = await response.json().catch(() => ({}));
             if (!response.ok) {
+                const isRestricted = response.status === 403 || payload?.code === 'CONTENT_UPLOAD_RESTRICTED';
+                if (isRestricted) {
+                    const until = payload?.restrictedUntil || new Date(Date.now() + 2 * 3600000).toISOString();
+                    try {
+                        await AsyncStorage.setItem(`golo_restricted_until:${merchantId}`, until);
+                    } catch (error) { }
+                    setRestrictionUntil(new Date(until));
+                    setRestrictionModalVisible(true);
+                    return;
+                }
+
                 // Check if this is a moderation failure (covers create mode and
                 // any future case where PUT may also run moderation)
                 const isModerationError = isModerationFailureResponse(payload);
 
                 if (isModerationError) {
                     try {
-                        await AsyncStorage.setItem('golo_images_flagged', 'true');
+                        await AsyncStorage.setItem(`golo_images_flagged:${merchantId}`, 'true');
                     } catch (e) {
                         console.warn('Failed to set flagged marker', e);
                     }
@@ -501,7 +592,7 @@ export default function BannerPage({ navigation, route }) {
                     : "Your banner promotion request has been sent for review."
             );
             // Clear the moderation flag and reset the changed-image tracker
-            try { await AsyncStorage.removeItem("golo_images_flagged"); } catch (e) { }
+            try { await AsyncStorage.removeItem(`golo_images_flagged:${merchantId}`); } catch (e) { }
             setImageChangedDuringEdit(false);
             navigation.navigate("BannerList");
         } catch (error) {
@@ -646,7 +737,7 @@ export default function BannerPage({ navigation, route }) {
                         </Text>
                     )}
                     {isEditMode && (
-                        <Text style={{ color: colors.subtext, fontSize: 12, marginTop: 8, fontStyle: "italic" }}>
+                        <Text style={{ color: colors.subtext, marginTop: 8, ...textPresets.caption }}>
                             * Locations cannot be modified for an active promotion.
                         </Text>
                     )}
@@ -707,13 +798,13 @@ export default function BannerPage({ navigation, route }) {
                     )}
 
                     {isEditMode && (
-                        <Text style={{ color: colors.subtext, fontSize: 12, marginTop: 8, fontStyle: "italic" }}>
+                        <Text style={{ color: colors.subtext, marginTop: 8, ...textPresets.caption }}>
                             * Dates cannot be modified for an active promotion.
                         </Text>
                     )}
 
                     <Text style={[styles.selectedDaysSummary, { color: colors.text }]}>
-                        Total selected dates: <Text style={{ fontFamily: "Bold" }}>{selectedDaysCount}</Text>
+                        Total selected dates: <Text style={{ ...textPresets.body }}>{selectedDaysCount}</Text>
                     </Text>
 
                     <Modal
@@ -811,6 +902,82 @@ export default function BannerPage({ navigation, route }) {
                 </View>
 
             </ScrollView>
+
+            {/* Moderation restriction countdown modal */}
+            <Modal
+                visible={restrictionModalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => { }}
+                statusBarTranslucent
+            >
+                <View style={styles.flaggedOverlay}>
+                    <View style={styles.flaggedCard}>
+                        {/* Header row: warning icon + title + close */}
+                        <View style={styles.flaggedHeaderRow}>
+                            <View style={styles.flaggedHeaderTextWrap}>
+                                <View style={styles.flaggedHeaderIconCircle}>
+                                    <Feather name="clock" size={14} color="#d92d20" />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.flaggedHeaderTitle}>Uploading Restricted</Text>
+                                    <Text style={styles.flaggedHeaderSubtitle}>
+                                        Temporary block due to multiple policy violations.
+                                    </Text>
+                                </View>
+                            </View>
+                            <TouchableOpacity
+                                onPress={() => setRestrictionModalVisible(false)}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            >
+                                <Feather name="x" size={20} color="#8a8a8a" />
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Centered big clock icon */}
+                        <View style={styles.flaggedIconWrap}>
+                            <View style={styles.flaggedIconCircle}>
+                                <Feather name="lock" size={30} color="#d92d20" />
+                            </View>
+                        </View>
+
+                        <Text style={styles.flaggedTitle}>Upload Limit Exceeded</Text>
+                        <Text style={styles.flaggedDescription}>
+                            You have been temporarily restricted from uploading content due to multiple inappropriate image submissions. Please wait for the timer to expire.
+                        </Text>
+
+                        {/* Live Countdown Timer UI */}
+                        <View style={{
+                            backgroundColor: "#fef3f2",
+                            borderColor: "#fda29b",
+                            borderWidth: 1,
+                            paddingVertical: 14,
+                            paddingHorizontal: 24,
+                            borderRadius: 12,
+                            alignItems: "center",
+                            justifyContent: "center",
+                            marginVertical: 16,
+                        }}>
+                            <Text style={{
+                                letterSpacing: 2,
+                                color: "#d92d20",
+                                lineHeight: Math.round(14 * 1.5),
+                                ...textPresets.body
+                            }}>
+                                {countdownText || "00:00:00"}
+                            </Text>
+                        </View>
+
+                        <TouchableOpacity
+                            style={[styles.flaggedButton, { backgroundColor: "#d92d20" }]}
+                            onPress={() => setRestrictionModalVisible(false)}
+                            activeOpacity={0.85}
+                        >
+                            <Text style={styles.flaggedButtonText}>I Understand, Go Back</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
 
             {/* Flagged / rejected image modal */}
             <Modal
@@ -1068,8 +1235,8 @@ const styles = StyleSheet.create({
     },
     suggestionText: {
         flex: 1,
-        fontSize: 13,
-        fontFamily: "Medium",
+        ...textPresets.body,
+        lineHeight: Math.round(14 * 1.5)
     },
     deleteBtn: {
         flexDirection: "row",
@@ -1083,9 +1250,8 @@ const styles = StyleSheet.create({
     },
     deleteBtnText: {
         color: "#e0483e",
-        fontFamily: "SemiBold",
-        fontSize: 14,
         lineHeight: Math.round(14 * 1.5),
+        ...textPresets.body,
     },
     footnote: {
         ...textPresets.caption,

@@ -107,7 +107,6 @@ const styles = StyleSheet.create({
   nameText: {
     color: "#111",
     marginBottom: 4,
-    fontWeight: "bold",
     ...textPresets.label
   },
   text: {
@@ -127,15 +126,13 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     color: "#333",
-    fontSize: 12,
     marginRight: 4,
     ...textPresets.label,
   },
   discountInput: {
     flex: 1,
     color: "#111",
-    fontSize: 14,
     paddingVertical: 2,
-    fontWeight: "bold",
+    ...textPresets.label
   },
 });
