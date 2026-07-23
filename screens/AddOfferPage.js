@@ -19,7 +19,8 @@ import * as ImagePicker from "expo-image-picker";
 import { uploadImageToCloudinary } from "../services/cloudinaryService";
 import { BASE_URL } from "../config";
 import { LinearGradient } from "expo-linear-gradient";
-import { textPresets } from '../theme/typography';
+import { textPresets } from "../theme/typography";
+import { getValidToken, authenticatedFetch } from "../services/authService";
 
 const parseResponseSafely = async (response) => {
     const responseText = await response.text();
@@ -62,12 +63,24 @@ const isModerationFailureResponse = (data) => {
         .trim();
 
     const rejectionPhrases = [
-        "one or more images contain inappropriate content and cannot be uploaded",
-        "the uploaded video contains inappropriate content and cannot be published",
+        "inappropriate content",
+        "moderation failure",
+        "content moderation",
+        "failed moderation",
     ];
 
     return rejectionPhrases.some((phrase) => message.includes(phrase));
 };
+
+const isModerationApiErrorResponse = (data) => {
+    const message = getErrorMessageFromResponse(data)
+        .toLowerCase()
+        .replace(/\s+/g, " ")
+        .trim();
+
+    return message.includes("image moderation failed");
+};
+
 
 const formatDateOnly = (date) => {
     const year = date.getFullYear();
@@ -267,12 +280,12 @@ export default function AddOfferPage({ navigation, route }) {
     useEffect(() => {
         const loadMerchantProfile = async () => {
             try {
-                const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+                let token;
+                try { token = await getValidToken(); } catch { return; }
                 if (!token) return;
-                const headers = { Authorization: `Bearer ${token}` };
-                let response = await fetch(`${BASE_URL}/users/merchant/profile`, { headers });
+                let response = await authenticatedFetch(`${BASE_URL}/users/merchant/profile`);
                 if (!response.ok && response.status === 404) {
-                    response = await fetch(`${BASE_URL}/merchant/profile`, { headers });
+                    response = await authenticatedFetch(`${BASE_URL}/merchant/profile`);
                 }
                 if (!response.ok) return;
                 const data = await response.json();
@@ -322,7 +335,11 @@ export default function AddOfferPage({ navigation, route }) {
         const loadMerchantProducts = async () => {
             try {
                 setLoadingProducts(true);
-                const accessToken = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+                let accessToken;
+                try { accessToken = await getValidToken(); } catch {
+                    navigation.navigate("Login");
+                    return;
+                }
                 const storedMerchantId = await AsyncStorage.getItem("merchantId");
                 if (!accessToken) {
                     navigation.navigate("Login");
@@ -698,7 +715,101 @@ export default function AddOfferPage({ navigation, route }) {
                 return;
             }
 
-            // Determine endpoint and method
+            // Collect all unique candidate images for the offer
+            const candidateImages = [];
+            if (payload.imageUrl && typeof payload.imageUrl === "string" && payload.imageUrl.trim()) {
+                candidateImages.push(payload.imageUrl.trim());
+            }
+            selectedProductPayload.forEach((prod) => {
+                if (prod?.imageUrl && typeof prod.imageUrl === "string" && prod.imageUrl.trim()) {
+                    const img = prod.imageUrl.trim();
+                    if (!candidateImages.includes(img)) {
+                        candidateImages.push(img);
+                    }
+                }
+            });
+
+            // Determine which candidate images require pre-check probing
+            let imagesToProbe = [];
+            if (!offerData) {
+                // Create mode: backend POST natively moderates payload.imageUrl (candidateImages[0]).
+                // Probe any extra product images beyond candidateImages[0].
+                imagesToProbe = candidateImages.slice(1);
+            } else {
+                // Edit mode: backend PUT skips moderation if payload.imageUrl is unchanged.
+                // Probe all images that are new / modified or differ from initial offerData.imageUrl.
+                const initialUrl = offerData.imageUrl || offerData.bannerUrl || "";
+                imagesToProbe = candidateImages.filter((img) => img !== initialUrl);
+            }
+
+            // Run probe POST to /offers/request for each image needing moderation pre-check
+            for (const imgUrl of imagesToProbe) {
+                const probePayload = {
+                    title: title.trim() || "Moderation Check",
+                    category: offerType || "Special",
+                    imageUrl: imgUrl,
+                    selectedDates: selectedDates.length ? selectedDates : [formatDateOnly(new Date())],
+                    totalPrice: 0,
+                    selectedProducts: [],
+                };
+
+                const probeResponse = await fetch(`${BASE_URL}/offers/request`, {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${accessToken}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(probePayload),
+                });
+
+                const probeData = await parseResponseSafely(probeResponse);
+
+                if (!probeResponse.ok) {
+                    const isProbeRestricted = probeResponse.status === 403 || probeData?.code === "CONTENT_UPLOAD_RESTRICTED";
+                    if (isProbeRestricted) {
+                        const until = probeData?.restrictedUntil || new Date(Date.now() + 2 * 3600000).toISOString();
+                        try {
+                            await AsyncStorage.setItem(`golo_restricted_until:${merchantId}`, until);
+                        } catch (e) { }
+                        setRestrictionUntil(new Date(until));
+                        setRestrictionModalVisible(true);
+                        setIsSaving(false);
+                        return;
+                    }
+
+                    if (isModerationFailureResponse(probeData)) {
+                        try {
+                            await AsyncStorage.setItem(`golo_images_flagged:${merchantId}`, "true");
+                        } catch (error) {
+                            console.warn("Failed to set moderation flag during probe", error);
+                        }
+                        setFlaggedModalVisible(true);
+                        setIsSaving(false);
+                        return;
+                    }
+
+                    if (isModerationApiErrorResponse(probeData)) {
+                        alert("Image moderation is temporarily unavailable. Please try again in a moment.");
+                        setIsSaving(false);
+                        return;
+                    }
+                } else {
+                    // Probe passed moderation and created a temporary request — clean it up immediately
+                    const probeRequestId = probeData?.data?.requestId || probeData?.requestId || null;
+                    if (probeRequestId) {
+                        try {
+                            await fetch(`${BASE_URL}/offers/${probeRequestId}`, {
+                                method: "DELETE",
+                                headers: { "Authorization": `Bearer ${accessToken}` },
+                            });
+                        } catch (cleanupErr) {
+                            console.warn("Probe cleanup failed:", cleanupErr);
+                        }
+                    }
+                }
+            }
+
+            // Determine endpoint and method for final offer creation / update
             const method = offerData ? "PUT" : "POST";
             const requestId = offerData?.requestId || offerData?._id || offerData?.offerId;
             const endpoint = offerData
@@ -743,6 +854,11 @@ export default function AddOfferPage({ navigation, route }) {
                         console.warn("Failed to set moderation flag", error);
                     }
                     setFlaggedModalVisible(true);
+                    return;
+                }
+
+                if (isModerationApiErrorResponse(responseData)) {
+                    alert("Image moderation is temporarily unavailable. Please try again in a moment.");
                     return;
                 }
 
@@ -1081,8 +1197,7 @@ export default function AddOfferPage({ navigation, route }) {
                                 <TouchableOpacity
                                     style={[styles.rowButton, { backgroundColor: "#e53935" }, isDeleting && { opacity: 0.6 }]}
                                     onPress={handleDelete}
-                                    disabled={isSaving || isDeleting}
-                                >
+                                    disabled={isSaving || isDeleting} >
                                     <Text style={{ color: "#fff", lineHeight: Math.round(14 * 1.5), ...textPresets.body }}>
                                         {isDeleting ? "Deleting..." : "Delete Offer"}
                                     </Text>
@@ -1105,8 +1220,7 @@ export default function AddOfferPage({ navigation, route }) {
                 transparent
                 animationType="fade"
                 onRequestClose={() => { }}
-                statusBarTranslucent
-            >
+                statusBarTranslucent >
                 <View style={styles.flaggedOverlay}>
                     <View style={styles.flaggedCard}>
                         {/* Header row: warning icon + title + close */}
@@ -1167,8 +1281,7 @@ export default function AddOfferPage({ navigation, route }) {
                         <TouchableOpacity
                             style={[styles.flaggedButton, { backgroundColor: "#d92d20" }]}
                             onPress={() => setRestrictionModalVisible(false)}
-                            activeOpacity={0.85}
-                        >
+                            activeOpacity={0.85}  >
                             <Text style={styles.flaggedButtonText}>I Understand, Go Back</Text>
                         </TouchableOpacity>
                     </View>
@@ -1180,8 +1293,7 @@ export default function AddOfferPage({ navigation, route }) {
                 transparent
                 animationType="fade"
                 onRequestClose={() => setFlaggedModalVisible(false)}
-                statusBarTranslucent
-            >
+                statusBarTranslucent >
                 <View style={styles.flaggedOverlay}>
                     <View style={styles.flaggedCard}>
                         <View style={styles.flaggedHeaderRow}>

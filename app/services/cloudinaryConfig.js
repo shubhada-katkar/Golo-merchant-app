@@ -69,6 +69,9 @@ export async function uploadToCloudinary(file) {
     formData.append('file', file);
     formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
     formData.append('cloud_name', CLOUDINARY_CONFIG.cloudName);
+    if (isImage) {
+        formData.append('format', 'png');
+    }
 
     const resourceType = isImage ? 'image' : 'auto';
     const uploadUrl = getCloudinaryUploadUrl(resourceType);

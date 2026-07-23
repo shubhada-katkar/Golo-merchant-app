@@ -15,6 +15,7 @@ import { BASE_URL } from "../config";
 import { uploadImageToCloudinary, uploadVideoToCloudinary } from "../services/cloudinaryService";
 import { LinearGradient } from "expo-linear-gradient";
 import { textPresets } from "../theme/typography";
+import { getValidToken, authenticatedFetch } from "../services/authService";
 
 function getErrorMessageFromResponse(data) {
   const candidates = [];
@@ -423,65 +424,56 @@ export default function NewProductPage({ navigation, route }) {
     setIsSaving(true);
     const merchantId = await AsyncStorage.getItem("merchantId") || "default";
 
-    try {
-      if (!isEdit) {
-        try {
-          const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
-          if (token && merchantId) {
-            const subRes = await fetch(`${BASE_URL}/merchants/${merchantId}/subscription`, {
-              headers: { Authorization: `Bearer ${token}` }
-            });
-            if (subRes.ok) {
-              const subData = await subRes.json();
-              const maxProducts = subData?.planFeatures?.maxProducts ?? 5;
-              const planName = subData?.name || "Free Tier";
+    if (!isEdit) {
+      try {
+        const storedMerchantId = merchantId;
+        if (storedMerchantId && storedMerchantId !== "default") {
+          const subRes = await authenticatedFetch(`${BASE_URL}/merchants/${storedMerchantId}/subscription`);
+          if (subRes.ok) {
+            const subData = await subRes.json();
+            const maxProducts = subData?.planFeatures?.maxProducts ?? subData?.maxProducts ?? 10;
+            const planName = subData?.name || "Free Tier";
+            setCurrentPlanName(planName);
+            setProductLimit(maxProducts);
 
-              setCurrentPlanName(planName);
-              setProductLimit(maxProducts);
-
-              if (maxProducts !== -1) {
-                let prodRes = await fetch(`${BASE_URL}/products/merchant`, {
-                  headers: { Authorization: `Bearer ${token}` },
-                });
-                if (!prodRes.ok && prodRes.status === 404) {
-                  prodRes = await fetch(`${BASE_URL}/merchant/products`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                  });
-                }
-                if (prodRes.ok) {
-                  const prodData = await prodRes.json();
-                  const list = Array.isArray(prodData)
-                    ? prodData
-                    : prodData?.products || prodData?.data?.products || prodData?.data || [];
-
-                  if (list.length >= maxProducts) {
-                    setIsSaving(false);
-                    setUpgradeModalVisible(true);
-                    return;
-                  }
-                }
+            const prodRes = await authenticatedFetch(`${BASE_URL}/merchant/products`);
+            if (prodRes.ok) {
+              const prodData = await prodRes.json();
+              const list = Array.isArray(prodData?.data) ? prodData.data : Array.isArray(prodData) ? prodData : [];
+              if (list.length >= maxProducts) {
+                setIsSaving(false);
+                setUpgradeModalVisible(true);
+                return;
               }
             }
           }
-        } catch (err) {
-          console.error("Verification error:", err);
         }
+      } catch (err) {
+        console.error("Verification error:", err);
       }
+    }
 
-      if (restrictionUntil && restrictionUntil > new Date()) {
-        setRestrictionModalVisible(true);
+    if (restrictionUntil && restrictionUntil > new Date()) {
+      setRestrictionModalVisible(true);
+      setIsSaving(false);
+      return;
+    }
+
+    try {
+      const storedFlag = await AsyncStorage.getItem(`golo_images_flagged:${merchantId}`);
+      if (storedFlag === "true") {
+        setFlaggedModalVisible(true);
         setIsSaving(false);
         return;
       }
-      try {
-        const storedFlag = await AsyncStorage.getItem(`golo_images_flagged:${merchantId}`);
-        if (storedFlag === "true") {
-          setFlaggedModalVisible(true);
-          setIsSaving(false);
-          return;
-        }
-      } catch (error) {
-        console.warn("Failed to read moderation flag before submit", error);
+    } catch (error) {
+      console.warn("Failed to read moderation flag before submit", error);
+    }
+
+    try {                                          // <-- ADD THIS
+      if (!form.productname || form.price === "") {
+        alert("Please fill all required fields");
+        return;
       }
 
       if (!form.productname || form.price === "") {
@@ -510,8 +502,10 @@ export default function NewProductPage({ navigation, route }) {
         return;
       }
 
-      const token = await AsyncStorage.getItem("merchantToken");
-      if (!token) {
+      let token;
+      try {
+        token = await getValidToken();
+      } catch {
         alert("Login expired. Please login again.");
         navigation.replace("Login");
         return;
@@ -594,11 +588,10 @@ export default function NewProductPage({ navigation, route }) {
 
       console.log("Merchant product payload being sent:", JSON.stringify(bodyPayload));
 
-      const response = await fetch(merchantUrl, {
+      const response = await authenticatedFetch(merchantUrl, {
         method,
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(bodyPayload),
       });

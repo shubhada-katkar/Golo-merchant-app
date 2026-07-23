@@ -11,7 +11,11 @@ function normalizeFileUri(uri) {
 
 function getFileExtension(filename = "") {
     const extensionMatch = filename.match(/\.([a-zA-Z0-9]+)$/);
-    return extensionMatch?.[1]?.toLowerCase() || "jpg";
+    const ext = extensionMatch?.[1]?.toLowerCase();
+    if (!ext || ext === "tmp" || ext === "bin") {
+        return "jpg";
+    }
+    return ext;
 }
 
 function getMimeType(resourceType, extension) {
@@ -23,6 +27,9 @@ function getMimeType(resourceType, extension) {
     }
 
     if (extension === "jpg" || extension === "jpeg") return "image/jpeg";
+    if (extension === "png") return "image/png";
+    if (extension === "webp") return "image/webp";
+    if (extension === "heic") return "image/heic";
     return `image/${extension}`;
 }
 
@@ -49,6 +56,9 @@ async function uploadToCloudinary(fileUri, folder, resourceType) {
     formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
     if (folder) {
         formData.append("folder", folder);
+    }
+    if (resourceType === "image") {
+        formData.append("format", "png");
     }
 
     try {
