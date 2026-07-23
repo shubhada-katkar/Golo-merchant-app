@@ -13,10 +13,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL } from "../config";
 
 // ─── Key names ────────────────────────────────────────────────────────────────
-const ACCESS_KEY  = "merchantToken";
+const ACCESS_KEY = "merchantToken";
 const REFRESH_KEY = "merchantRefreshToken";
-const DATA_KEY    = "merchantData";
-const ID_KEY      = "merchantId";
+const DATA_KEY = "merchantData";
+const ID_KEY = "merchantId";
 
 // ─── In-memory refresh promise (prevents parallel refresh storms) ─────────────
 let _refreshPromise = null;
@@ -33,7 +33,7 @@ let _refreshPromise = null;
  *     callers know the merchant must log in again.
  */
 export async function getValidToken() {
-  const accessToken  = await AsyncStorage.getItem(ACCESS_KEY);
+  const accessToken = await AsyncStorage.getItem(ACCESS_KEY);
   const refreshToken = await AsyncStorage.getItem(REFRESH_KEY);
 
   // No tokens at all → not logged in
@@ -132,10 +132,10 @@ export async function clearAuthStorage() {
  */
 export async function saveAuthData({ accessToken, refreshToken, merchant, merchantId }) {
   await AsyncStorage.multiSet([
-    [ACCESS_KEY,  accessToken],
+    [ACCESS_KEY, accessToken],
     [REFRESH_KEY, refreshToken || ""],
-    [DATA_KEY,    JSON.stringify(merchant)],
-    [ID_KEY,      String(merchantId || "")],
+    [DATA_KEY, JSON.stringify(merchant)],
+    [ID_KEY, String(merchantId || "")],
   ]);
 }
 
@@ -147,3 +147,17 @@ export async function hasStoredSession() {
   const results = await AsyncStorage.multiGet([ACCESS_KEY, REFRESH_KEY]);
   return results.some(([, value]) => !!value);
 }
+
+/**
+ * Helper to perform authenticated HTTP fetch requests.
+ * Automatically injects the Authorization header with a valid access token.
+ */
+export async function authenticatedFetch(url, options = {}) {
+  const token = await getValidToken();
+  const headers = {
+    ...options.headers,
+    Authorization: `Bearer ${token}`,
+  };
+  return fetch(url, { ...options, headers });
+}
+

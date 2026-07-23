@@ -48,6 +48,41 @@ function isModerationFailureResponse(data) {
     return rejectionPhrases.some((phrase) => message.includes(phrase));
 }
 
+function isModerationWarningResponse(data) {
+    if (!data) return false;
+    if (data.code === 'MODERATION_WARNING' || data.code === 'FINAL_MODERATION_WARNING') {
+        return true;
+    }
+    const message = getErrorMessageFromResponse(data).toLowerCase();
+    return (
+        message.includes("content policy") ||
+        message.includes("repeated uploads") ||
+        message.includes("repeated moderation") ||
+        message.includes("disable image uploads") ||
+        message.includes("restrict your ability to upload")
+    );
+}
+
+function formatRestrictionUntil(date) {
+    if (!date) return "";
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return "";
+
+    const day = String(d.getDate()).padStart(2, "0");
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const month = monthNames[d.getMonth()];
+    const year = d.getFullYear();
+
+    let hours = d.getHours();
+    const minutes = String(d.getMinutes()).padStart(2, "0");
+    const ampm = hours >= 12 ? "PM" : "AM";
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    const formattedHours = String(hours).padStart(2, "0");
+
+    return `${day} ${month} ${year}, ${formattedHours}:${minutes} ${ampm}`;
+}
+
 // Hardcoded for now — swap in real list later
 const BANNER_CATEGORIES = ["Food & Restaurants",
     "Home Services",
@@ -105,6 +140,8 @@ export default function BannerPage({ navigation, route }) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isUploadingImage, setIsUploadingImage] = useState(false);
     const [flaggedModalVisible, setFlaggedModalVisible] = useState(false);
+    const [warningModalVisible, setWarningModalVisible] = useState(false);
+    const [warningModalMessage, setWarningModalMessage] = useState("");
     const [isFetchingEdit, setIsFetchingEdit] = useState(false);
 
     const [restrictionModalVisible, setRestrictionModalVisible] = useState(false);
@@ -482,6 +519,13 @@ export default function BannerPage({ navigation, route }) {
                         return;
                     }
 
+                    if (isModerationWarningResponse(probePayloadResult)) {
+                        const msg = getErrorMessageFromResponse(probePayloadResult);
+                        setWarningModalMessage(msg || "Repeated uploads that violate GOLO's content policy may restrict your account temporarily.");
+                        setWarningModalVisible(true);
+                        return;
+                    }
+
                     // Check if this is a moderation failure from the probe POST
                     const isModerationError = isModerationFailureResponse(probePayloadResult);
                     if (isModerationError) {
@@ -565,6 +609,13 @@ export default function BannerPage({ navigation, route }) {
                     } catch (error) { }
                     setRestrictionUntil(new Date(until));
                     setRestrictionModalVisible(true);
+                    return;
+                }
+
+                if (isModerationWarningResponse(payload)) {
+                    const msg = getErrorMessageFromResponse(payload);
+                    setWarningModalMessage(msg || "Repeated uploads that violate GOLO's content policy may restrict your account temporarily.");
+                    setWarningModalVisible(true);
                     return;
                 }
 
@@ -943,28 +994,36 @@ export default function BannerPage({ navigation, route }) {
 
                         <Text style={styles.flaggedTitle}>Upload Limit Exceeded</Text>
                         <Text style={styles.flaggedDescription}>
-                            You have been temporarily restricted from uploading content due to multiple inappropriate image submissions. Please wait for the timer to expire.
+                            You have been temporarily restricted from uploading content due to multiple inappropriate image submissions. Your restriction will be removed at the date and time shown below.
                         </Text>
 
-                        {/* Live Countdown Timer UI */}
+                        {/* Restriction lift date & time UI */}
                         <View style={{
                             backgroundColor: "#fef3f2",
                             borderColor: "#fda29b",
                             borderWidth: 1,
                             paddingVertical: 14,
-                            paddingHorizontal: 24,
+                            paddingHorizontal: 20,
                             borderRadius: 12,
                             alignItems: "center",
                             justifyContent: "center",
                             marginVertical: 16,
                         }}>
                             <Text style={{
-                                letterSpacing: 2,
-                                color: "#d92d20",
-                                lineHeight: Math.round(14 * 1.5),
-                                ...textPresets.body
+                                ...textPresets.caption,
+                                color: "#b42318",
+                                letterSpacing: 1,
+                                marginBottom: 4,
+                                textTransform: "uppercase"
                             }}>
-                                {countdownText || "00:00:00"}
+                                Restriction End Date & Time
+                            </Text>
+                            <Text style={{
+                                ...textPresets.label,
+                                color: "#d92d20",
+                                textAlign: "center"
+                            }}>
+                                {formatRestrictionUntil(restrictionUntil) || "N/A"}
                             </Text>
                         </View>
 
@@ -1026,6 +1085,61 @@ export default function BannerPage({ navigation, route }) {
                         <TouchableOpacity
                             style={styles.flaggedButton}
                             onPress={() => setFlaggedModalVisible(false)}
+                            activeOpacity={0.85}
+                        >
+                            <Text style={styles.flaggedButtonText}>I Understand, Go Back</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Moderation Warning Modal */}
+            <Modal
+                visible={warningModalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setWarningModalVisible(false)}
+                statusBarTranslucent
+            >
+                <View style={styles.flaggedOverlay}>
+                    <View style={styles.flaggedCard}>
+                        {/* Header row: warning icon + title + close */}
+                        <View style={styles.flaggedHeaderRow}>
+                            <View style={styles.flaggedHeaderTextWrap}>
+                                <View style={styles.flaggedHeaderIconCircle}>
+                                    <Feather name="alert-triangle" size={14} color="#d92d20" />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.flaggedHeaderTitle}>Content Policy Warning</Text>
+                                    <Text style={styles.flaggedHeaderSubtitle}>
+                                        GOLO Safety & Policy Alert
+                                    </Text>
+                                </View>
+                            </View>
+                            <TouchableOpacity
+                                onPress={() => setWarningModalVisible(false)}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            >
+                                <Feather name="x" size={20} color="#8a8a8a" />
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Centered big alert icon */}
+                        <View style={styles.flaggedIconWrap}>
+                            <View style={styles.flaggedIconCircle}>
+                                <Feather name="alert-circle" size={30} color="#d92d20" />
+                            </View>
+                        </View>
+
+                        <Text style={styles.flaggedTitle}>Account Restriction Warning</Text>
+                        <Text style={styles.flaggedDescription}>
+                            {warningModalMessage ||
+                                "Repeated uploads that violate GOLO's content policy may restrict your account temporarily."}
+                        </Text>
+
+                        <TouchableOpacity
+                            style={styles.flaggedButton}
+                            onPress={() => setWarningModalVisible(false)}
                             activeOpacity={0.85}
                         >
                             <Text style={styles.flaggedButtonText}>I Understand, Go Back</Text>
