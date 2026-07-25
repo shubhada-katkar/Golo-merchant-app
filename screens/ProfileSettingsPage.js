@@ -9,10 +9,10 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { TextInput } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import * as ImagePicker from "expo-image-picker";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { searchLocations, reverseGeocode } from "../app/services/leafletService";
 import { LinearGradient } from "expo-linear-gradient";
+import { getValidToken, handleAuthError } from "../services/authService";
 import { textPresets } from "../theme/typography";
 
 import Topbar from "../components/Topbar";
@@ -99,13 +99,17 @@ export default function ProfileSettingsPage({ navigation }) {
 
   const loadStoreLocation = useCallback(async () => {
     try {
-      const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+      let token;
+      try {
+        token = await getValidToken();
+      } catch (_authErr) { return; }
       if (!token) return;
 
       const locationRes = await fetch(`${BASE_URL}/merchant/store-location`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
+      if (locationRes.status === 401) { await handleAuthError(navigation); return; }
       if (!locationRes.ok) return;
       const locationJson = await locationRes.json();
       const locationData = locationJson?.data || locationJson || null;
@@ -231,7 +235,13 @@ export default function ProfileSettingsPage({ navigation }) {
   const loadProfile = useCallback(async () => {
     try {
       setLoadingProfile(true);
-      const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+      let token;
+      try {
+        token = await getValidToken();
+      } catch (authErr) {
+        await handleAuthError(navigation);
+        return;
+      }
       if (!token) return;
 
       const headers = { Authorization: `Bearer ${token}` };
@@ -450,7 +460,13 @@ export default function ProfileSettingsPage({ navigation }) {
 
     setSavingLocation(true);
     try {
-      const token = await AsyncStorage.getItem("merchantToken");
+      let token;
+      try {
+        token = await getValidToken();
+      } catch (authErr) {
+        await handleAuthError(navigation);
+        return;
+      }
       if (!token) {
         setSavingLocation(false);
         return alert("Not authenticated");
@@ -555,7 +571,13 @@ export default function ProfileSettingsPage({ navigation }) {
   // ================= SAVE PROFILE =================
   const saveProfile = async () => {
     try {
-      const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+      let token;
+      try {
+        token = await getValidToken();
+      } catch (authErr) {
+        await handleAuthError(navigation);
+        return;
+      }
       if (!token) return alert("Not authenticated");
 
       const [merchantRes, userRes] = await Promise.all([
@@ -601,7 +623,13 @@ export default function ProfileSettingsPage({ navigation }) {
 
   const uploadImageForField = async (imageUri, fieldName) => {
     try {
-      const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+      let token;
+      try {
+        token = await getValidToken();
+      } catch (authErr) {
+        await handleAuthError(navigation);
+        return;
+      }
       if (!token) return alert("Not authenticated");
 
       const uploadResult = await uploadImageToCloudinary(imageUri, "golo/profile-photos");

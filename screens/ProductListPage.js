@@ -5,10 +5,10 @@ import Bottombar from "../components/Bottombar";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons, Feather } from "@expo/vector-icons";
 import { ThemeContext } from "../theme/ThemeContext";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { BASE_URL } from "../config";
 import { LinearGradient } from "expo-linear-gradient";
+import { getValidToken, handleAuthError } from "../services/authService";
 import { textPresets } from "../theme/typography";
 
 import Total from "../productlistcomponents/Total";
@@ -55,28 +55,39 @@ export default function ProductListPage({ navigation }) {
     })(),
     images: Array.isArray(item?.productImages)
       ? item.productImages.map((u) =>
-          typeof u === "string" && !/^https?:\/\//i.test(u)
-            ? `${BASE_URL.replace(/\/$/, "")}/${u.replace(/^\//, "")}`
-            : u,
-        )
+        typeof u === "string" && !/^https?:\/\//i.test(u)
+          ? `${BASE_URL.replace(/\/$/, "")}/${u.replace(/^\//, "")}`
+          : u,
+      )
       : Array.isArray(item?.images)
-      ? item.images.map((u) =>
+        ? item.images.map((u) =>
           typeof u === "string" && !/^https?:\/\//i.test(u)
             ? `${BASE_URL.replace(/\/$/, "")}/${u.replace(/^\//, "")}`
             : u,
         )
-      : [],
+        : [],
   });
 
   // ================= FETCH ALL PRODUCTS =================
   const fetchProducts = async () => {
     try {
-      const token = await AsyncStorage.getItem("merchantToken");
+      let token;
+      try {
+        token = await getValidToken();
+      } catch (authErr) {
+        await handleAuthError(navigation);
+        return;
+      }
       if (!token) return;
 
       let res = await fetch(`${BASE_URL}/products/merchant`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+
+      if (res.status === 401) {
+        await handleAuthError(navigation);
+        return;
+      }
 
       if (!res.ok && res.status === 404) {
         res = await fetch(`${BASE_URL}/merchant/products`, {
@@ -115,12 +126,12 @@ export default function ProductListPage({ navigation }) {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <LinearGradient
-                 colors={["#f8a812", "#fad081",  "#f8f6f265"]}
-                 start={{ x: 0, y: 0 }}
-                 end={{ x: 0, y: 1 }}
-                 style={{height: 220, position: "absolute", top: 0, left: 0, right: 0, zIndex: 0}}
-             />
-     
+        colors={["#f8a812", "#fad081", "#f8f6f265"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={{ height: 220, position: "absolute", top: 0, left: 0, right: 0, zIndex: 0 }}
+      />
+
       <Topbar />
 
       {/* Header */}
@@ -152,7 +163,7 @@ export default function ProductListPage({ navigation }) {
 
       {/* Search */}
       <View style={styles.search}>
-      <Feather name="search" size={14} style={{top:-3}} color="#919191"/>
+        <Feather name="search" size={14} style={{ top: -3 }} color="#919191" />
         <TextInput
           placeholder="Search product..."
           value={searchText}
@@ -160,12 +171,12 @@ export default function ProductListPage({ navigation }) {
           style={{ ...textPresets.body }}
         />
       </View>
-    
-<Total
-  products={products}
-  setProducts={setProducts}
-  searchText={searchText}
-/>
+
+      <Total
+        products={products}
+        setProducts={setProducts}
+        searchText={searchText}
+      />
 
       <SafeAreaView
         edges={["bottom"]}
@@ -185,17 +196,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   search: {
-        backgroundColor: "white",
-        marginHorizontal: 14,
-        marginTop: 10,
-        marginBottom: 6,
-        borderRadius: 10,
-        borderWidth: 0.5,
-        borderColor: "#d1d5db",
-        paddingHorizontal: 10,
-        flexDirection:"row",
-        alignItems:"center"
-    },
+    backgroundColor: "white",
+    marginHorizontal: 14,
+    marginTop: 10,
+    marginBottom: 6,
+    borderRadius: 10,
+    borderWidth: 0.5,
+    borderColor: "#d1d5db",
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center"
+  },
   statsRow: {
     flexDirection: "row",
     paddingHorizontal: 14,

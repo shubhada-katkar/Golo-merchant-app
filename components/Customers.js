@@ -9,9 +9,9 @@ import {
   Dimensions,
 } from "react-native";
 import Svg, { Path, Line, Circle, Polyline, Text as SvgText } from "react-native-svg";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { BASE_URL } from "../config";
+import { getValidToken, handleAuthError } from "../services/authService";
 import { textPresets } from "../theme/typography";
 
 const normalizeUrl = (url) => String(url || "").replace(/\/{2,}$/, "");
@@ -24,6 +24,7 @@ const PLOT_WIDTH = CHART_WIDTH - CHART_PADDING_LEFT - 10;
 const PLOT_HEIGHT = CHART_HEIGHT - CHART_PADDING_TOP - CHART_PADDING_BOTTOM;
 
 export default function Customers() {
+  const navigation = useNavigation();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [demographics, setDemographics] = useState([]);
@@ -39,15 +40,24 @@ export default function Customers() {
     setLoading(true);
     setError("");
     try {
-      const token =
-        (await AsyncStorage.getItem("merchantToken")) ||
-        (await AsyncStorage.getItem("accessToken"));
-      if (!token) throw new Error("Merchant authentication required");
+      let token;
+      try {
+        token = await getValidToken();
+      } catch (authErr) {
+        await handleAuthError(navigation);
+        return;
+      }
 
       const response = await fetch(
         `${normalizeUrl(BASE_URL)}/merchant-dashboard/analytics/realtime`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
+
+      if (response.status === 401) {
+        await handleAuthError(navigation);
+        return;
+      }
+
       const payload = await response.json();
       if (!response.ok || payload?.success === false)
         throw new Error(payload?.message || "Unable to load analytics");
@@ -89,14 +99,22 @@ export default function Customers() {
   const fetchLikedProductsAndOffers = async () => {
     setLikesLoading(true);
     try {
-      const token =
-        (await AsyncStorage.getItem("merchantToken")) ||
-        (await AsyncStorage.getItem("accessToken"));
+      let token;
+      try {
+        token = await getValidToken();
+      } catch (_authErr) {
+        setLikesLoading(false);
+        return;
+      }
       if (!token) return;
       const response = await fetch(
         `${normalizeUrl(BASE_URL)}/users/merchant/liked-products?limit=10`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      if (response.status === 401) {
+        await handleAuthError(navigation);
+        return;
+      }
       if (response.ok) {
         const payload = await response.json();
         const data = payload?.data || {};
@@ -206,7 +224,6 @@ export default function Customers() {
     const largeArc = endAngle - startAngle <= 180 ? "0" : "1";
     return `M ${cx} ${cy} L ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArc} 0 ${end.x} ${end.y} Z`;
   };
-
   const renderDeviceChart = () => {
     const slices = [
       { label: "Mobile", value: Number(deviceBreakdown.Mobile || 0), color: "#157a4f" },
@@ -219,15 +236,23 @@ export default function Customers() {
     let sa = 0;
     const chartSlices = slices.map((s) => {
       const ea = sa + (s.value / total) * 360;
-      const path = describeArc(60, 60, 50, sa, ea);
+      // Guard against a full 360° slice: start/end angles map to the same
+      // point so the arc path degenerates. Cap just short of a full circle.
+      const clampedEa = ea - sa >= 359.99 ? sa + 359.99 : ea;
+      const path = describeArc(60, 60, 50, sa, clampedEa);
       sa = ea;
-      return { ...s, path };
+      return { ...s, path, isFull: ea - (ea - (clampedEa - sa)) };
     });
 
     return (
       <View style={styles.deviceChartCard}>
         <Svg width={120} height={120} viewBox="0 0 120 120">
-          {chartSlices.map((s) => <Path key={s.label} d={s.path} fill={s.color} />)}
+          {chartSlices.length === 1 ? (
+            // Single device type = 100% share, draw a plain full circle
+            <Circle cx={60} cy={60} r={50} fill={chartSlices[0].color} />
+          ) : (
+            chartSlices.map((s) => <Path key={s.label} d={s.path} fill={s.color} />)
+          )}
         </Svg>
         <View style={styles.deviceLegend}>
           {chartSlices.map((s) => (

@@ -7,9 +7,9 @@ import Accepted from "../components/Accepted";
 import Completed from "../components/Completed";
 import Pending from "../components/Pending";
 import Rejected from "../components/Rejected";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL as CONFIG_BASE_URL } from "../config";
 import { enrichOrderDetails } from "../services/orderService";
+import { getValidToken, handleAuthError } from "../services/authService";
 import { textPresets } from "../theme/typography";
 
 export default function Orders() {
@@ -21,8 +21,14 @@ export default function Orders() {
     const fetchOrders = useCallback(async () => {
         try {
             setLoading(true);
-            const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
-            if (!token || !BASE_URL) {
+            let token;
+            try {
+                token = await getValidToken();
+            } catch (authErr) {
+                await handleAuthError(navigation);
+                return;
+            }
+            if (!BASE_URL) {
                 setOrders([]);
                 return;
             }
@@ -30,6 +36,11 @@ export default function Orders() {
             let res = await fetch(`${BASE_URL}/orders/merchant?page=1&limit=100`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
+
+            if (res.status === 401) {
+                await handleAuthError(navigation);
+                return;
+            }
 
             if (!res.ok && res.status === 404) {
                 res = await fetch(`${BASE_URL}/banners/promotions/my?page=1&limit=100`, {
@@ -90,9 +101,27 @@ export default function Orders() {
     );
 
     const updateOrderStatus = async (orderId, nextStatus) => {
+        if (!orderId) return;
+
+        let prevStatus = "pending";
+        setOrders((prev) => {
+            const existing = prev.find((o) => String(o._id || o.id) === String(orderId));
+            if (existing) prevStatus = existing.status || "pending";
+            return prev.map((o) => {
+                const matchId = o._id || o.id;
+                return String(matchId) === String(orderId) ? { ...o, status: nextStatus } : o;
+            });
+        });
+
         try {
-            const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
-            if (!token || !BASE_URL) return;
+            let token;
+            try {
+                token = await getValidToken();
+            } catch (authErr) {
+                await handleAuthError(navigation);
+                return;
+            }
+            if (!BASE_URL) return;
 
             let res = await fetch(`${BASE_URL}/orders/${orderId}/status`, {
                 method: "PATCH",
@@ -102,6 +131,11 @@ export default function Orders() {
                 },
                 body: JSON.stringify({ status: nextStatus }),
             });
+
+            if (res.status === 401) {
+                await handleAuthError(navigation);
+                return;
+            }
 
             if (!res.ok && res.status === 404) {
                 res = await fetch(`${BASE_URL}/api/orders/${orderId}/status`, {
@@ -114,11 +148,33 @@ export default function Orders() {
                 });
             }
 
-            if (res.ok) {
-                setOrders((prev) => prev.map((o) => (o._id === orderId ? { ...o, status: nextStatus } : o)));
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                console.warn("Failed to sync order status update with server:", res.status, errData);
+
+                // Revert local optimistic state if server failed to persist the status update
+                setOrders((prev) =>
+                    prev.map((o) => {
+                        const matchId = o._id || o.id;
+                        return String(matchId) === String(orderId) ? { ...o, status: prevStatus } : o;
+                    })
+                );
+
+                Alert.alert(
+                    "Update Failed",
+                    errData?.message || "Could not update order status on the server. Please try again."
+                );
             }
         } catch (error) {
             console.log("Update order status error:", error);
+            // Revert local optimistic state on network error
+            setOrders((prev) =>
+                prev.map((o) => {
+                    const matchId = o._id || o.id;
+                    return String(matchId) === String(orderId) ? { ...o, status: prevStatus } : o;
+                })
+            );
+            Alert.alert("Network Error", "Unable to reach the server to update order status. Please check your connection.");
         }
     };
 
@@ -133,8 +189,14 @@ export default function Orders() {
                     style: 'destructive',
                     onPress: async () => {
                         try {
-                            const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
-                            if (!token || !BASE_URL) return;
+                            let token;
+                            try {
+                                token = await getValidToken();
+                            } catch (authErr) {
+                                await handleAuthError(navigation);
+                                return;
+                            }
+                            if (!BASE_URL) return;
 
                             let res = await fetch(`${BASE_URL}/orders/${orderId}`, {
                                 method: 'DELETE',
@@ -142,6 +204,11 @@ export default function Orders() {
                                     Authorization: `Bearer ${token}`,
                                 },
                             });
+
+                            if (res.status === 401) {
+                                await handleAuthError(navigation);
+                                return;
+                            }
 
                             if (!res.ok && res.status === 404) {
                                 res = await fetch(`${BASE_URL}/api/orders/${orderId}`, {

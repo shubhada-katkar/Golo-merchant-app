@@ -121,22 +121,63 @@ function isTokenExpiredSoon(token) {
 }
 
 /**
- * Removes all merchant auth keys from AsyncStorage.
+ * Helper to remove all restriction/moderation flag keys from AsyncStorage.
+ */
+export async function clearRestrictionStorage() {
+  try {
+    const allKeys = await AsyncStorage.getAllKeys();
+    const restrictionKeys = allKeys.filter(
+      (key) =>
+        key.startsWith("golo_restricted_until:") ||
+        key.startsWith("golo_images_flagged:") ||
+        key.includes("golo_restricted") ||
+        key.includes("golo_images_flagged")
+    );
+    if (restrictionKeys.length > 0) {
+      await AsyncStorage.multiRemove(restrictionKeys);
+    }
+  } catch (e) {
+    console.warn("Failed to clear restriction storage keys:", e);
+  }
+}
+
+/**
+ * Removes all merchant auth keys and moderation/restriction cache keys from AsyncStorage.
  */
 export async function clearAuthStorage() {
   await AsyncStorage.multiRemove([ACCESS_KEY, REFRESH_KEY, DATA_KEY, ID_KEY]);
+  await clearRestrictionStorage();
 }
 
 /**
  * Saves auth data returned by the login endpoint.
  */
 export async function saveAuthData({ accessToken, refreshToken, merchant, merchantId }) {
+  await clearRestrictionStorage();
   await AsyncStorage.multiSet([
     [ACCESS_KEY, accessToken],
     [REFRESH_KEY, refreshToken || ""],
     [DATA_KEY, JSON.stringify(merchant)],
     [ID_KEY, String(merchantId || "")],
   ]);
+}
+
+/**
+ * Handles a fatal auth error (SESSION_EXPIRED, NOT_AUTHENTICATED, or a 401
+ * response from the backend).
+ *
+ * Clears all stored auth data and navigates the user back to the Login screen.
+ * Pass the `navigation` object from the calling screen.
+ */
+export async function handleAuthError(navigation) {
+  try {
+    await clearAuthStorage();
+  } catch (_) {
+    // Ignore storage errors during forced logout
+  }
+  if (navigation) {
+    navigation.reset({ index: 0, routes: [{ name: "Login" }] });
+  }
 }
 
 /**

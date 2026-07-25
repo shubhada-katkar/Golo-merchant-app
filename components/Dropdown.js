@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import DropDownPicker from "react-native-dropdown-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL as CONFIG_BASE_URL } from "../config";
+import { getValidToken } from "../services/authService";
 import { textPresets } from "../theme/typography";
 
 export default function Dropdown({ BASE_URL, token, onChange, value: parentValue = [] }) {
@@ -19,8 +20,14 @@ export default function Dropdown({ BASE_URL, token, onChange, value: parentValue
             if (token) {
                 setResolvedToken(token);
             } else {
-                const storedToken = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
-                setResolvedToken(storedToken || "");
+                try {
+                    const freshToken = await getValidToken();
+                    setResolvedToken(freshToken || "");
+                } catch (_authErr) {
+                    // Fall back to raw storage if getValidToken fails
+                    const storedToken = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+                    setResolvedToken(storedToken || "");
+                }
             }
             const storedMerchantId = await AsyncStorage.getItem("merchantId");
             setMerchantId(storedMerchantId || "");
@@ -109,8 +116,9 @@ export default function Dropdown({ BASE_URL, token, onChange, value: parentValue
 
             showBadgeCloseIcon={true}
             badgeColors={["#E5E7EB"]}
-            badgeTextStyle={{ color: "#000", paddingVertical:4, ...textPresets.label
-             }}
+            badgeTextStyle={{
+                color: "#000", paddingVertical: 4, ...textPresets.label
+            }}
             badgeStyle={{
                 paddingHorizontal: 10,
                 borderRadius: 8,
@@ -131,7 +139,7 @@ export default function Dropdown({ BASE_URL, token, onChange, value: parentValue
                 borderColor: "#ccc",
             }}
 
-            textStyle={{ ...textPresets.body}}
+            textStyle={{ ...textPresets.body }}
 
             searchContainerStyle={{
                 borderBottomWidth: 0

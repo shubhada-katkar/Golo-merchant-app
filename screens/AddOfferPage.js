@@ -20,7 +20,7 @@ import { uploadImageToCloudinary } from "../services/cloudinaryService";
 import { BASE_URL } from "../config";
 import { LinearGradient } from "expo-linear-gradient";
 import { textPresets } from "../theme/typography";
-import { getValidToken, authenticatedFetch } from "../services/authService";
+import { getValidToken, authenticatedFetch, handleAuthError } from "../services/authService";
 
 const parseResponseSafely = async (response) => {
     const responseText = await response.text();
@@ -261,9 +261,46 @@ export default function AddOfferPage({ navigation, route }) {
     useEffect(() => {
         const checkRestrictionStatus = async () => {
             try {
+                const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
                 const merchantId = await AsyncStorage.getItem("merchantId") || "default";
                 const restrictionKey = `golo_restricted_until:${merchantId}`;
                 const flaggedKey = `golo_images_flagged:${merchantId}`;
+
+                if (token) {
+                    try {
+                        const headers = { Authorization: `Bearer ${token}` };
+                        let response = await fetch(`${BASE_URL}/users/merchant/profile`, { headers });
+                        if (!response.ok && response.status === 404) {
+                            response = await fetch(`${BASE_URL}/merchant/profile`, { headers });
+                        }
+                        if (response.ok) {
+                            const data = await response.json();
+                            const merchantData = data?.data || data || {};
+                            const serverRestrictionUntil =
+                                merchantData?.security?.contentUploadRestrictionUntil ||
+                                merchantData?.contentUploadRestrictionUntil ||
+                                data?.data?.user?.security?.contentUploadRestrictionUntil ||
+                                data?.user?.security?.contentUploadRestrictionUntil ||
+                                null;
+
+                            if (serverRestrictionUntil) {
+                                const untilDate = new Date(serverRestrictionUntil);
+                                if (untilDate > new Date()) {
+                                    setRestrictionUntil(untilDate);
+                                    await AsyncStorage.setItem(restrictionKey, untilDate.toISOString());
+                                    return;
+                                }
+                            }
+                            setRestrictionUntil(null);
+                            await AsyncStorage.removeItem(restrictionKey);
+                            await AsyncStorage.removeItem(flaggedKey);
+                            return;
+                        }
+                    } catch (err) {
+                        console.warn("Failed to sync restriction from backend profile", err);
+                    }
+                }
+
                 const untilStr = await AsyncStorage.getItem(restrictionKey);
                 if (untilStr) {
                     const untilDate = new Date(untilStr);
@@ -559,7 +596,13 @@ export default function AddOfferPage({ navigation, route }) {
         try {
             setIsDeleting(true);
 
-            const accessToken = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+            let accessToken;
+            try {
+                accessToken = await getValidToken();
+            } catch (authErr) {
+                await handleAuthError(navigation);
+                return;
+            }
             if (!accessToken) {
                 navigation.navigate("Login");
                 return;
@@ -621,7 +664,10 @@ export default function AddOfferPage({ navigation, route }) {
 
         if (!offerData) {
             try {
-                const accessToken = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+                let accessToken;
+                try {
+                    accessToken = await getValidToken();
+                } catch (_authErr) { /* continue without subscription check */ }
                 const storedMerchantId = merchantId;
 
                 if (accessToken && storedMerchantId) {
@@ -683,7 +729,13 @@ export default function AddOfferPage({ navigation, route }) {
 
             setIsSaving(true);
 
-            const accessToken = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+            let accessToken;
+            try {
+                accessToken = await getValidToken();
+            } catch (authErr) {
+                navigation.navigate("Login");
+                return;
+            }
             if (!accessToken) {
                 navigation.navigate("Login");
                 return;

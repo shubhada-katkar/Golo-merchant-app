@@ -1,17 +1,18 @@
 import React, { useState, useEffect, useContext, useCallback, useRef } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Alert, ActivityIndicator,
+import {
+  View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Alert, ActivityIndicator,
   KeyboardAvoidingView, Platform
- } from "react-native";
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL } from "../config";
 import { enrichOrderDetails, fetchVoucherDetails } from "../services/orderService";
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
-import {ThemeContext} from "../theme/ThemeContext";
+import { ThemeContext } from "../theme/ThemeContext";
 import { MaterialCommunityIcons, MaterialIcons, AntDesign, Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { getValidToken, handleAuthError } from "../services/authService";
 import { textPresets } from "../theme/typography";
 
 const formatDateTime = (value) => {
@@ -36,12 +37,14 @@ export default function OrderDetailPage() {
     const enrichDetails = async () => {
       try {
         setEnriching(true);
-        const token = (await AsyncStorage.getItem("merchantToken")) || 
-                     (await AsyncStorage.getItem("accessToken"));
-        if (!token) {
+        let token;
+        try {
+          token = await getValidToken();
+        } catch (authErr) {
+          await handleAuthError(navigation);
           return;
         }
-        
+
         const enrichedOrder = await enrichOrderDetails(orderData, token);
         setOrderData(enrichedOrder);
       } catch (error) {
@@ -112,8 +115,11 @@ export default function OrderDetailPage() {
 
   const fetchVoucherIdFromCode = async (code) => {
     if (!code) return null;
-    const token = await AsyncStorage.getItem('merchantToken') || await AsyncStorage.getItem('accessToken');
-    if (!token || !BASE_URL) return null;
+    let token;
+    try {
+      token = await getValidToken();
+    } catch (_authErr) { return null; }
+    if (!BASE_URL) return null;
 
     const response = await fetch(`${BASE_URL}/vouchers/verify-code`, {
       method: 'POST',
@@ -123,6 +129,11 @@ export default function OrderDetailPage() {
       },
       body: JSON.stringify({ code: String(code).trim() }),
     });
+
+    if (response.status === 401) {
+      await handleAuthError(navigation);
+      return null;
+    }
 
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
@@ -134,8 +145,11 @@ export default function OrderDetailPage() {
 
   const fetchVoucherIdFromVoucherRecord = async (rawId) => {
     if (!rawId) return null;
-    const token = await AsyncStorage.getItem('merchantToken') || await AsyncStorage.getItem('accessToken');
-    if (!token || !BASE_URL) return null;
+    let token;
+    try {
+      token = await getValidToken();
+    } catch (_authErr) { return null; }
+    if (!BASE_URL) return null;
 
     const details = await fetchVoucherDetails(rawId, token);
     return details?.voucherId || details?._id || null;
@@ -147,8 +161,13 @@ export default function OrderDetailPage() {
     }
 
     try {
-      const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
-      if (!token) return false;
+      let token;
+      try {
+        token = await getValidToken();
+      } catch (authErr) {
+        await handleAuthError(navigation);
+        return false;
+      }
 
       let res = await fetch(`${BASE_URL}/orders/${orderRecordId}/status`, {
         method: "PATCH",
@@ -158,6 +177,11 @@ export default function OrderDetailPage() {
         },
         body: JSON.stringify({ status }),
       });
+
+      if (res.status === 401) {
+        await handleAuthError(navigation);
+        return false;
+      }
 
       if (!res.ok && res.status === 404) {
         res = await fetch(`${BASE_URL}/api/orders/${orderRecordId}/status`, {
@@ -189,9 +213,12 @@ export default function OrderDetailPage() {
       throw new Error('API URL not configured');
     }
 
-    const token = await AsyncStorage.getItem('merchantToken') || await AsyncStorage.getItem('accessToken');
-    if (!token) {
-      throw new Error('Missing credentials');
+    let token;
+    try {
+      token = await getValidToken();
+    } catch (authErr) {
+      await handleAuthError(navigation);
+      throw new Error('Session expired, please log in again');
     }
 
     let selectedVoucherId = orderVoucherId;
@@ -204,7 +231,7 @@ export default function OrderDetailPage() {
     // Validation for QR Code
     if (qrCode) {
       const parsedVoucherId = parseVoucherIdFromQrString(qrCode);
-      
+
       if (!parsedVoucherId) {
         throw new Error('Invalid QR code format');
       }
@@ -219,7 +246,7 @@ export default function OrderDetailPage() {
     // Validation for Alphanumeric Code
     if (verificationCode) {
       const verifiedVoucherId = await fetchVoucherIdFromCode(verificationCode);
-      
+
       if (!verifiedVoucherId) {
         throw new Error('Invalid or expired verification code');
       }
@@ -276,36 +303,37 @@ export default function OrderDetailPage() {
   }, [navigation, redeemVoucher]);
 
   return (
-         <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-                          <LinearGradient
-                              colors={["#f8a812", "#fad081",  "#f8f6f265"]}
-                              start={{ x: 0, y: 0 }}
-                              end={{ x: 0, y: 1 }}
-                              style={{height: 200, position: "absolute", top: 0, left: 0, right: 0, zIndex: 0}}
-                          />
-                <Topbar/>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <LinearGradient
+        colors={["#f8a812", "#fad081", "#f8f6f265"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={{ height: 200, position: "absolute", top: 0, left: 0, right: 0, zIndex: 0 }}
+      />
+      <Topbar />
 
-        <View style={styles.row1}>
-            <TouchableOpacity onPress={() => navigation.goBack()}> 
-                    <View style={{ justifyContent: 'center' }}>
-                        <MaterialIcons
-                            name="arrow-back-ios"
-                            size={22}
-                            color={colors.text}
-                            style={{ padding: 10 }}
-                        />
-                    </View>
-                </TouchableOpacity>
+      <View style={styles.row1}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <View style={{ justifyContent: 'center' }}>
+            <MaterialIcons
+              name="arrow-back-ios"
+              size={22}
+              color={colors.text}
+              style={{ padding: 10 }}
+            />
+          </View>
+        </TouchableOpacity>
 
-                <Text style={{  flex: 1, ...textPresets.title
-                 }}>Order Details</Text>
-        </View>
+        <Text style={{
+          flex: 1, ...textPresets.title
+        }}>Order Details</Text>
+      </View>
 
-        <View style={{ height: 1, backgroundColor: colors.divider, marginBottom: 10 }} />
+      <View style={{ height: 1, backgroundColor: colors.divider, marginBottom: 10 }} />
 
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"} >
-       <ScrollView ref={scrollViewRef}
-       contentContainerStyle={[styles.content, { paddingBottom: 100 }]}  keyboardShouldPersistTaps="handled" > 
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"} >
+        <ScrollView ref={scrollViewRef}
+          contentContainerStyle={[styles.content, { paddingBottom: 100 }]} keyboardShouldPersistTaps="handled" >
 
           {/* Customer Info Card */}
           <View style={styles.card}>
@@ -343,99 +371,101 @@ export default function OrderDetailPage() {
             </View>
           </View>
 
-        {!isOrderRedeemed && (
-          <View style={{flexDirection:"row",marginTop:8, alignItems:"center", justifyContent:"space-between"}}>
+          {!isOrderRedeemed && (
+            <View style={{ flexDirection: "row", marginTop: 8, alignItems: "center", justifyContent: "space-between" }}>
 
-            <TouchableOpacity style={styles.actionButton} onPress={() => {
-              setShowCodeInput(false);
-              navigation.navigate("ScanQRCodePage", { onScanned: handleQRCodeScanned });
-            }}>
-              <AntDesign name="qrcode" size={20} color="white"/>
-              <Text style={styles.actionText}>Scan QR</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={[styles.actionButton, {backgroundColor:'#f5b849'}]} onPress={() => {
-              setShowCodeInput(true);
-              setTimeout(() => {
-                scrollViewRef.current?.scrollToEnd({ animated: true });
-              }, 300);
-            }}>
-              <Ionicons name="ticket-outline" size={20} color="white"/>
-              <Text style={styles.actionText}>Enter Code</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Inline Code Input Section */}
-        {showCodeInput && !isOrderRedeemed && (
-          <View style={styles.codeInputSection}>
-            <Text style={styles.codeInputLabel}>Enter verification code</Text>
-            <TextInput 
-              value={codeValue} 
-              onChangeText={setCodeValue} 
-              placeholder="Enter code" 
-              style={styles.codeInput} 
-              autoCapitalize="characters"
-              placeholderTextColor="#999"
-            />
-            <View style={styles.codeButtonRow}>
-              <TouchableOpacity 
-                style={[styles.codeButton, styles.cancelButton]} 
-                onPress={() => { setShowCodeInput(false);
-                  setCodeValue(""); }} >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+              <TouchableOpacity style={styles.actionButton} onPress={() => {
+                setShowCodeInput(false);
+                navigation.navigate("ScanQRCodePage", { onScanned: handleQRCodeScanned });
+              }}>
+                <AntDesign name="qrcode" size={20} color="white" />
+                <Text style={styles.actionText}>Scan QR</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.codeButton, styles.submitButton]} 
-                onPress={async () => {
-                  try {
-                    if (!codeValue.trim()) {
-                      Alert.alert('Error', 'Please enter a verification code');
-                      return;
-                    }
-                    setLoading(true);
-                    const token = await AsyncStorage.getItem('merchantToken') || await AsyncStorage.getItem('accessToken');
-                    if (!token || !BASE_URL) throw new Error('Missing credentials');
 
-                    await redeemVoucher({ verificationCode: codeValue });
-                    Alert.alert('Success', 'Order redeemed successfully');
-                    setShowCodeInput(false);
-                    setCodeValue("");
-                    navigation.goBack();
-                  } catch (err) {
-                    Alert.alert('Redeem failed', String(err?.message || err));
-                  } finally {
-                    setLoading(false);
-                  }
-                }}
-                disabled={loading} >
-                {loading ? (
-                  <ActivityIndicator size="small" color="white" />
-                ) : (
-                  <Text style={styles.codeButtonText}>Submit</Text>
-                )}
+              <TouchableOpacity style={[styles.actionButton, { backgroundColor: '#f5b849' }]} onPress={() => {
+                setShowCodeInput(true);
+                setTimeout(() => {
+                  scrollViewRef.current?.scrollToEnd({ animated: true });
+                }, 300);
+              }}>
+                <Ionicons name="ticket-outline" size={20} color="white" />
+                <Text style={styles.actionText}>Enter Code</Text>
               </TouchableOpacity>
             </View>
-          </View>
-        )}
+          )}
 
-      </ScrollView>
+          {/* Inline Code Input Section */}
+          {showCodeInput && !isOrderRedeemed && (
+            <View style={styles.codeInputSection}>
+              <Text style={styles.codeInputLabel}>Enter verification code</Text>
+              <TextInput
+                value={codeValue}
+                onChangeText={setCodeValue}
+                placeholder="Enter code"
+                style={styles.codeInput}
+                autoCapitalize="characters"
+                placeholderTextColor="#999"
+              />
+              <View style={styles.codeButtonRow}>
+                <TouchableOpacity
+                  style={[styles.codeButton, styles.cancelButton]}
+                  onPress={() => {
+                    setShowCodeInput(false);
+                    setCodeValue("");
+                  }} >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.codeButton, styles.submitButton]}
+                  onPress={async () => {
+                    try {
+                      if (!codeValue.trim()) {
+                        Alert.alert('Error', 'Please enter a verification code');
+                        return;
+                      }
+                      setLoading(true);
+                      // token is obtained inside redeemVoucher via getValidToken()
+                      if (!BASE_URL) throw new Error('Missing credentials');
+
+                      await redeemVoucher({ verificationCode: codeValue });
+                      Alert.alert('Success', 'Order redeemed successfully');
+                      setShowCodeInput(false);
+                      setCodeValue("");
+                      navigation.goBack();
+                    } catch (err) {
+                      Alert.alert('Redeem failed', String(err?.message || err));
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  disabled={loading} >
+                  {loading ? (
+                    <ActivityIndicator size="small" color="white" />
+                  ) : (
+                    <Text style={styles.codeButtonText}>Submit</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+        </ScrollView>
       </KeyboardAvoidingView>
-                <SafeAreaView edges={["bottom"]}
-                    style={{ width: "100%", bottom: 0, position: "absolute" }}>
-                    <Bottombar />
-                </SafeAreaView>        
+      <SafeAreaView edges={["bottom"]}
+        style={{ width: "100%", bottom: 0, position: "absolute" }}>
+        <Bottombar />
       </SafeAreaView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   row1: {
-        alignItems: "center",
-        flexDirection: "row",
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-    },
+    alignItems: "center",
+    flexDirection: "row",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
   container: {
     flex: 1,
     backgroundColor: "#f7f7f7",
@@ -454,7 +484,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 3 },
     elevation: 4,
-  },  
+  },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -488,10 +518,10 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 10,
     alignItems: 'center',
-    width:"48%",
-    flexDirection:"row",
-    gap:5,
-    justifyContent:"center",
+    width: "48%",
+    flexDirection: "row",
+    gap: 5,
+    justifyContent: "center",
   },
   actionText: {
     color: 'white',
@@ -504,7 +534,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#e5e7eb',
-    paddingHorizontal:12
+    paddingHorizontal: 12
   },
   codeInputLabel: {
     ...textPresets.body,
@@ -534,11 +564,11 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     backgroundColor: '#e5e7eb',
-    paddingVertical:14
+    paddingVertical: 14
   },
   submitButton: {
     backgroundColor: '#157a4f',
-    paddingVertical:14
+    paddingVertical: 14
   },
   codeButtonText: {
     color: 'white',

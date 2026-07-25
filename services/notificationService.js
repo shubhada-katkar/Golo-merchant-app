@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 import { BASE_URL as CONFIG_BASE_URL } from "../config";
+import { getValidToken } from "./authService";
 
 const SEEN_IDS_KEY = "merchantSeenNotificationIds";
 let pollingTimer = null;
@@ -61,7 +62,12 @@ async function registerPushTokenWithBackend() {
       return;
     }
 
-    const authToken = (await AsyncStorage.getItem("merchantToken")) || (await AsyncStorage.getItem("accessToken"));
+    let authToken;
+    try {
+      authToken = await getValidToken();
+    } catch (_authErr) {
+      return; // Not authenticated — skip push token registration
+    }
     const baseUrl = getBaseUrl();
 
     if (!authToken || !baseUrl) {
@@ -106,7 +112,12 @@ async function saveSeenIds(ids) {
 }
 
 async function fetchNotifications() {
-  const token = (await AsyncStorage.getItem("merchantToken")) || (await AsyncStorage.getItem("accessToken"));
+  let token;
+  try {
+    token = await getValidToken();
+  } catch (_authErr) {
+    return []; // Session expired — polling will stop producing results silently
+  }
   const baseUrl = getBaseUrl();
 
   if (!token || !baseUrl) {

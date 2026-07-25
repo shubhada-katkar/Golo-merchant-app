@@ -12,6 +12,7 @@ import * as ImagePicker from "expo-image-picker";
 import { Calendar } from "react-native-calendars";
 import { Modal } from "react-native";
 import { uploadImageToCloudinary } from "../services/cloudinaryService";
+import { getValidToken, handleAuthError } from "../services/authService";
 import { textPresets } from "../theme/typography";
 
 function getErrorMessageFromResponse(data) {
@@ -159,9 +160,46 @@ export default function BannerPage({ navigation, route }) {
     useEffect(() => {
         const checkRestrictionStatus = async () => {
             try {
+                const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
                 const merchantId = await AsyncStorage.getItem("merchantId") || "default";
                 const restrictionKey = `golo_restricted_until:${merchantId}`;
                 const flaggedKey = `golo_images_flagged:${merchantId}`;
+
+                if (token) {
+                    try {
+                        const headers = { Authorization: `Bearer ${token}` };
+                        let response = await fetch(`${BASE_URL}/users/merchant/profile`, { headers });
+                        if (!response.ok && response.status === 404) {
+                            response = await fetch(`${BASE_URL}/merchant/profile`, { headers });
+                        }
+                        if (response.ok) {
+                            const data = await response.json();
+                            const merchantData = data?.data || data || {};
+                            const serverRestrictionUntil =
+                                merchantData?.security?.contentUploadRestrictionUntil ||
+                                merchantData?.contentUploadRestrictionUntil ||
+                                data?.data?.user?.security?.contentUploadRestrictionUntil ||
+                                data?.user?.security?.contentUploadRestrictionUntil ||
+                                null;
+
+                            if (serverRestrictionUntil) {
+                                const untilDate = new Date(serverRestrictionUntil);
+                                if (untilDate > new Date()) {
+                                    setRestrictionUntil(untilDate);
+                                    await AsyncStorage.setItem(restrictionKey, untilDate.toISOString());
+                                    return;
+                                }
+                            }
+                            setRestrictionUntil(null);
+                            await AsyncStorage.removeItem(restrictionKey);
+                            await AsyncStorage.removeItem(flaggedKey);
+                            return;
+                        }
+                    } catch (err) {
+                        console.warn("Failed to sync restriction from backend profile", err);
+                    }
+                }
+
                 const untilStr = await AsyncStorage.getItem(restrictionKey);
                 if (untilStr) {
                     const untilDate = new Date(untilStr);
@@ -340,7 +378,13 @@ export default function BannerPage({ navigation, route }) {
                     onPress: async () => {
                         try {
                             setIsDeleting(true);
-                            const token = (await AsyncStorage.getItem("merchantToken")) || (await AsyncStorage.getItem("accessToken"));
+                            let token;
+                            try {
+                                token = await getValidToken();
+                            } catch (authErr) {
+                                await handleAuthError(navigation);
+                                return;
+                            }
                             const response = await fetch(`${BASE_URL}/banners/promotions/${editRequestId}`, {
                                 method: "DELETE",
                                 headers: { Authorization: `Bearer ${token}` },
@@ -472,7 +516,14 @@ export default function BannerPage({ navigation, route }) {
                 imageUrl = uploadResult.url;
             }
 
-            const token = (await AsyncStorage.getItem("merchantToken")) || (await AsyncStorage.getItem("accessToken"));
+            let token;
+            try {
+                token = await getValidToken();
+            } catch (authErr) {
+                Alert.alert("Login required", "Please log in again to continue.");
+                await handleAuthError(navigation);
+                return;
+            }
             if (!token) {
                 Alert.alert("Login required", "Please log in again to continue.");
                 return;
@@ -639,8 +690,8 @@ export default function BannerPage({ navigation, route }) {
             Alert.alert(
                 isEditMode ? "Banner updated" : "Request submitted",
                 isEditMode
-                    ? "Your banner promotion has been updated successfully."
-                    : "Your banner promotion request has been sent for review."
+                    ? "Your banner promotion has been updated."
+                    : "Your banner promotion has been submitted."
             );
             // Clear the moderation flag and reset the changed-image tracker
             try { await AsyncStorage.removeItem(`golo_images_flagged:${merchantId}`); } catch (e) { }
@@ -946,10 +997,6 @@ export default function BannerPage({ navigation, route }) {
                             }
                         </TouchableOpacity>
                     )}
-
-                    <Text style={[styles.footnote, { color: colors.subtext }]}>
-                        Request status will be shown in Banner Promotions list as Under Review, Rejected, or Approved. Pay option appears after approval.
-                    </Text>
                 </View>
 
             </ScrollView>

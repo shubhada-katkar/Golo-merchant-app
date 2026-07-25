@@ -3,11 +3,11 @@ import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { ThemeContext } from "../theme/ThemeContext";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL } from "../config";
 import Topbar from "../components/Topbar";
 import { MaterialIcons, AntDesign, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { getValidToken, handleAuthError } from "../services/authService";
 import { textPresets } from "../theme/typography";
 
 export default function AllReviewsPage({ navigation }) {
@@ -27,7 +27,13 @@ export default function AllReviewsPage({ navigation }) {
 
       const loadReviews = async () => {
         try {
-          const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+          let token;
+          try {
+            token = await getValidToken();
+          } catch (authErr) {
+            await handleAuthError(navigation);
+            return;
+          }
           if (!token) return;
 
           setLoading(true);
@@ -36,6 +42,11 @@ export default function AllReviewsPage({ navigation }) {
               Authorization: `Bearer ${token}`,
             },
           });
+
+          if (response.status === 401) {
+            await handleAuthError(navigation);
+            return;
+          }
 
           const data = await response.json();
           if (!active) return;

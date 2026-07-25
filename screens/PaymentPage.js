@@ -7,7 +7,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import Topbar from "../components/Topbar";
 import { MaterialIcons, Ionicons, FontAwesome5 } from "@expo/vector-icons";
 import { PLANS } from "./UpgradePlanPage";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getValidToken, handleAuthError } from "../services/authService";
 import { textPresets } from "../theme/typography";
 
 const DURATIONS = [
@@ -45,10 +45,11 @@ export default function PaymentPage({ navigation, route }) {
   const handlePayNow = async () => {
     setIsProcessing(true);
     try {
-      const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
-      if (!token) {
-        Alert.alert("Session Expired", "Please login again.");
-        navigation.replace("Login");
+      let token;
+      try {
+        token = await getValidToken();
+      } catch (authErr) {
+        await handleAuthError(navigation);
         return;
       }
 

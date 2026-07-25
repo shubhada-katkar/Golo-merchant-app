@@ -1,22 +1,22 @@
 import React, { useContext, useEffect, useState, useCallback } from "react";
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-  FlatList,
-  RefreshControl,
+    View,
+    Text,
+    TouchableOpacity,
+    StyleSheet,
+    ActivityIndicator,
+    FlatList,
+    RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ThemeContext } from "../theme/ThemeContext";
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
 import { AntDesign, MaterialIcons } from "@expo/vector-icons";
 import { BASE_URL as CONFIG_BASE_URL } from "../config";
 import { LinearGradient } from "expo-linear-gradient";
-import {textPresets} from "../theme/typography";
+import { getValidToken, handleAuthError } from "../services/authService";
+import { textPresets } from "../theme/typography";
 
 function formatRelativeTime(value) {
     if (!value) return "Just now";
@@ -42,7 +42,7 @@ export default function Notifications({ navigation }) {
     const BASE_URL = (process.env.EXPO_PUBLIC_API_URL || CONFIG_BASE_URL || "").replace(/\/+$/, "");
 
     const getAuthToken = async () => {
-        return (await AsyncStorage.getItem("merchantToken")) || (await AsyncStorage.getItem("accessToken"));
+        return await getValidToken();
     };
 
     const loadNotifications = useCallback(async (showLoader = false, isRefresh = false) => {
@@ -50,8 +50,14 @@ export default function Notifications({ navigation }) {
             if (showLoader) setLoading(true);
             if (isRefresh) setRefreshing(true);
 
-            const token = await getAuthToken();
-            if (!token || !BASE_URL) {
+            let token;
+            try {
+                token = await getAuthToken();
+            } catch (authErr) {
+                await handleAuthError(navigation);
+                return;
+            }
+            if (!BASE_URL) {
                 setNotifications([]);
                 return;
             }
@@ -59,6 +65,11 @@ export default function Notifications({ navigation }) {
             let res = await fetch(`${BASE_URL}/users/notifications`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
+
+            if (res.status === 401) {
+                await handleAuthError(navigation);
+                return;
+            }
 
             if (!res.ok && res.status === 404) {
                 res = await fetch(`${BASE_URL}/api/users/notifications`, {

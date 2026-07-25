@@ -11,8 +11,8 @@ import {
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { ThemeContext } from "../theme/ThemeContext";
 import { AntDesign, MaterialIcons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL } from "../config";
+import { getValidToken } from "../services/authService";
 import { textPresets } from "../theme/typography";
 
 export default function Active({ searchText = "" }) {
@@ -24,15 +24,13 @@ export default function Active({ searchText = "" }) {
     const [deletingOfferId, setDeletingOfferId] = useState(null);
 
     useEffect(() => {
-        AsyncStorage.getItem("merchantToken").then((value) => {
-            if (value) {
-                setToken(value);
-            } else {
-                AsyncStorage.getItem("accessToken").then((fallback) => {
-                    if (fallback) setToken(fallback);
-                });
-            }
-        });
+        getValidToken()
+            .then((freshToken) => {
+                if (freshToken) setToken(freshToken);
+            })
+            .catch(() => {
+                // Token not available — component will show empty state
+            });
     }, []);
 
     const normalizeOfferResults = (result) => {
@@ -115,7 +113,7 @@ export default function Active({ searchText = "" }) {
 
         try {
             setDeletingOfferId(offerId);
-            const accessToken = token || await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+            const accessToken = token || await (getValidToken().catch(() => null));
             if (!accessToken) {
                 Alert.alert("Authentication Required", "Please login again to delete offers.");
                 return;
@@ -219,10 +217,10 @@ export default function Active({ searchText = "" }) {
                         <View style={styles.image} />
                     )}
 
-                    <View style={{ flex: 1, paddingHorizontal: 10 , justifyContent:"center" }}>
-                            <Text style={{ width: "80%", ...textPresets.body }}>
-                                {title}
-                            </Text>
+                    <View style={{ flex: 1, paddingHorizontal: 10, justifyContent: "center" }}>
+                        <Text style={{ width: "80%", ...textPresets.body }}>
+                            {title}
+                        </Text>
 
                         {validTo && (
                             <Text style={{ ...textPresets.label, color: "#157a4f" }}>
@@ -232,16 +230,16 @@ export default function Active({ searchText = "" }) {
                     </View>
 
                     <View style={styles.actionRow}>
-                        <TouchableOpacity  onPress={() => navigation.navigate("AddOfferPage", {offerData: item })  }
+                        <TouchableOpacity onPress={() => navigation.navigate("AddOfferPage", { offerData: item })}
                             style={styles.actionButton}  >
                             <AntDesign name="edit" size={18} color="black" />
                         </TouchableOpacity>
                         <TouchableOpacity
-                                    onPress={() => confirmDeleteOffer(item)}
-                                    style={styles.actionButton}
-                                    disabled={deletingOfferId === getOfferId(item)}
-                                >
-                                    <MaterialIcons name="delete-outline" size={19} color={deletingOfferId === getOfferId(item) ? "#999" : "#ef4d4d"} />
+                            onPress={() => confirmDeleteOffer(item)}
+                            style={styles.actionButton}
+                            disabled={deletingOfferId === getOfferId(item)}
+                        >
+                            <MaterialIcons name="delete-outline" size={19} color={deletingOfferId === getOfferId(item) ? "#999" : "#ef4d4d"} />
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -260,9 +258,10 @@ export default function Active({ searchText = "" }) {
                 refreshing={loading}
                 onRefresh={fetchOffers}
                 ListEmptyComponent={
-                    <Text style={{ textAlign: 'center', marginTop: 20, color: colors.text,
+                    <Text style={{
+                        textAlign: 'center', marginTop: 20, color: colors.text,
                         ...textPresets.body
-                     }}>
+                    }}>
                         No active offers available
                     </Text>
                 }

@@ -9,9 +9,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons, Feather } from "@expo/vector-icons";
 import { ThemeContext } from "../theme/ThemeContext";
 import { LinearGradient } from "expo-linear-gradient";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { BASE_URL } from "../config";
+import { getValidToken, handleAuthError } from "../services/authService";
 import { textPresets } from "../theme/typography";
 
 export default function ProfilePage({ navigation }) {
@@ -37,7 +37,13 @@ export default function ProfilePage({ navigation }) {
     };
 
     const fetchOfferSummary = useCallback(async () => {
-        const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+        let token;
+        try {
+            token = await getValidToken();
+        } catch (authErr) {
+            await handleAuthError(navigation);
+            return;
+        }
         if (!token) {
             setTotalOffers(0);
             setActiveOffers(0);
@@ -49,6 +55,10 @@ export default function ProfilePage({ navigation }) {
             const response = await fetch(`${BASE_URL}/offers/my?page=1&limit=100`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
+            if (response.status === 401) {
+                await handleAuthError(navigation);
+                return;
+            }
             const result = await response.json();
             const offers = normalizeOfferResults(result);
             setTotalOffers(offers.length);
@@ -74,56 +84,57 @@ export default function ProfilePage({ navigation }) {
 
     return (
         <SafeAreaView style={{ flex: 1 }}>
-                    <LinearGradient
-                        colors={["#f8a812", "#fad081",  "#f8f6f265"]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 0, y: 1 }}
-                        style={{height: 250, position: "absolute", top: 0, left: 0, right: 0, zIndex: 0}}
-                    />
+            <LinearGradient
+                colors={["#f8a812", "#fad081", "#f8f6f265"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={{ height: 250, position: "absolute", top: 0, left: 0, right: 0, zIndex: 0 }}
+            />
             <View style={{ zIndex: 1 }}>
-            <Topbar />
+                <Topbar />
 
-            <View style={styles.row1}>
-                <TouchableOpacity onPress={() => navigation.navigate("HomePage")}>
-                    <MaterialIcons name="arrow-back-ios" size={22} color={colors.text} style={{ padding: 10 }} />
-                </TouchableOpacity>
-                <Text style={{ ...textPresets.title
-                 }}>Offers</Text>
+                <View style={styles.row1}>
+                    <TouchableOpacity onPress={() => navigation.navigate("HomePage")}>
+                        <MaterialIcons name="arrow-back-ios" size={22} color={colors.text} style={{ padding: 10 }} />
+                    </TouchableOpacity>
+                    <Text style={{
+                        ...textPresets.title
+                    }}>Offers</Text>
+                </View>
+
+
+                <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1, marginBottom: 10 }} />
+
+                <View style={styles.searchBar}>
+                    <Feather name="search" size={18} color="#919191" />
+                    <TextInput
+                        placeholder="Search offers..."
+                        value={searchText}
+                        onChangeText={setSearchText}
+                        style={styles.searchInput}
+                    />
+                </View>
+
+                <View style={styles.row2}>
+                    <TouchableOpacity onPress={() => setactiveTab("Recent")}
+                        style={[styles.row2button, activeTab == "Recent" && styles.ActiveTab]}>
+                        <Text style={[styles.tabCountText, activeTab == "Recent" && styles.ActiveTabText]}>{totalOffers}</Text>
+                        <Text style={[styles.row2text, activeTab == "Recent" && styles.ActiveTabText]}>Recent</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity onPress={() => setactiveTab("Active")}
+                        style={[styles.row2button, activeTab == "Active" && styles.ActiveTab]}>
+                        <Text style={[styles.tabCountText, activeTab == "Active" && styles.ActiveTabText]}>{activeOffers}</Text>
+                        <Text style={[styles.row2text, activeTab == "Active" && styles.ActiveTabText]}>Active</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity onPress={() => setactiveTab("Expire")}
+                        style={[styles.row2button, activeTab == "Expire" && styles.ActiveTab]}>
+                        <Text style={[styles.tabCountText, activeTab == "Expire" && styles.ActiveTabText]}>{expiredOffers}</Text>
+                        <Text style={[styles.row2text, activeTab == "Expire" && styles.ActiveTabText]}>Expire</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
-
-            
-            <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1, marginBottom: 10 }} />
-
-            <View style={styles.searchBar}>
-                <Feather name="search" size={18} color="#919191" />
-                <TextInput
-                    placeholder="Search offers..."
-                    value={searchText}
-                    onChangeText={setSearchText}
-                    style={styles.searchInput}
-                />
-            </View>
-
-            <View style={styles.row2}>
-                <TouchableOpacity onPress={() => setactiveTab("Recent")}
-                    style={[styles.row2button, activeTab == "Recent" && styles.ActiveTab]}>
-                    <Text style={[styles.tabCountText, activeTab == "Recent" && styles.ActiveTabText]}>{totalOffers}</Text>
-                    <Text style={[styles.row2text, activeTab == "Recent" && styles.ActiveTabText]}>Recent</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity onPress={() => setactiveTab("Active")}
-                    style={[styles.row2button, activeTab == "Active" && styles.ActiveTab]}>
-                    <Text style={[styles.tabCountText, activeTab == "Active" && styles.ActiveTabText]}>{activeOffers}</Text>
-                    <Text style={[styles.row2text, activeTab == "Active" && styles.ActiveTabText]}>Active</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity onPress={() => setactiveTab("Expire")}
-                    style={[styles.row2button, activeTab == "Expire" && styles.ActiveTab]}>
-                    <Text style={[styles.tabCountText, activeTab == "Expire" && styles.ActiveTabText]}>{expiredOffers}</Text>
-                    <Text style={[styles.row2text, activeTab == "Expire" && styles.ActiveTabText]}>Expire</Text>
-                </TouchableOpacity>
-            </View>
-</View>
 
             {activeTab == "Recent" && <Recent searchText={searchText} />}
 
@@ -167,7 +178,7 @@ const styles = StyleSheet.create({
     searchInput: {
         flex: 1,
         marginLeft: 8,
-        top:3,
+        top: 3,
         ...textPresets.body
     },
     row2text: {

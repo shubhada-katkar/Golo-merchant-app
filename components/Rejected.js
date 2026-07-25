@@ -1,88 +1,136 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
+import React, { useState, useEffect, useCallback, memo } from "react";
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from "react-native";
 import { useContext } from "react";
 import { ThemeContext } from "../theme/ThemeContext";
 import { MaterialIcons, Entypo } from "@expo/vector-icons";
 import { fmtAgo } from "../utils/timeFormatter";
 import { textPresets } from "../theme/typography";
 
+const PAGE_SIZE = 10;
+
+const RejectedCard = memo(function RejectedCard({ order, onDelete, colors }) {
+  const id = order?._id || order?.id || "";
+  const customerName = order?.customerName || order?.user?.name || "Customer";
+  const offerName =
+    order?.offerTitle ||
+    order?.offerName ||
+    order?.title ||
+    order?.name ||
+    order?.voucher?.offerTitle ||
+    order?.voucher?.offer?.title ||
+    order?.voucher?.title ||
+    order?.voucher?.name ||
+    order?.offer?.title ||
+    order?.offer?.bannerTitle ||
+    "Offer details not available";
+  const customerPhone =
+    order?.customerPhone ||
+    order?.phone ||
+    order?.user?.phone ||
+    order?.customer?.phone ||
+    order?.contactNumber ||
+    "Phone not available";
+
+  return (
+    <View style={styles.card2}>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+        <View style={{ flexDirection: "row", gap: 5 }}>
+          <MaterialIcons name="account-circle" size={20} color="#f9a641"
+            style={{ borderWidth: 0.5, borderColor: "#000000", borderRadius: 20 }} />
+          <Text style={{ ...textPresets.label }}>{customerName}</Text>
+        </View>
+        <Text style={{ ...textPresets.caption, color: "#e44d42" }}>
+          Rejected
+        </Text>
+      </View>
+
+      <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1, marginVertical: 4 }} />
+
+      <View style={styles.metaBlock}>
+        <Text style={styles.metaLabel}>Offer Claimed</Text>
+        <Text style={styles.metaValue}>{offerName}</Text>
+      </View>
+
+      <View style={styles.metaBlock}>
+        <Text style={styles.metaLabel}>Phone</Text>
+        <Text style={styles.metaValue}>{customerPhone}</Text>
+      </View>
+
+      {/* 
+      <View style={{ flexDirection: "row", gap: 10, alignSelf: "flex-end", marginTop: 10 }}>
+        <View style={[styles.button, { backgroundColor: "#e44d42" }]}>
+          <TouchableOpacity onPress={() => onDelete?.(id)}
+            style={{ flexDirection: "row", gap: 6, alignItems: "center" }}>
+            <Entypo name="trash" size={14} color="white" />
+            <Text style={styles.text}>Delete</Text>
+          </TouchableOpacity>
+        </View>
+      </View> */}
+
+    </View>
+  );
+});
+
 export default function Rejected({ orders = [], onDelete }) {
   const { colors } = useContext(ThemeContext);
   const [nowTick, setNowTick] = useState(Date.now());
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   useEffect(() => {
     const id = setInterval(() => setNowTick(Date.now()), 15000); // refresh every 15s
     return () => clearInterval(id);
   }, []);
 
-  return (
-    <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
-      <View style={styles.colcontainer}>
-        {orders.map((order) => {
-          const id = order?._id || order?.id || "";
-          const customerName = order?.customerName || order?.user?.name || "Customer";
-          const offerName =
-            order?.offerTitle ||
-            order?.offerName ||
-            order?.title ||
-            order?.name ||
-            order?.voucher?.offerTitle ||
-            order?.voucher?.offer?.title ||
-            order?.voucher?.title ||
-            order?.voucher?.name ||
-            order?.offer?.title ||
-            order?.offer?.bannerTitle ||
-            "Offer details not available";
-          const customerPhone =
-            order?.customerPhone ||
-            order?.phone ||
-            order?.user?.phone ||
-            order?.customer?.phone ||
-            order?.contactNumber ||
-            "Phone not available";
+  // Reset pagination when orders list changes
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [orders]);
 
-          return (
-            <View key={id} style={styles.card2}>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                <View style={{ flexDirection: "row", gap: 5 }}>
-                  <MaterialIcons name="account-circle" size={20} color="#f9a641"
-                    style={{ borderWidth: 0.5, borderColor: "#000000", borderRadius: 20 }} />
-                  <Text style={{ ...textPresets.label }}>{customerName}</Text>
-                </View>
-                <Text style={{ ...textPresets.caption, color: "#e44d42" }}>
-                  Rejected
-                </Text>
-              </View>
+  const visibleOrders = orders.slice(0, visibleCount);
+  const hasMore = visibleCount < orders.length;
 
-              <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1, marginVertical: 4 }} />
+  const loadMore = useCallback(() => {
+    if (hasMore) {
+      setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, orders.length));
+    }
+  }, [hasMore, orders.length]);
 
-              <View style={styles.metaBlock}>
-                <Text style={styles.metaLabel}>Offer Claimed</Text>
-                <Text style={styles.metaValue}>{offerName}</Text>
-              </View>
+  const handleDelete = useCallback((id) => {
+    onDelete?.(id);
+  }, [onDelete]);
 
-              <View style={styles.metaBlock}>
-                <Text style={styles.metaLabel}>Phone</Text>
-                <Text style={styles.metaValue}>{customerPhone}</Text>
-              </View>
+  const renderItem = useCallback(({ item }) => (
+    <RejectedCard order={item} onDelete={handleDelete} colors={colors} />
+  ), [handleDelete, colors]);
 
-              {/* 
-              <View style={{ flexDirection: "row", gap: 10, alignSelf: "flex-end", marginTop: 10 }}>
-                <View style={[styles.button, { backgroundColor: "#e44d42" }]}>
-                  <TouchableOpacity onPress={() => onDelete?.(id)}
-                    style={{ flexDirection: "row", gap: 6, alignItems: "center" }}>
-                    <Entypo name="trash" size={14} color="white" />
-                    <Text style={styles.text}>Delete</Text>
-                  </TouchableOpacity>
-                </View>
-              </View> */}
+  const keyExtractor = useCallback((order) => String(order?._id || order?.id || Math.random()), []);
 
-            </View>
-          );
-        })}
-        {orders.length === 0 ? <Text style={{ textAlign: "center", marginTop: 24 }}>No rejected orders</Text> : null}
+  const ListFooter = () => {
+    if (!hasMore) return null;
+    return (
+      <View style={styles.loadMoreContainer}>
+        <ActivityIndicator size="small" color="#157a4f" />
+        <Text style={styles.loadMoreText}>Loading more orders…</Text>
       </View>
-    </ScrollView>
+    );
+  };
+
+  return (
+    <FlatList
+      data={visibleOrders}
+      keyExtractor={keyExtractor}
+      renderItem={renderItem}
+      contentContainerStyle={styles.colcontainer}
+      ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+      ListEmptyComponent={<Text style={{ textAlign: "center", marginTop: 24 }}>No rejected orders</Text>}
+      ListFooterComponent={ListFooter}
+      onEndReached={loadMore}
+      onEndReachedThreshold={0.3}
+      initialNumToRender={PAGE_SIZE}
+      maxToRenderPerBatch={PAGE_SIZE}
+      windowSize={7}
+      removeClippedSubviews={true}
+    />
   );
 }
 
@@ -90,7 +138,6 @@ const styles = StyleSheet.create({
   colcontainer: {
     paddingHorizontal: 16,
     paddingVertical: 10,
-    gap: 12
   },
   card2: {
     borderRadius: 10,
@@ -129,5 +176,16 @@ const styles = StyleSheet.create({
   metaValue: {
     color: "#000000",
     ...textPresets.label
+  },
+  loadMoreContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 16,
+  },
+  loadMoreText: {
+    color: "#157a4f",
+    ...textPresets.caption,
   },
 });

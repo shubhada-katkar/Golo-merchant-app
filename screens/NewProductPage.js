@@ -294,6 +294,33 @@ export default function NewProductPage({ navigation, route }) {
         const data = await response.json();
         const merchantData = data?.data || data || {};
         setMerchantStoreSubCategory(merchantData.storeSubCategory || "");
+
+        const merchantId = (await AsyncStorage.getItem("merchantId")) || "default";
+        const restrictionKey = `golo_restricted_until:${merchantId}`;
+        const flaggedKey = `golo_images_flagged:${merchantId}`;
+
+        const serverRestrictionUntil =
+          merchantData?.security?.contentUploadRestrictionUntil ||
+          merchantData?.contentUploadRestrictionUntil ||
+          data?.data?.user?.security?.contentUploadRestrictionUntil ||
+          data?.user?.security?.contentUploadRestrictionUntil ||
+          null;
+
+        if (serverRestrictionUntil) {
+          const untilDate = new Date(serverRestrictionUntil);
+          if (untilDate > new Date()) {
+            setRestrictionUntil(untilDate);
+            await AsyncStorage.setItem(restrictionKey, untilDate.toISOString());
+          } else {
+            setRestrictionUntil(null);
+            await AsyncStorage.removeItem(restrictionKey);
+            await AsyncStorage.removeItem(flaggedKey);
+          }
+        } else {
+          setRestrictionUntil(null);
+          await AsyncStorage.removeItem(restrictionKey);
+          await AsyncStorage.removeItem(flaggedKey);
+        }
       } catch (error) {
         console.log("Error fetching merchant category:", error);
       }
@@ -468,19 +495,29 @@ export default function NewProductPage({ navigation, route }) {
           const subRes = await authenticatedFetch(`${BASE_URL}/merchants/${storedMerchantId}/subscription`);
           if (subRes.ok) {
             const subData = await subRes.json();
-            const maxProducts = subData?.planFeatures?.maxProducts ?? subData?.maxProducts ?? 10;
-            const planName = subData?.name || "Free Tier";
+            const rawMaxProducts = subData?.planFeatures?.maxProducts ?? subData?.maxProducts ?? null;
+            // A null / -1 / very large value means unlimited — skip limit enforcement.
+            const isUnlimited =
+              rawMaxProducts === null ||
+              rawMaxProducts === undefined ||
+              rawMaxProducts === -1 ||
+              rawMaxProducts === Infinity ||
+              rawMaxProducts >= 999999;
+            const maxProducts = isUnlimited ? Infinity : Number(rawMaxProducts);
+            const planName = subData?.planFeatures?.name || subData?.name || "Free Tier";
             setCurrentPlanName(planName);
-            setProductLimit(maxProducts);
+            setProductLimit(isUnlimited ? 0 : maxProducts);
 
-            const prodRes = await authenticatedFetch(`${BASE_URL}/merchant/products`);
-            if (prodRes.ok) {
-              const prodData = await prodRes.json();
-              const list = Array.isArray(prodData?.data) ? prodData.data : Array.isArray(prodData) ? prodData : [];
-              if (list.length >= maxProducts) {
-                setIsSaving(false);
-                setUpgradeModalVisible(true);
-                return;
+            if (!isUnlimited) {
+              const prodRes = await authenticatedFetch(`${BASE_URL}/merchant/products`);
+              if (prodRes.ok) {
+                const prodData = await prodRes.json();
+                const list = Array.isArray(prodData?.data) ? prodData.data : Array.isArray(prodData) ? prodData : [];
+                if (list.length >= maxProducts) {
+                  setIsSaving(false);
+                  setUpgradeModalVisible(true);
+                  return;
+                }
               }
             }
           }

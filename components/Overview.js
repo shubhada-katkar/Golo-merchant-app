@@ -3,10 +3,10 @@ import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, ActivityIn
 import { Octicons, AntDesign, MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { ThemeContext } from "../theme/ThemeContext";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { BASE_URL } from "../config";
 import { enrichOrderDetails } from "../services/orderService";
+import { getValidToken, handleAuthError } from "../services/authService";
 import { textPresets } from '../theme/typography';
 
 export default function Overview() {
@@ -127,7 +127,13 @@ export default function Overview() {
 
             const fetchProfile = async () => {
                 try {
-                    const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+                    let token;
+                    try {
+                        token = await getValidToken();
+                    } catch (authErr) {
+                        await handleAuthError(navigation);
+                        return;
+                    }
                     if (!token) return;
 
                     let res = await fetch(`${BASE_URL}/users/merchant/profile`, {
@@ -135,6 +141,11 @@ export default function Overview() {
                             Authorization: `Bearer ${token}`
                         }
                     });
+
+                    if (res.status === 401) {
+                        await handleAuthError(navigation);
+                        return;
+                    }
 
                     if (!res.ok && res.status === 404) {
                         res = await fetch(`${BASE_URL}/merchant/profile`, {
@@ -172,12 +183,16 @@ export default function Overview() {
 
             const fetchUniqueCustomers = async () => {
                 try {
-                    const token = await AsyncStorage.getItem("merchantToken");
+                    let token;
+                    try {
+                        token = await getValidToken();
+                    } catch (_authErr) { return; }
                     if (!token) return;
 
                     const res = await fetch(`${BASE_URL}/merchant-dashboard/analytics/events`, {
                         headers: { Authorization: `Bearer ${token}` },
                     });
+                    if (res.status === 401) { await handleAuthError(navigation); return; }
                     const data = await res.json();
                     const count = data?.data?.totalActive || 0;
                     if (active) setUniqueClaimedCustomers(count);
@@ -188,12 +203,16 @@ export default function Overview() {
 
             const fetchShopVisitsTrend = async () => {
                 try {
-                    const token = await AsyncStorage.getItem("merchantToken");
+                    let token;
+                    try {
+                        token = await getValidToken();
+                    } catch (_authErr) { return; }
                     if (!token) return;
 
                     const res = await fetch(`${BASE_URL}/merchant-dashboard/analytics/trend`, {
                         headers: { Authorization: `Bearer ${token}` },
                     });
+                    if (res.status === 401) { await handleAuthError(navigation); return; }
                     const data = await res.json();
                     const payload = data?.data || data || {};
                     if (active) setVisitsTrend({ labels: payload.labels || [], values: payload.values || [] });
@@ -204,12 +223,17 @@ export default function Overview() {
 
             const fetchRecentOrders = async () => {
                 try {
-                    const token = await AsyncStorage.getItem("merchantToken");
+                    let token;
+                    try {
+                        token = await getValidToken();
+                    } catch (_authErr) { return; }
                     if (!token) return;
 
                     let res = await fetch(`${BASE_URL}/orders/merchant?page=1&limit=2`, {
                         headers: { Authorization: `Bearer ${token}` },
                     });
+
+                    if (res.status === 401) { await handleAuthError(navigation); return; }
 
                     if (!res.ok && res.status === 404) {
                         res = await fetch(`${BASE_URL}/api/orders/merchant?page=1&limit=2`, {
@@ -231,7 +255,10 @@ export default function Overview() {
 
             const fetchReviews = async () => {
                 try {
-                    const token = await AsyncStorage.getItem("merchantToken") || await AsyncStorage.getItem("accessToken");
+                    let token;
+                    try {
+                        token = await getValidToken();
+                    } catch (_authErr) { return; }
                     if (!token) return;
 
                     setReviewsLoading(true);
@@ -240,6 +267,8 @@ export default function Overview() {
                             Authorization: `Bearer ${token}`
                         }
                     });
+
+                    if (res.status === 401) { await handleAuthError(navigation); return; }
 
                     const data = await res.json();
                     if (!active) return;

@@ -1,14 +1,15 @@
 import React, { useState, useContext } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, FlatList, Image, Alert,
+import {
+  View, Text, TouchableOpacity, StyleSheet, FlatList, Image, Alert,
 } from "react-native";
 import { ThemeContext } from "../theme/ThemeContext";
 import { AntDesign, MaterialIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL } from "../config";
+import { getValidToken, handleAuthError } from "../services/authService";
 import { textPresets } from "../theme/typography";
 
-export default function Total({ products, setProducts, searchText,}) {
+export default function Total({ products, setProducts, searchText, }) {
 
   const { colors } = useContext(ThemeContext);
 
@@ -18,43 +19,54 @@ export default function Total({ products, setProducts, searchText,}) {
   const getProductId = (item) => item?.productId || item?._id || item?.id;
 
   // ================= DELETE PRODUCT =================
- const deleteProduct = async (productId) => {
-  try {
-    setDeletingId(productId);
+  const deleteProduct = async (productId) => {
+    try {
+      setDeletingId(productId);
 
-    const token = await AsyncStorage.getItem("merchantToken");
-    if (!token) {
-      Alert.alert("Error", "Not authenticated");
-      return;
-    }
+      let token;
+      try {
+        token = await getValidToken();
+      } catch (authErr) {
+        await handleAuthError(navigation);
+        return;
+      }
+      if (!token) {
+        Alert.alert("Error", "Not authenticated");
+        return;
+      }
 
-    let res = await fetch(`${BASE_URL}/products/${productId}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    if (!res.ok && res.status === 404) {
-      res = await fetch(`${BASE_URL}/merchant/products/${productId}`, {
+      let res = await fetch(`${BASE_URL}/products/${productId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
+
+      if (res.status === 401) {
+        await handleAuthError(navigation);
+        return;
+      }
+
+      if (!res.ok && res.status === 404) {
+        res = await fetch(`${BASE_URL}/merchant/products/${productId}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
+
+      if (!res.ok) {
+        Alert.alert("Error", "Delete failed");
+        return;
+      }
+
+      setProducts((prev) => prev.filter((p) => getProductId(p) !== productId));
+
+      Alert.alert("Success", "Product deleted");
+    } catch (err) {
+      console.error(err);
+      Alert.alert("Error", "Server error");
+    } finally {
+      setDeletingId(null);
     }
-
-    if (!res.ok) {
-      Alert.alert("Error", "Delete failed");
-      return;
-    }
-
-    setProducts((prev) => prev.filter((p) => getProductId(p) !== productId));
-
-    Alert.alert("Success", "Product deleted");
-  } catch (err) {
-    console.error(err);
-    Alert.alert("Error", "Server error");
-  } finally {
-    setDeletingId(null);
-  }
-};
+  };
 
   const confirmDelete = (productId) => {
     Alert.alert(
@@ -97,11 +109,11 @@ export default function Total({ products, setProducts, searchText,}) {
         <View style={{ flex: 1, paddingHorizontal: 10 }}>
           <View style={styles.row}>
             <Text style={{ width: "65%", ...textPresets.body }}
-            numberOfLines={1} ellipsizeMode="tail">
+              numberOfLines={1} ellipsizeMode="tail">
               {item.productname}
             </Text>
 
-            <View style={{ flexDirection: "row", gap: 12, alignItems:"center" }}>
+            <View style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
               <TouchableOpacity
                 disabled={deletingId === getProductId(item)}
                 onPress={() => confirmDelete(getProductId(item))}
@@ -127,12 +139,13 @@ export default function Total({ products, setProducts, searchText,}) {
             </View>
           </View>
 
-      <View style={{flexDirection:"row", alignItems:"center", gap:4}}>
-        <AntDesign name="tag" size={12} color="#157a4f"/>
-          <Text style={{ ...textPresets.label, color:"#157a4f"
-           }}>
-            Category: {item.category}
-          </Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+            <AntDesign name="tag" size={12} color="#157a4f" />
+            <Text style={{
+              ...textPresets.label, color: "#157a4f"
+            }}>
+              Category: {item.category}
+            </Text>
           </View>
 
           <Text numberOfLines={2} ellipsizeMode="tail" style={{ ...textPresets.label, color: colors.text }}>

@@ -4,8 +4,8 @@ import { FontAwesome } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useRoute } from "@react-navigation/native";
 import { ThemeContext } from "../theme/ThemeContext";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL as CONFIG_BASE_URL } from "../config";
+import { getValidToken } from "../services/authService";
 import { textPresets } from "../theme/typography";
 
 export default function Topbar() {
@@ -17,12 +17,18 @@ export default function Topbar() {
     const BASE_URL = (process.env.EXPO_PUBLIC_API_URL || CONFIG_BASE_URL || "").replace(/\/+$/, "");
 
     const getAuthToken = async () => {
-        return (await AsyncStorage.getItem("merchantToken")) || (await AsyncStorage.getItem("accessToken"));
+        return await getValidToken();
     };
 
     const fetchUnreadCount = async () => {
         try {
-            const token = await getAuthToken();
+            let token;
+            try {
+                token = await getAuthToken();
+            } catch (_authErr) {
+                setUnreadCount(0);
+                return;
+            }
             if (!token || !BASE_URL) {
                 setUnreadCount(0);
                 return;

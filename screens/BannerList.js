@@ -8,6 +8,7 @@ import { ThemeContext } from "../theme/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL } from "../config";
 import { LinearGradient } from "expo-linear-gradient";
+import { getValidToken, handleAuthError } from "../services/authService";
 import { textPresets } from "../theme/typography";
 
 export default function BannerList({ navigation }) {
@@ -18,9 +19,12 @@ export default function BannerList({ navigation }) {
     const [payingId, setPayingId] = useState(null);
 
     const getAuthHeaders = async () => {
-        const token = (await AsyncStorage.getItem("merchantToken")) || (await AsyncStorage.getItem("accessToken"));
-        if (!token) {
-            throw new Error("Please log in again to continue.");
+        let token;
+        try {
+            token = await getValidToken();
+        } catch (authErr) {
+            await handleAuthError(navigation);
+            throw authErr;
         }
         return {
             Authorization: `Bearer ${token}`,
@@ -185,27 +189,25 @@ export default function BannerList({ navigation }) {
                                     <Text style={styles.detailValue}>Rs. {item?.totalPrice || 0}</Text>
                                 </View>
 
-                                <View style={styles.bannerActionsRow}>
-                                    {statusStyle.canPay ? (
-                                        <TouchableOpacity style={[styles.paybtn, { flex: 1 }]} onPress={() => handlePayNow(item)} disabled={payingId === (item?.requestId || item?._id)}>
-                                            {payingId === (item?.requestId || item?._id) ? (
-                                                <ActivityIndicator size="small" color="#fff" />
-                                            ) : (
-                                                <Text style={{ ...textPresets.body }}>Pay Now</Text>
-                                            )}
-                                        </TouchableOpacity>
-                                    ) : null}
+                                {statusStyle.canPay ? (
+                                    <TouchableOpacity style={[styles.paybtn, { flex: 1 }]} onPress={() => handlePayNow(item)} disabled={payingId === (item?.requestId || item?._id)}>
+                                        {payingId === (item?.requestId || item?._id) ? (
+                                            <ActivityIndicator size="small" color="#fff" />
+                                        ) : (
+                                            <Text style={{ ...textPresets.body, lineHeight: Math.round(14 * 1.5) }}>Pay Now</Text>
+                                        )}
+                                    </TouchableOpacity>
+                                ) : null}
 
-                                    {String(item?.status || "").toLowerCase() === "active" || String(item?.paymentStatus || "").toLowerCase() === "paid" ? (
-                                        <TouchableOpacity
-                                            style={styles.editBtn}
-                                            onPress={() => navigation.navigate("BannerPage", { editData: item })}
-                                        >
-                                            <Feather name="edit-2" size={14} color="#fff" />
-                                            <Text style={{ color: "#fff", marginLeft: 4, ...textPresets.label }}>Edit</Text>
-                                        </TouchableOpacity>
-                                    ) : null}
-                                </View>
+                                {String(item?.status || "").toLowerCase() === "active" || String(item?.paymentStatus || "").toLowerCase() === "paid" ? (
+                                    <TouchableOpacity
+                                        style={styles.editBtn}
+                                        onPress={() => navigation.navigate("BannerPage", { editData: item })}
+                                    >
+                                        <Feather name="edit-2" size={14} color="#fff" />
+                                        <Text style={{ color: "#fff", marginLeft: 4, ...textPresets.body, lineHeight: Math.round(14 * 1.5) }}>Edit</Text>
+                                    </TouchableOpacity>
+                                ) : null}
                             </View>
                         );
                     })
@@ -232,9 +234,8 @@ const styles = StyleSheet.create({
     bannerDetailRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 5 },
     detailLabel: { ...textPresets.label },
     detailValue: { ...textPresets.label },
-    paybtn: { flexDirection: "row", alignItems: "center", paddingVertical: 8, borderRadius: 12, backgroundColor: "#f5b849", justifyContent: "center", width: "100%", alignSelf: "center", marginVertical: 5 },
     loaderBox: { alignItems: "center", justifyContent: "center", paddingVertical: 24 },
     emptyBox: { alignItems: "center", justifyContent: "center", paddingVertical: 24 },
-    bannerActionsRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2, alignSelf: "flex-end" },
-    editBtn: { flexDirection: "row", alignItems: "center", paddingVertical: 11, paddingHorizontal: 14, borderRadius: 12, backgroundColor: "#157a4f", justifyContent: "center" },
+    paybtn: { flexDirection: "row", alignItems: "center", paddingVertical: 8, borderRadius: 12, backgroundColor: "#f5b849", justifyContent: "center" },
+    editBtn: { flex: 1, flexDirection: "row", alignItems: "center", paddingVertical: 8, borderRadius: 12, backgroundColor: "#157a4f", justifyContent: "center" },
 });
