@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
         overflow: "hidden",
     },
     headerBadgeText: {
-        ...textPresets.body,
+        ...textPresets.label,
         color: "#8a5a00",
         lineHeight: Math.round(14 * 1.5),
     },
