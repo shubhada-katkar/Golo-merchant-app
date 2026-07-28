@@ -14,6 +14,7 @@ import { Modal } from "react-native";
 import { uploadImageToCloudinary } from "../services/cloudinaryService";
 import { getValidToken, handleAuthError } from "../services/authService";
 import { textPresets } from "../theme/typography";
+import CustomAlertModal from "../components/CustomAlertModal";
 
 function getErrorMessageFromResponse(data) {
     const candidates = [];
@@ -148,6 +149,32 @@ export default function BannerPage({ navigation, route }) {
     const [restrictionModalVisible, setRestrictionModalVisible] = useState(false);
     const [restrictionUntil, setRestrictionUntil] = useState(null);
     const [countdownText, setCountdownText] = useState("");
+
+    const [alertConfig, setAlertConfig] = useState({
+        visible: false,
+        type: "error",
+        title: "",
+        message: "",
+        onClose: null,
+    });
+
+    const showAlert = (type, title, message, onClose = null) => {
+        setAlertConfig({
+            visible: true,
+            type,
+            title,
+            message,
+            onClose,
+        });
+    };
+
+    const handleCloseAlert = () => {
+        const cb = alertConfig.onClose;
+        setAlertConfig((prev) => ({ ...prev, visible: false }));
+        if (typeof cb === "function") {
+            cb();
+        }
+    };
 
     const [locations, setLocations] = useState([]);
     const [locationInputText, setLocationInputText] = useState("");
@@ -332,11 +359,11 @@ export default function BannerPage({ navigation, route }) {
     const handleSelectSuggestion = useCallback((suggestion) => {
         const cityName = suggestion.city || suggestion.label;
         if (locations.length >= 7) {
-            Alert.alert("Limit reached", "You can specify up to 7 locations only.");
+            showAlert("error", "Limit Reached", "You can specify up to 7 locations only.");
             return;
         }
         if (locations.some((l) => l.toLowerCase() === cityName.toLowerCase())) {
-            Alert.alert("Duplicate", "This location is already in your list.");
+            showAlert("error", "Duplicate", "This location is already in your list.");
             return;
         }
         setLocations([...locations, cityName]);
@@ -348,11 +375,11 @@ export default function BannerPage({ navigation, route }) {
         const trimmed = locationInputText.trim();
         if (!trimmed) return;
         if (locations.length >= 7) {
-            Alert.alert("Limit reached", "You can specify up to 7 locations only.");
+            showAlert("error", "Limit Reached", "You can specify up to 7 locations only.");
             return;
         }
         if (locations.includes(trimmed)) {
-            Alert.alert("Duplicate location", "This location has already been added.");
+            showAlert("error", "Duplicate Location", "This location has already been added.");
             return;
         }
         setLocations([...locations, trimmed]);
@@ -393,10 +420,9 @@ export default function BannerPage({ navigation, route }) {
                                 const err = await response.json().catch(() => ({}));
                                 throw new Error(err?.message || "Could not delete banner.");
                             }
-                            Alert.alert("Deleted", "Banner promotion has been deleted.");
-                            navigation.navigate("BannerList");
+                            showAlert("success", "Deleted", "Banner promotion has been deleted.", () => navigation.navigate("BannerList"));
                         } catch (e) {
-                            Alert.alert("Error", e?.message || "Please try again.");
+                            showAlert("error", "Error", e?.message || "Please try again.");
                         } finally {
                             setIsDeleting(false);
                         }
@@ -427,7 +453,7 @@ export default function BannerPage({ navigation, route }) {
         }
         const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!permission.granted) {
-            Alert.alert("Permission required", "Please allow access to your photos to upload a banner.");
+            showAlert("error", "Permission Required", "Please allow access to your photos to upload a banner.");
             return;
         }
         const result = await ImagePicker.launchImageLibraryAsync({
@@ -465,27 +491,27 @@ export default function BannerPage({ navigation, route }) {
             return;
         }
         if (!bannerTitle.trim()) {
-            Alert.alert("Missing title", "Please enter a banner title.");
+            showAlert("error", "Missing Title", "Please enter a banner title.");
             return;
         }
         if (!bannerImage) {
-            Alert.alert("Missing image", "Please upload a banner image.");
+            showAlert("error", "Missing Image", "Please upload a banner image.");
             return;
         }
         if (selectedDaysCount === 0) {
-            Alert.alert("No dates selected", "Please select at least one visibility date.");
+            showAlert("error", "No Dates Selected", "Please select at least one visibility date.");
             return;
         }
         if (!isEditMode && locations.length === 0) {
-            Alert.alert("Missing locations", "Please add at least one target location.");
+            showAlert("error", "Missing Locations", "Please add at least one target location.");
             return;
         }
         if (locations.length > 7) {
-            Alert.alert("Too many locations", "You can specify up to 7 locations only.");
+            showAlert("error", "Too Many Locations", "You can specify up to 7 locations only.");
             return;
         }
         if (!BASE_URL) {
-            Alert.alert("Configuration error", "API base URL is not configured.");
+            showAlert("error", "Configuration Error", "API base URL is not configured.");
             return;
         }
 
@@ -510,7 +536,7 @@ export default function BannerPage({ navigation, route }) {
                 const uploadResult = await uploadImageToCloudinary(bannerImage, "golo/banner-promotions");
                 setIsUploadingImage(false);
                 if (!uploadResult.success) {
-                    Alert.alert("Upload failed", uploadResult.message || "Could not upload banner image.");
+                    showAlert("error", "Upload Failed", uploadResult.message || "Could not upload banner image.");
                     return;
                 }
                 imageUrl = uploadResult.url;
@@ -520,12 +546,11 @@ export default function BannerPage({ navigation, route }) {
             try {
                 token = await getValidToken();
             } catch (authErr) {
-                Alert.alert("Login required", "Please log in again to continue.");
-                await handleAuthError(navigation);
+                showAlert("error", "Login Required", "Please log in again to continue.", () => handleAuthError(navigation));
                 return;
             }
             if (!token) {
-                Alert.alert("Login required", "Please log in again to continue.");
+                showAlert("error", "Login Required", "Please log in again to continue.");
                 return;
             }
 
@@ -687,18 +712,20 @@ export default function BannerPage({ navigation, route }) {
                 throw new Error(payload?.message || (isEditMode ? "Unable to update banner right now." : "Unable to submit banner request right now."));
             }
 
-            Alert.alert(
-                isEditMode ? "Banner updated" : "Request submitted",
+            showAlert(
+                "success",
+                isEditMode ? "Banner Updated" : "Banner Submitted",
                 isEditMode
                     ? "Your banner promotion has been updated."
-                    : "Your banner promotion has been submitted."
+                    : "Your banner promotion has been submitted.",
+                () => {
+                    try { AsyncStorage.removeItem(`golo_images_flagged:${merchantId}`); } catch (e) { }
+                    setImageChangedDuringEdit(false);
+                    navigation.navigate("BannerList");
+                }
             );
-            // Clear the moderation flag and reset the changed-image tracker
-            try { await AsyncStorage.removeItem(`golo_images_flagged:${merchantId}`); } catch (e) { }
-            setImageChangedDuringEdit(false);
-            navigation.navigate("BannerList");
         } catch (error) {
-            Alert.alert("Submission failed", error?.message || "Please try again.");
+            showAlert("error", "Submission Failed", error?.message || "Please try again.");
         } finally {
             setIsSubmitting(false);
             setIsUploadingImage(false);
@@ -1198,6 +1225,14 @@ export default function BannerPage({ navigation, route }) {
             <SafeAreaView edges={["bottom"]} style={{ width: "100%", bottom: 0, position: "absolute" }}>
                 <Bottombar />
             </SafeAreaView>
+
+            <CustomAlertModal
+                visible={alertConfig.visible}
+                type={alertConfig.type}
+                title={alertConfig.title}
+                message={alertConfig.message}
+                onClose={handleCloseAlert}
+            />
         </SafeAreaView>
     );
 }

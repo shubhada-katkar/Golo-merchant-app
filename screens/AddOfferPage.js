@@ -16,11 +16,12 @@ import { fetchMerchantProducts } from "../services/merchantProducts";
 import { MaterialIcons, Ionicons, Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Alert } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import { uploadImageToCloudinary } from "../services/cloudinaryService";
+import { uploadImageToCloudinary, uploadVideoToCloudinary } from "../services/cloudinaryService";
 import { BASE_URL } from "../config";
 import { LinearGradient } from "expo-linear-gradient";
 import { textPresets } from "../theme/typography";
 import { getValidToken, authenticatedFetch, handleAuthError } from "../services/authService";
+import CustomAlertModal from "../components/CustomAlertModal";
 
 const parseResponseSafely = async (response) => {
     const responseText = await response.text();
@@ -219,6 +220,8 @@ export default function AddOfferPage({ navigation, route }) {
     const [isDeleting, setIsDeleting] = useState(false);
     const [bannerImage, setBannerImage] = useState(null); // local URI
     const [isBannerUploading, setIsBannerUploading] = useState(false);
+    const [offerVideo, setOfferVideo] = useState(null); // local URI or remote URL
+    const [isVideoUploading, setIsVideoUploading] = useState(false);
     const [flaggedModalVisible, setFlaggedModalVisible] = useState(false);
     const [warningModalVisible, setWarningModalVisible] = useState(false);
     const [warningModalMessage, setWarningModalMessage] = useState("");
@@ -234,6 +237,32 @@ export default function AddOfferPage({ navigation, route }) {
     const [countdownText, setCountdownText] = useState("");
     const [merchantProducts, setMerchantProducts] = useState([]);
     const [loadingProducts, setLoadingProducts] = useState(false);
+
+    const [alertConfig, setAlertConfig] = useState({
+        visible: false,
+        type: "error",
+        title: "",
+        message: "",
+        onClose: null,
+    });
+
+    const showAlert = (type, title, message, onClose = null) => {
+        setAlertConfig({
+            visible: true,
+            type,
+            title,
+            message,
+            onClose,
+        });
+    };
+
+    const handleCloseAlert = () => {
+        const cb = alertConfig.onClose;
+        setAlertConfig((prev) => ({ ...prev, visible: false }));
+        if (typeof cb === "function") {
+            cb();
+        }
+    };
 
     const offerTypeOptions = [
         { label: "Special", value: "Special" },
@@ -401,6 +430,7 @@ export default function AddOfferPage({ navigation, route }) {
                     : []
             );
             setBannerImage(offerData.bannerUrl || offerData.imageUrl || null);
+            setOfferVideo(offerData.videoUrl || null);
         }
     }, [offerData]);
 
@@ -543,6 +573,7 @@ export default function AddOfferPage({ navigation, route }) {
         setSelectedIds([]);
         setSelectedProducts([]);
         setBannerImage(null);
+        setOfferVideo(null);
     };
 
     const pickBannerImage = async () => {
@@ -553,7 +584,7 @@ export default function AddOfferPage({ navigation, route }) {
         try {
             const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
             if (!permissionResult.granted) {
-                Alert.alert("Permission Required", "Please allow access to your photo library to upload a banner.");
+                showAlert("error", "Permission Required", "Please allow access to your photo library to upload a banner.");
                 return;
             }
 
@@ -575,8 +606,61 @@ export default function AddOfferPage({ navigation, route }) {
             }
         } catch (err) {
             console.error("Image picker error:", err);
-            Alert.alert("Error", "Failed to open image picker.");
+            showAlert("error", "Error", "Failed to open image picker.");
         }
+    };
+
+    const getVideoFileName = (url) => {
+        if (typeof url !== "string" || !url.trim()) return null;
+        const sanitizedUrl = url.split("?")[0].split("#")[0];
+        const fileName = sanitizedUrl.split("/").pop();
+        if (!fileName || fileName === "upload") return null;
+        return fileName;
+    };
+
+    const pickOfferVideo = async () => {
+        if (restrictionUntil && restrictionUntil > new Date()) {
+            setRestrictionModalVisible(true);
+            return;
+        }
+        try {
+            const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (!permissionResult.granted) {
+                showAlert("error", "Permission Required", "Please allow access to your photo library to upload a video.");
+                return;
+            }
+
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+                quality: 0.8,
+                selectionLimit: 1,
+                videoMaxDuration: 30,
+            });
+
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+                const videoAsset = result.assets[0];
+                if (!videoAsset?.uri) {
+                    showAlert("error", "Invalid Video", "Please select a valid video file.");
+                    return;
+                }
+
+                const rawDuration = Number(videoAsset.duration || 0);
+                const normalizedDuration = rawDuration > 100 ? rawDuration / 1000 : rawDuration;
+                if (normalizedDuration > 30) {
+                    showAlert("error", "Video Too Long", "Please choose a video that is 30 seconds or shorter.");
+                    return;
+                }
+
+                setOfferVideo(videoAsset.uri);
+            }
+        } catch (err) {
+            console.error("Video picker error:", err);
+            showAlert("error", "Error", "Failed to open video picker.");
+        }
+    };
+
+    const removeOfferVideo = () => {
+        setOfferVideo(null);
     };
 
     const handleDelete = () => {
@@ -620,13 +704,13 @@ export default function AddOfferPage({ navigation, route }) {
             const responseData = await parseResponseSafely(response);
             if (!response.ok) {
                 const errorMessage = responseData?.message || responseData?.error || `HTTP ${response.status}`;
-                alert("Delete failed: " + errorMessage);
+                showAlert("error", "Delete Failed", errorMessage);
                 return;
             }
 
-            alert("Offer deleted successfully");
+            showAlert("success", "Success", "Offer deleted successfully", () => navigation.goBack());
         } catch (err) {
-            alert("Delete failed: " + err.message);
+            showAlert("error", "Delete Failed", err.message);
         } finally {
             setIsDeleting(false);
         }
@@ -650,15 +734,15 @@ export default function AddOfferPage({ navigation, route }) {
         if (isSaving || isDeleting) return;
         const merchantId = await AsyncStorage.getItem("merchantId") || "default";
         if (!title || !offerType || selectedIds.length === 0 || !fromDate || !toDate) {
-            alert("Please fill all required fields");
+            showAlert("error", "Missing Fields", "Please fill all required fields");
             return;
         }
         if (isDarkMode && !stars) {
-            alert("Please enter loyalty points");
+            showAlert("error", "Points Required", "Please enter loyalty points");
             return;
         }
         if (isDarkMode && (!Number.isFinite(Number(stars)) || Number(stars) < 1 || Number(stars) > 50)) {
-            alert("Loyalty points must be between 1 and 50");
+            showAlert("error", "Invalid Points", "Loyalty points must be between 1 and 50");
             return;
         }
 
@@ -751,11 +835,29 @@ export default function AddOfferPage({ navigation, route }) {
                     const uploadResult = await uploadImageToCloudinary(bannerImage, "golo/offer-banners");
                     setIsBannerUploading(false);
                     if (!uploadResult.success) {
-                        Alert.alert("Upload Failed", "Could not upload banner image. Please try again.");
+                        showAlert("error", "Upload Failed", "Could not upload banner image. Please try again.");
                         setIsSaving(false);
                         return;
                     }
                     bannerUrl = uploadResult.url;
+                }
+            }
+
+            // Upload offer video to Cloudinary if one was selected
+            let uploadedVideoUrl = null;
+            if (offerVideo) {
+                if (/^https?:\/\//i.test(offerVideo)) {
+                    uploadedVideoUrl = offerVideo;
+                } else {
+                    setIsVideoUploading(true);
+                    const videoUploadResult = await uploadVideoToCloudinary(offerVideo, "golo/offer-videos");
+                    setIsVideoUploading(false);
+                    if (!videoUploadResult.success) {
+                        showAlert("error", "Upload Failed", "Could not upload offer video. Please try again.");
+                        setIsSaving(false);
+                        return;
+                    }
+                    uploadedVideoUrl = videoUploadResult.url;
                 }
             }
 
@@ -780,6 +882,7 @@ export default function AddOfferPage({ navigation, route }) {
                 category: offerType,
                 // prefer explicit banner upload, otherwise use first selected product image or existing data
                 imageUrl: bannerUrl || selectedProductPayload?.[0]?.imageUrl || offerData?.imageUrl || offerData?.bannerUrl || "",
+                videoUrl: uploadedVideoUrl,
                 selectedDates,
                 totalPrice,
                 loyaltyRewardEnabled: isDarkMode,
@@ -798,7 +901,7 @@ export default function AddOfferPage({ navigation, route }) {
             }
 
             if (!payload.imageUrl) {
-                Alert.alert("Image Required", "Please upload an image or select a product with an image before saving this offer.");
+                showAlert("error", "Image Required", "Please upload an image or select a product with an image before saving this offer.");
                 setIsSaving(false);
                 return;
             }
@@ -885,7 +988,7 @@ export default function AddOfferPage({ navigation, route }) {
                     }
 
                     if (isModerationApiErrorResponse(probeData)) {
-                        alert("Image moderation is temporarily unavailable. Please try again in a moment.");
+                        showAlert("error", "Moderation Unavailable", "Image moderation is temporarily unavailable. Please try again in a moment.");
                         setIsSaving(false);
                         return;
                     }
@@ -961,12 +1064,12 @@ export default function AddOfferPage({ navigation, route }) {
                 }
 
                 if (isModerationApiErrorResponse(responseData)) {
-                    alert("Image moderation is temporarily unavailable. Please try again in a moment.");
+                    showAlert("error", "Moderation Unavailable", "Image moderation is temporarily unavailable. Please try again in a moment.");
                     return;
                 }
 
                 const errorMessage = responseData?.message || responseData?.error || `HTTP ${response.status}`;
-                alert("Error: " + errorMessage);
+                showAlert("error", "Error", errorMessage);
                 return;
             }
 
@@ -976,11 +1079,10 @@ export default function AddOfferPage({ navigation, route }) {
                 console.warn("Failed to clear moderation flag after success", error);
             }
 
-            alert(offerData ? "Offer updated successfully" : "Offer created successfully");
-            navigation.goBack();
+            showAlert("success", "Success", offerData ? "Offer updated successfully" : "Offer created successfully", () => navigation.goBack());
         } catch (err) {
             console.error("Save offer error:", err);
-            alert("Unable to save offer: " + err.message);
+            showAlert("error", "Save Failed", "Unable to save offer: " + err.message);
         } finally {
             setIsSaving(false);
         }
@@ -1054,12 +1156,12 @@ export default function AddOfferPage({ navigation, route }) {
                             </View>
                         )}
 
-                        <Text style={styles.text}>Offer Image</Text>
+                        <Text style={styles.text}>Offer Photo</Text>
 
                         <TouchableOpacity
                             style={styles.card1}
                             onPress={pickBannerImage}
-                            disabled={isBannerUploading}
+                            disabled={isBannerUploading || isVideoUploading}
                             activeOpacity={0.75}
                         >
                             {bannerImage ? (
@@ -1081,6 +1183,46 @@ export default function AddOfferPage({ navigation, route }) {
                                     <Feather name="upload" size={30} color="#157a4f" />
                                     <Text style={{ color: "#157a4f", marginTop: 8, ...textPresets.label }}>Upload Banner Image</Text>
                                     <Text style={{ color: "#999", marginTop: 4, ...textPresets.label }}>Recommended: 16:9 ratio</Text>
+                                </>
+                            )}
+                        </TouchableOpacity>
+
+                        <Text style={[styles.text, { marginTop: 15 }]}>Offer Video (Optional)</Text>
+
+                        <TouchableOpacity
+                            style={styles.card1}
+                            onPress={pickOfferVideo}
+                            disabled={isVideoUploading || isBannerUploading}
+                            activeOpacity={0.75}
+                        >
+                            {offerVideo ? (
+                                <View style={{ width: "100%", height: 180, borderRadius: 10, backgroundColor: "#1e293b", justifyContent: "center", alignItems: "center", position: "relative" }}>
+                                    <MaterialCommunityIcons name="movie-play-outline" size={42} color="#157a4f" />
+                                    <Text style={{ color: "#fff", marginTop: 6, paddingHorizontal: 16, textAlign: "center", ...textPresets.label }} numberOfLines={1}>
+                                        {getVideoFileName(offerVideo) || "Video Attached"}
+                                    </Text>
+                                    <View style={{ flexDirection: "row", marginTop: 8, gap: 12 }}>
+                                        <TouchableOpacity
+                                            style={{ flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.2)", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 }}
+                                            onPress={pickOfferVideo}
+                                        >
+                                            <Feather name="edit-2" size={14} color="#fff" />
+                                            <Text style={{ color: "#fff", marginLeft: 4, ...textPresets.caption }}>Change</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={{ flexDirection: "row", alignItems: "center", backgroundColor: "rgba(229,57,53,0.3)", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 }}
+                                            onPress={removeOfferVideo}
+                                        >
+                                            <Feather name="trash-2" size={14} color="#ef4444" />
+                                            <Text style={{ color: "#ef4444", marginLeft: 4, ...textPresets.caption }}>Remove</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            ) : (
+                                <>
+                                    <Feather name="video" size={30} color="#157a4f" />
+                                    <Text style={{ color: "#157a4f", marginTop: 8, ...textPresets.label }}>Upload Offer Video</Text>
+                                    <Text style={{ color: "#999", marginTop: 4, ...textPresets.label }}>Recommended: MP4 format, up to 30s</Text>
                                 </>
                             )}
                         </TouchableOpacity>
@@ -1273,9 +1415,9 @@ export default function AddOfferPage({ navigation, route }) {
                         {/* Buttons Row */}
                         <View style={{ flexDirection: "row", marginTop: 20, justifyContent: "space-between" }}>
                             <TouchableOpacity
-                                style={[styles.rowButton, (isSaving || isBannerUploading) && { opacity: 0.6 }]}
+                                style={[styles.rowButton, (isSaving || isBannerUploading || isVideoUploading) && { opacity: 0.6 }]}
                                 onPress={handleSubmit}
-                                disabled={isSaving || isDeleting || isBannerUploading}
+                                disabled={isSaving || isDeleting || isBannerUploading || isVideoUploading}
                             >
                                 <MaterialIcons name="check-circle" size={20} color="#fff" />
                                 <Text style={{
@@ -1283,7 +1425,7 @@ export default function AddOfferPage({ navigation, route }) {
                                     lineHeight: Math.round(14 * 1.5),
                                     ...textPresets.body
                                 }}>
-                                    {isBannerUploading ? "Uploading Offer..." : isSaving ? (offerData ? "Updating..." : "Saving...") : offerData ? "Update Offer" : "Add Offer"}
+                                    {isVideoUploading ? "Uploading Video..." : isBannerUploading ? "Uploading Image..." : isSaving ? (offerData ? "Updating..." : "Saving...") : offerData ? "Update Offer" : "Add Offer"}
                                 </Text>
                             </TouchableOpacity>
 
@@ -1562,6 +1704,14 @@ export default function AddOfferPage({ navigation, route }) {
                     </View>
                 </View>
             </Modal>
+
+            <CustomAlertModal
+                visible={alertConfig.visible}
+                type={alertConfig.type}
+                title={alertConfig.title}
+                message={alertConfig.message}
+                onClose={handleCloseAlert}
+            />
         </SafeAreaView>
     );
 }

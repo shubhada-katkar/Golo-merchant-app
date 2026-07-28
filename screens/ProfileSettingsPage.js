@@ -20,6 +20,7 @@ import Bottombar from "../components/Bottombar";
 import { ThemeContext } from "../theme/ThemeContext";
 import { BASE_URL } from "../config";
 import { uploadImageToCloudinary } from "../services/cloudinaryService";
+import CustomAlertModal from "../components/CustomAlertModal";
 
 const STORE_CATEGORIES = [
   "Food & Restaurants",
@@ -71,6 +72,32 @@ export default function ProfileSettingsPage({ navigation }) {
   const [storeImage, setStoreImage] = useState(null);
   const [storeImageError, setStoreImageError] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(false);
+
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    type: "error",
+    title: "",
+    message: "",
+    onClose: null,
+  });
+
+  const showAlert = (type, title, message, onClose = null) => {
+    setAlertConfig({
+      visible: true,
+      type,
+      title,
+      message,
+      onClose,
+    });
+  };
+
+  const handleCloseAlert = () => {
+    const cb = alertConfig.onClose;
+    setAlertConfig((prev) => ({ ...prev, visible: false }));
+    if (typeof cb === "function") {
+      cb();
+    }
+  };
 
   const [storeAddress, setStoreAddress] = useState("");
   const [storeLatitude, setStoreLatitude] = useState(null);
@@ -291,22 +318,6 @@ export default function ProfileSettingsPage({ navigation }) {
       const mergedLatitude = merchantData?.storeLocationLatitude ?? merchantData?.latitude ?? null;
       const mergedLongitude = merchantData?.storeLocationLongitude ?? merchantData?.longitude ?? null;
 
-      console.log("Loaded merchant profile:", {
-        mergedName,
-        mergedShopName,
-        mergedEmail,
-        mergedNumber,
-        mergedCategory,
-        mergedSubCategory,
-        hasMerchantImage: !!mergedMerchantImage,
-        hasStoreImage: !!mergedStoreImage,
-        mergedStoreAddress,
-        mergedLatitude,
-        mergedLongitude,
-      });
-      console.log("Merged merchant image:", mergedMerchantImage);
-      console.log("Merged store image:", mergedStoreImage);
-
       setName(mergedName);
       setEmail(mergedEmail);
       setNumber(mergedNumber);
@@ -455,7 +466,7 @@ export default function ProfileSettingsPage({ navigation }) {
 
   const saveStoreLocation = async () => {
     if (!tempLocation.latitude || !tempLocation.longitude) {
-      return alert("Please select a location on the map or search for one.");
+      return showAlert("error", "Location Required", "Please select a location on the map or search for one.");
     }
 
     setSavingLocation(true);
@@ -469,7 +480,7 @@ export default function ProfileSettingsPage({ navigation }) {
       }
       if (!token) {
         setSavingLocation(false);
-        return alert("Not authenticated");
+        return showAlert("error", "Error", "Not authenticated");
       }
 
       const res = await fetch(`${BASE_URL}/merchant/store-location`, {
@@ -490,20 +501,20 @@ export default function ProfileSettingsPage({ navigation }) {
 
       if (!res.ok) {
         console.log("Store location save failed:", data);
-        return alert(data.message || "Unable to save store location");
+        return showAlert("error", "Save Failed", data.message || "Unable to save store location");
       }
 
       const updated = data?.data || {};
       setStoreAddress(updated.address || tempLocation.address || "");
       setStoreLatitude(updated.latitude ?? tempLocation.latitude);
       setStoreLongitude(updated.longitude ?? tempLocation.longitude);
-      alert("Store location updated successfully");
+      showAlert("success", "Success", "Store location updated successfully");
       closeLocationModal();
       await loadStoreLocation();
     } catch (error) {
       console.log("Store location save error:", error);
       setSavingLocation(false);
-      alert("Server error while saving location");
+      showAlert("error", "Server Error", "Server error while saving location");
     }
   };
 
@@ -529,7 +540,7 @@ export default function ProfileSettingsPage({ navigation }) {
   const pickMerchantImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      alert("Permission required!");
+      showAlert("error", "Permission Required", "Permission to access photo library is required!");
       return;
     }
 
@@ -550,7 +561,7 @@ export default function ProfileSettingsPage({ navigation }) {
   const pickStoreImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      alert("Permission required!");
+      showAlert("error", "Permission Required", "Permission to access photo library is required!");
       return;
     }
 
@@ -578,7 +589,7 @@ export default function ProfileSettingsPage({ navigation }) {
         await handleAuthError(navigation);
         return;
       }
-      if (!token) return alert("Not authenticated");
+      if (!token) return showAlert("error", "Error", "Not authenticated");
 
       const [merchantRes, userRes] = await Promise.all([
         fetch(`${BASE_URL}/merchant/profile`, {
@@ -611,13 +622,13 @@ export default function ProfileSettingsPage({ navigation }) {
 
       if (merchantRes.ok && userRes.ok) {
         await loadProfile();
-        alert("Profile updated successfully");
+        showAlert("success", "Success", "Profile updated successfully");
       } else {
-        alert(merchantData.message || userData.message || "Update failed");
+        showAlert("error", "Update Failed", merchantData.message || userData.message || "Update failed");
       }
     } catch (error) {
       console.log("Error updating profile:", error);
-      alert("Server Error");
+      showAlert("error", "Server Error", "Server Error while updating profile");
     }
   };
 
@@ -630,11 +641,11 @@ export default function ProfileSettingsPage({ navigation }) {
         await handleAuthError(navigation);
         return;
       }
-      if (!token) return alert("Not authenticated");
+      if (!token) return showAlert("error", "Error", "Not authenticated");
 
       const uploadResult = await uploadImageToCloudinary(imageUri, "golo/profile-photos");
       if (!uploadResult.success) {
-        return alert(uploadResult.message || "Image upload failed");
+        return showAlert("error", "Upload Failed", uploadResult.message || "Image upload failed");
       }
 
       const payload = {};
@@ -653,7 +664,7 @@ export default function ProfileSettingsPage({ navigation }) {
 
       if (!res.ok) {
         console.log("Image upload error:", data);
-        return alert(data.message || "Image upload failed");
+        return showAlert("error", "Upload Failed", data.message || "Image upload failed");
       }
 
       const uploadedImageUrl = data?.data?.[fieldName] || data?.[fieldName] || uploadResult.url;
@@ -668,10 +679,10 @@ export default function ProfileSettingsPage({ navigation }) {
       }
 
       await loadProfile();
-      alert(`${fieldName === "profilePhoto" ? "Merchant" : "Store"} image updated`);
+      showAlert("success", "Success", `${fieldName === "profilePhoto" ? "Merchant" : "Store"} image updated`);
     } catch (error) {
       console.log("Image upload error:", error);
-      alert("Server error");
+      showAlert("error", "Server Error", "Server error while uploading image");
     }
   };
 
@@ -953,6 +964,14 @@ export default function ProfileSettingsPage({ navigation }) {
         </ScrollView>
       </KeyboardAvoidingView>
       <Bottombar />
+
+      <CustomAlertModal
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        onClose={handleCloseAlert}
+      />
     </SafeAreaView>
   );
 }

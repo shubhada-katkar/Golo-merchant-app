@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext, useCallback, useRef } from "react";
 import {
-  View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Alert, ActivityIndicator,
+  View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, ActivityIndicator,
   KeyboardAvoidingView, Platform
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -14,6 +14,7 @@ import { MaterialCommunityIcons, MaterialIcons, AntDesign, Ionicons } from "@exp
 import { LinearGradient } from "expo-linear-gradient";
 import { getValidToken, handleAuthError } from "../services/authService";
 import { textPresets } from "../theme/typography";
+import CustomAlertModal from "../components/CustomAlertModal";
 
 const formatDateTime = (value) => {
   const date = value ? new Date(value) : new Date();
@@ -32,6 +33,32 @@ export default function OrderDetailPage() {
   const [showCodeInput, setShowCodeInput] = useState(false);
   const [codeValue, setCodeValue] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    type: "error",
+    title: "",
+    message: "",
+    onClose: null,
+  });
+
+  const showAlert = (type, title, message, onClose = null) => {
+    setAlertConfig({
+      visible: true,
+      type,
+      title,
+      message,
+      onClose,
+    });
+  };
+
+  const handleCloseAlert = () => {
+    const cb = alertConfig.onClose;
+    setAlertConfig((prev) => ({ ...prev, visible: false }));
+    if (typeof cb === "function") {
+      cb();
+    }
+  };
 
   useEffect(() => {
     const enrichDetails = async () => {
@@ -294,9 +321,10 @@ export default function OrderDetailPage() {
     setLoading(true);
     try {
       await redeemVoucher({ qrCode: qrCodeValue });
-      Alert.alert('Success', 'Order redeemed successfully');
-      navigation.goBack();
-      navigation.goBack();
+      showAlert("success", "Success", "Order redeemed successfully", () => {
+        navigation.goBack();
+        navigation.goBack();
+      });
     } finally {
       setLoading(false);
     }
@@ -420,7 +448,7 @@ export default function OrderDetailPage() {
                   onPress={async () => {
                     try {
                       if (!codeValue.trim()) {
-                        Alert.alert('Error', 'Please enter a verification code');
+                        showAlert("error", "Error", "Please enter a verification code");
                         return;
                       }
                       setLoading(true);
@@ -428,12 +456,13 @@ export default function OrderDetailPage() {
                       if (!BASE_URL) throw new Error('Missing credentials');
 
                       await redeemVoucher({ verificationCode: codeValue });
-                      Alert.alert('Success', 'Order redeemed successfully');
-                      setShowCodeInput(false);
-                      setCodeValue("");
-                      navigation.goBack();
+                      showAlert("success", "Success", "Order redeemed successfully", () => {
+                        setShowCodeInput(false);
+                        setCodeValue("");
+                        navigation.goBack();
+                      });
                     } catch (err) {
-                      Alert.alert('Redeem failed', String(err?.message || err));
+                      showAlert("error", "Redeem Failed", String(err?.message || err));
                     } finally {
                       setLoading(false);
                     }
@@ -455,6 +484,14 @@ export default function OrderDetailPage() {
         style={{ width: "100%", bottom: 0, position: "absolute" }}>
         <Bottombar />
       </SafeAreaView>
+
+      <CustomAlertModal
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        onClose={handleCloseAlert}
+      />
     </SafeAreaView>
   );
 }

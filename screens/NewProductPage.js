@@ -16,6 +16,7 @@ import { uploadImageToCloudinary, uploadVideoToCloudinary } from "../services/cl
 import { LinearGradient } from "expo-linear-gradient";
 import { textPresets } from "../theme/typography";
 import { getValidToken, authenticatedFetch } from "../services/authService";
+import CustomAlertModal from "../components/CustomAlertModal";
 
 function getErrorMessageFromResponse(data) {
   const candidates = [];
@@ -179,6 +180,32 @@ export default function NewProductPage({ navigation, route }) {
   const [restrictionUntil, setRestrictionUntil] = useState(null);
   const [countdownText, setCountdownText] = useState("");
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    type: "error",
+    title: "",
+    message: "",
+    onClose: null,
+  });
+
+  const showAlert = (type, title, message, onClose = null) => {
+    setAlertConfig({
+      visible: true,
+      type,
+      title,
+      message,
+      onClose,
+    });
+  };
+
+  const handleCloseAlert = () => {
+    const cb = alertConfig.onClose;
+    setAlertConfig((prev) => ({ ...prev, visible: false }));
+    if (typeof cb === "function") {
+      cb();
+    }
+  };
 
   const categoryOptions = [
     { label: "Food & Restaurants", value: "Food & Restaurants" },
@@ -373,13 +400,15 @@ export default function NewProductPage({ navigation, route }) {
     const { status: permissionStatus } =
       await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (permissionStatus !== "granted") {
-      alert("Sorry, we need camera roll permissions to make this work!");
+      showAlert("error", "Permission Required", "Sorry, we need camera roll permissions to make this work!");
       return;
     }
 
     const maxImageCount = selectedVideo ? 4 : 5;
     if (selectedImages.length >= maxImageCount) {
-      alert(
+      showAlert(
+        "error",
+        "Limit Reached",
         selectedVideo
           ? "You can upload up to 4 images only when a video is attached."
           : "You can upload up to 5 images only."
@@ -402,7 +431,9 @@ export default function NewProductPage({ navigation, route }) {
         .slice(0, remainingSlots);
 
       if (!pickedImages.length) {
-        alert(
+        showAlert(
+          "error",
+          "Limit Reached",
           selectedVideo
             ? "You can upload up to 4 images only when a video is attached."
             : "You can upload up to 5 images only."
@@ -434,17 +465,17 @@ export default function NewProductPage({ navigation, route }) {
     const { status: permissionStatus } =
       await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (permissionStatus !== "granted") {
-      alert("Sorry, we need camera roll permissions to make this work!");
+      showAlert("error", "Permission Required", "Sorry, we need camera roll permissions to make this work!");
       return;
     }
 
     if (selectedVideo) {
-      alert("You can add only one video per product.");
+      showAlert("error", "Limit Reached", "You can add only one video per product.");
       return;
     }
 
     if (selectedImages.length > 4) {
-      alert("Remove one image before adding a video. Video products can have up to 4 images only.");
+      showAlert("error", "Limit Reached", "Remove one image before adding a video. Video products can have up to 4 images only.");
       return;
     }
 
@@ -459,14 +490,14 @@ export default function NewProductPage({ navigation, route }) {
     if (!result.canceled) {
       const videoAsset = result.assets?.[0];
       if (!videoAsset?.uri) {
-        alert("Please select a valid video file.");
+        showAlert("error", "Invalid Video", "Please select a valid video file.");
         return;
       }
 
       const rawDuration = Number(videoAsset.duration || 0);
       const normalizedDuration = rawDuration > 100 ? rawDuration / 1000 : rawDuration;
       if (normalizedDuration > 30) {
-        alert("Please choose a video that is 30 seconds or shorter.");
+        showAlert("error", "Video Too Long", "Please choose a video that is 30 seconds or shorter.");
         return;
       }
 
@@ -546,24 +577,26 @@ export default function NewProductPage({ navigation, route }) {
 
     try {
       if (!form.productname || form.price === "") {
-        alert("Please fill all required fields");
+        showAlert("error", "Missing Fields", "Please fill all required fields");
         return;
       }
 
       if (!merchantStoreSubCategory) {
-        alert("Please select your store sub-category in Profile Settings before adding products.");
+        showAlert("error", "Sub-Category Required", "Please select your store sub-category in Profile Settings before adding products.");
         return;
       }
 
       const stockQuantity = Number(form.stockQuantity ?? 0);
       if (Number.isNaN(stockQuantity) || stockQuantity < 0) {
-        alert("Please enter a valid stock quantity");
+        showAlert("error", "Invalid Stock", "Please enter a valid stock quantity");
         return;
       }
 
       const maxImageCount = selectedVideo ? 4 : 5;
       if (selectedImages.length > maxImageCount) {
-        alert(
+        showAlert(
+          "error",
+          "Limit Reached",
           selectedVideo
             ? "Please keep the image count at 4 or fewer when a video is attached."
             : "Please keep the image count at 5 or fewer."
@@ -575,8 +608,7 @@ export default function NewProductPage({ navigation, route }) {
       try {
         token = await getValidToken();
       } catch {
-        alert("Login expired. Please login again.");
-        navigation.replace("Login");
+        showAlert("error", "Login Expired", "Login expired. Please login again.", () => navigation.replace("Login"));
         return;
       }
 
@@ -594,7 +626,7 @@ export default function NewProductPage({ navigation, route }) {
 
         const uploadResult = await uploadImageToCloudinary(imageUri, "golo/product-images");
         if (!uploadResult.success) {
-          alert(uploadResult.message || "Failed to upload image. Please try again.");
+          showAlert("error", "Upload Failed", uploadResult.message || "Failed to upload image. Please try again.");
           return;
         }
         uploadedImages.push(uploadResult.url);
@@ -611,7 +643,7 @@ export default function NewProductPage({ navigation, route }) {
         } else {
           const uploadResult = await uploadVideoToCloudinary(selectedVideo.uri, "golo/product-videos");
           if (!uploadResult.success) {
-            alert(uploadResult.message || "Failed to upload video. Please try again.");
+            showAlert("error", "Upload Failed", uploadResult.message || "Failed to upload video. Please try again.");
             return;
           }
           productVideoUrl = uploadResult.url;
@@ -680,8 +712,12 @@ export default function NewProductPage({ navigation, route }) {
         } catch (error) {
           console.warn("Failed to clear moderation flag after success", error);
         }
-        alert(isEdit ? "Product Updated Successfully!" : "Product Added Successfully!");
-        navigation.goBack();
+        showAlert(
+          "success",
+          "Success",
+          isEdit ? "Product Updated Successfully!" : "Product Added Successfully!",
+          () => navigation.goBack()
+        );
       } else {
         const isRestricted = response.status === 403 || data?.code === "CONTENT_UPLOAD_RESTRICTED";
         if (isRestricted) {
@@ -713,15 +749,15 @@ export default function NewProductPage({ navigation, route }) {
         }
         if (isModerationApiErrorResponse(data)) {
           // Vision API infrastructure error — plain alert, no persistent flag.
-          alert("Image moderation is temporarily unavailable. Please try again in a moment.");
+          showAlert("error", "Moderation Unavailable", "Image moderation is temporarily unavailable. Please try again in a moment.");
           return;
         }
-        alert(data.message || "Something went wrong");
+        showAlert("error", "Error", data.message || "Something went wrong");
       }
 
     } catch (error) {
       console.log(error);
-      alert("Network / Server Error");
+      showAlert("error", "Server Error", "Network / Server Error");
     } finally {
       setIsSaving(false);
     }
@@ -807,35 +843,45 @@ export default function NewProductPage({ navigation, route }) {
                 </TouchableOpacity>
               </View>
 
-              <View style={styles.videoUploadCard}>
-                <Text style={styles.videoLabel}>Video (optional · 1 video only · max 30 sec)</Text>
-                {selectedVideo ? (
-                  <View style={styles.videoPreviewRow}>
-                    <View style={styles.videoPreviewIconWrap}>
-                      <Feather name="video" size={24} color="#157a4f" />
+              <Text style={[styles.text, { marginTop: 15 }]}>Product Video (Optional)</Text>
+
+              <TouchableOpacity
+                style={styles.card1}
+                onPress={pickVideo}
+                disabled={isSaving}
+                activeOpacity={0.75}
+              >
+                {selectedVideo?.uri || typeof selectedVideo === "string" ? (
+                  <View style={{ width: "100%", height: 170, borderRadius: 10, backgroundColor: "#1e293b", justifyContent: "center", alignItems: "center", position: "relative" }}>
+                    <MaterialCommunityIcons name="movie-play-outline" size={42} color="#157a4f" />
+                    <Text style={{ color: "#fff", marginTop: 6, paddingHorizontal: 16, textAlign: "center", ...textPresets.label }} numberOfLines={1}>
+                      {selectedVideo.fileName || getVideoFileName(selectedVideo.uri || selectedVideo) || "Video Attached"}
+                    </Text>
+                    <View style={{ flexDirection: "row", marginTop: 8, gap: 12 }}>
+                      <TouchableOpacity
+                        style={{ flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.2)", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 }}
+                        onPress={pickVideo}
+                      >
+                        <Feather name="edit-2" size={14} color="#fff" />
+                        <Text style={{ color: "#fff", marginLeft: 4, ...textPresets.caption }}>Change</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={{ flexDirection: "row", alignItems: "center", backgroundColor: "rgba(229,57,53,0.3)", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 }}
+                        onPress={removeSelectedVideo}
+                      >
+                        <Feather name="trash-2" size={14} color="#ef4444" />
+                        <Text style={{ color: "#ef4444", marginLeft: 4, ...textPresets.caption }}>Remove</Text>
+                      </TouchableOpacity>
                     </View>
-                    <View style={styles.videoPreviewTextWrap}>
-                      <Text style={styles.videoPreviewTitle} numberOfLines={1}>
-                        {selectedVideo.fileName || "Selected video"}
-                      </Text>
-                      <Text style={styles.videoPreviewSubtitle}>
-                        {selectedVideo.duration ? `${Math.ceil(selectedVideo.duration)} sec` : "Video attached"}
-                      </Text>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.removeVideoButton}
-                      onPress={removeSelectedVideo}
-                    >
-                      <Feather name="x" size={14} color="#fff" />
-                    </TouchableOpacity>
                   </View>
                 ) : (
-                  <TouchableOpacity style={styles.videoButton} onPress={pickVideo}>
-                    <Feather name="video" size={18} color="#fff" />
-                    <Text style={styles.videoButtonText}>Select Video</Text>
-                  </TouchableOpacity>
+                  <>
+                    <Feather name="video" size={30} color="#157a4f" />
+                    <Text style={{ color: "#157a4f", marginTop: 8, ...textPresets.label }}>Upload Product Video</Text>
+                    <Text style={{ color: "#999", marginTop: 4, ...textPresets.label }}>Recommended: MP4 format, up to 30s</Text>
+                  </>
                 )}
-              </View>
+              </TouchableOpacity>
 
               <Text style={[styles.text, { color: colors.text }]}>
                 Product Name<Text style={styles.requiredStar}>*</Text>
@@ -1220,6 +1266,14 @@ export default function NewProductPage({ navigation, route }) {
           </View>
         </View>
       </Modal>
+
+      <CustomAlertModal
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        onClose={handleCloseAlert}
+      />
     </SafeAreaView>
   );
 }
@@ -1315,12 +1369,18 @@ const styles = StyleSheet.create({
     color: "#157a4f",
     ...textPresets.body
   },
-  videoUploadCard: {
-    width: "100%",
-    borderRadius: 12,
-    backgroundColor: "#f3f1ec",
-    marginBottom: 10,
-    padding: 12,
+  card1: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderStyle: "dashed",
+    borderRadius: 10,
+    height: 140,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    marginTop: 8,
+    marginBottom: 16,
+    overflow: "hidden",
   },
   videoLabel: {
     color: "#157a4f",

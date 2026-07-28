@@ -1,5 +1,5 @@
 import React, { useContext, useState, useMemo } from "react";
-import { View, TouchableOpacity, Text, StyleSheet, ScrollView, Modal, Pressable, Alert } from "react-native";
+import { View, TouchableOpacity, Text, StyleSheet, ScrollView, Modal, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ThemeContext } from "../theme/ThemeContext";
 import { BASE_URL } from "../config";
@@ -9,6 +9,7 @@ import { MaterialIcons, Ionicons, FontAwesome5 } from "@expo/vector-icons";
 import { PLANS } from "./UpgradePlanPage";
 import { getValidToken, handleAuthError } from "../services/authService";
 import { textPresets } from "../theme/typography";
+import CustomAlertModal from "../components/CustomAlertModal";
 
 const DURATIONS = [
   { months: 1, label: "1 Month" },
@@ -31,6 +32,32 @@ export default function PaymentPage({ navigation, route }) {
   const [durationModalVisible, setDurationModalVisible] = useState(false);
   const [planModalVisible, setPlanModalVisible] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    type: "error",
+    title: "",
+    message: "",
+    onClose: null,
+  });
+
+  const showAlert = (type, title, message, onClose = null) => {
+    setAlertConfig({
+      visible: true,
+      type,
+      title,
+      message,
+      onClose,
+    });
+  };
+
+  const handleCloseAlert = () => {
+    const cb = alertConfig.onClose;
+    setAlertConfig((prev) => ({ ...prev, visible: false }));
+    if (typeof cb === "function") {
+      cb();
+    }
+  };
 
   const monthlyPrice = useMemo(
     () => Number(String(plan?.price || "0").replace(/,/g, "")),
@@ -70,21 +97,19 @@ export default function PaymentPage({ navigation, route }) {
         throw new Error(resData?.message || "Failed to activate subscription plan.");
       }
 
-      Alert.alert(
+      showAlert(
+        "success",
         "Payment Successful",
         `Your subscription to ${plan.name} has been activated successfully!`,
-        [
-          {
-            text: "OK",
-            onPress: () => {
-              navigation.navigate("HomePage");
-            }
-          }
-        ]
+        () => navigation.navigate("HomePage")
       );
     } catch (error) {
       console.error("Payment error:", error);
-      Alert.alert("Subscription Failed", error.message || "An error occurred during payment.");
+      showAlert(
+        "error",
+        "Subscription Failed",
+        error.message || "An error occurred during payment."
+      );
     } finally {
       setIsProcessing(false);
     }
@@ -289,6 +314,14 @@ export default function PaymentPage({ navigation, route }) {
           </Pressable>
         </Pressable>
       </Modal>
+
+      <CustomAlertModal
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        onClose={handleCloseAlert}
+      />
     </SafeAreaView>
   );
 }

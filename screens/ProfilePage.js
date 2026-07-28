@@ -1,5 +1,5 @@
 import React, { useState, useContext, useCallback } from "react";
-import { View, TouchableOpacity, Text, StyleSheet, Image, Switch, ScrollView, Alert } from "react-native";
+import { View, TouchableOpacity, Text, StyleSheet, Image, Switch, ScrollView, Modal } from "react-native";
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -12,51 +12,75 @@ import { BASE_URL } from "../config";
 import { LinearGradient } from "expo-linear-gradient";
 import { Linking } from "react-native";
 import { textPresets } from "../theme/typography";
+import CustomAlertModal from "../components/CustomAlertModal";
 
 export default function ProfilePage({ navigation }) {
     const { theme, colors, toggleTheme } = useContext(ThemeContext);
     const [loadingLogout, setLoadingLogout] = useState(false);
+    const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+
+    const [alertConfig, setAlertConfig] = useState({
+        visible: false,
+        type: "error",
+        title: "",
+        message: "",
+        onClose: null,
+    });
+
+    const showAlert = (type, title, message, onClose = null) => {
+        setAlertConfig({
+            visible: true,
+            type,
+            title,
+            message,
+            onClose,
+        });
+    };
+
+    const handleCloseAlert = () => {
+        const cb = alertConfig.onClose;
+        setAlertConfig((prev) => ({ ...prev, visible: false }));
+        if (typeof cb === "function") {
+            cb();
+        }
+    };
 
     // ================= LOGOUT =================
-    const handleLogout = async () => {
-        Alert.alert("Confirm Logout", "Are you sure you want to logout?", [
-            { text: "Cancel", style: "cancel" },
-            {
-                text: "Logout",
-                style: "destructive",
-                onPress: async () => {
-                    try {
-                        setLoadingLogout(true);
+    const handleLogout = () => {
+        setLogoutModalVisible(true);
+    };
 
-                        const token = await AsyncStorage.getItem("merchantToken");
-                        const refreshToken = await AsyncStorage.getItem("merchantRefreshToken");
+    const performLogout = async () => {
+        setLogoutModalVisible(false);
+        try {
+            setLoadingLogout(true);
 
-                        try {
-                            if (token) {
-                                await fetch(`${BASE_URL}/users/logout`, {
-                                    method: "POST",
-                                    headers: {
-                                        "Content-Type": "application/json",
-                                        Authorization: `Bearer ${token}`,
-                                    },
-                                    body: JSON.stringify({ refreshToken: refreshToken || null }),
-                                });
-                            }
-                        } catch (logoutError) {
-                            console.log("Logout API error:", logoutError);
-                        }
+            const token = await AsyncStorage.getItem("merchantToken");
+            const refreshToken = await AsyncStorage.getItem("merchantRefreshToken");
 
-                        await clearAuthStorage();
+            try {
+                if (token) {
+                    await fetch(`${BASE_URL}/users/logout`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({ refreshToken: refreshToken || null }),
+                    });
+                }
+            } catch (logoutError) {
+                console.log("Logout API error:", logoutError);
+            }
 
-                        navigation.reset({ index: 0, routes: [{ name: "Login" }] });
-                    } catch (err) {
-                        Alert.alert("Logout failed", "Please try again");
-                    } finally {
-                        setLoadingLogout(false);
-                    }
-                },
-            },
-        ]);
+            await clearAuthStorage();
+
+            navigation.reset({ index: 0, routes: [{ name: "Login" }] });
+        } catch (err) {
+            showAlert("error", "Logout Failed", "Please try again");
+        } finally {
+            setLoadingLogout(false);
+        }
     };
 
     const [shopName, setShopName] = useState("Shop Name");
@@ -239,23 +263,6 @@ export default function ProfilePage({ navigation }) {
                         <Feather name="chevron-right" size={20} color={colors.subText || "#aaa"} />
                     </TouchableOpacity>
 
-                    {/* Dark Mode row */}
-                    {/* <View style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]}>
-                <View style={styles.iconCircle}>
-                    <MaterialCommunityIcons name="weather-night" size={20} color="#157a4f" />
-                </View>
-                <View style={styles.menuText}>
-                    <Text style={[styles.menuTitle, { color: colors.text }]}>Dark Mode</Text>
-                </View>
-                <Switch
-                    value={theme === "dark"}
-                    onValueChange={toggleTheme}
-                    thumbColor={theme === "dark" ? "#157a4f" : "#f4f3f4"}
-                    trackColor={{ false: "#ccc", true: "#141414" }}
-                    ios_backgroundColor="#ccc"
-                />
-            </View> */}
-
                     {/* Divider before Sign Out */}
                     <View style={[styles.divider, { backgroundColor: colors.divider || "#eee" }]} />
 
@@ -277,6 +284,49 @@ export default function ProfilePage({ navigation }) {
             <SafeAreaView edges={["bottom"]} style={{ width: "100%", bottom: 0, position: "absolute" }}>
                 <Bottombar />
             </SafeAreaView>
+
+            {/* Logout Confirmation Modal */}
+            <Modal
+                visible={logoutModalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setLogoutModalVisible(false)}
+                statusBarTranslucent
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={[styles.modalCard, { backgroundColor: colors.background === "#383838" ? "#2d2d2d" : "#ffffff" }]}>
+                        <View style={styles.modalIconContainer}>
+                            <MaterialIcons name="logout" size={40} color="#e53935" />
+                        </View>
+                        <Text style={[styles.modalTitleText, { color: colors.text }]}>Confirm Logout</Text>
+                        <Text style={[styles.modalMessageText, { color: colors.text === "#ffffff" ? "#cccccc" : "#555555" }]}>
+                            Are you sure you want to logout?
+                        </Text>
+                        <View style={styles.modalConfirmRow}>
+                            <TouchableOpacity
+                                style={[styles.modalHalfBtn, { backgroundColor: "#888888" }]}
+                                onPress={() => setLogoutModalVisible(false)}
+                            >
+                                <Text style={styles.modalBtnText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.modalHalfBtn, { backgroundColor: "#e53935" }]}
+                                onPress={performLogout}
+                            >
+                                <Text style={styles.modalBtnText}>Logout</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            <CustomAlertModal
+                visible={alertConfig.visible}
+                type={alertConfig.type}
+                title={alertConfig.title}
+                message={alertConfig.message}
+                onClose={handleCloseAlert}
+            />
         </SafeAreaView>
     );
 }
@@ -353,5 +403,58 @@ const styles = StyleSheet.create({
         height: 1,
         marginVertical: 8,
         marginHorizontal: 4,
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        justifyContent: "center",
+        alignItems: "center",
+        paddingHorizontal: 28,
+    },
+    modalCard: {
+        width: "100%",
+        maxWidth: 320,
+        borderRadius: 20,
+        padding: 24,
+        alignItems: "center",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 10,
+        elevation: 8,
+    },
+    modalIconContainer: {
+        marginBottom: 16,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    modalTitleText: {
+        ...textPresets.body,
+        textAlign: "center",
+        marginBottom: 8,
+        lineHeight: Math.round(14 * 1.5)
+    },
+    modalMessageText: {
+        ...textPresets.label,
+        textAlign: "center",
+        marginBottom: 20,
+        lineHeight: Math.round(14 * 1.5)
+    },
+    modalConfirmRow: {
+        flexDirection: "row",
+        gap: 12,
+        width: "100%",
+    },
+    modalHalfBtn: {
+        flex: 1,
+        paddingVertical: 12,
+        borderRadius: 12,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    modalBtnText: {
+        ...textPresets.body,
+        color: "#ffffff",
+        lineHeight: Math.round(14 * 1.5)
     },
 });

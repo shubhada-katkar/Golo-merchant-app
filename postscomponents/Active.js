@@ -6,14 +6,15 @@ import {
     StyleSheet,
     FlatList,
     Image,
-    Alert
+    Modal
 } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { ThemeContext } from "../theme/ThemeContext";
-import { AntDesign, MaterialIcons } from "@expo/vector-icons";
+import { AntDesign, MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { BASE_URL } from "../config";
 import { getValidToken } from "../services/authService";
 import { textPresets } from "../theme/typography";
+import CustomAlertModal from "../components/CustomAlertModal";
 
 export default function Active({ searchText = "" }) {
     const { colors } = useContext(ThemeContext);
@@ -22,6 +23,33 @@ export default function Active({ searchText = "" }) {
     const [loading, setLoading] = useState(true);
     const [token, setToken] = useState(null);
     const [deletingOfferId, setDeletingOfferId] = useState(null);
+    const [deleteConfirmItem, setDeleteConfirmItem] = useState(null);
+
+    const [alertConfig, setAlertConfig] = useState({
+        visible: false,
+        type: "error",
+        title: "",
+        message: "",
+        onClose: null,
+    });
+
+    const showAlert = (type, title, message, onClose = null) => {
+        setAlertConfig({
+            visible: true,
+            type,
+            title,
+            message,
+            onClose,
+        });
+    };
+
+    const handleCloseAlert = () => {
+        const cb = alertConfig.onClose;
+        setAlertConfig((prev) => ({ ...prev, visible: false }));
+        if (typeof cb === "function") {
+            cb();
+        }
+    };
 
     useEffect(() => {
         getValidToken()
@@ -107,7 +135,7 @@ export default function Active({ searchText = "" }) {
     const deleteOffer = async (item) => {
         const offerId = getOfferId(item);
         if (!offerId) {
-            Alert.alert("Delete Failed", "Unable to identify this offer.");
+            showAlert("error", "Delete Failed", "Unable to identify this offer.");
             return;
         }
 
@@ -115,7 +143,7 @@ export default function Active({ searchText = "" }) {
             setDeletingOfferId(offerId);
             const accessToken = token || await (getValidToken().catch(() => null));
             if (!accessToken) {
-                Alert.alert("Authentication Required", "Please login again to delete offers.");
+                showAlert("error", "Authentication Required", "Please login again to delete offers.");
                 return;
             }
 
@@ -130,28 +158,21 @@ export default function Active({ searchText = "" }) {
             const result = await response.json().catch(() => null);
             if (!response.ok) {
                 const message = result?.message || result?.error || `HTTP ${response.status}`;
-                Alert.alert("Delete Failed", message);
+                showAlert("error", "Delete Failed", message);
                 return;
             }
 
             setOffers((prevOffers) => prevOffers.filter((offer) => getOfferId(offer) !== offerId));
-            Alert.alert("Success", "Offer deleted successfully.");
+            showAlert("success", "Success", "Offer deleted successfully.");
         } catch (err) {
-            Alert.alert("Delete Failed", err.message || "Unable to delete offer.");
+            showAlert("error", "Delete Failed", err.message || "Unable to delete offer.");
         } finally {
             setDeletingOfferId(null);
         }
     };
 
     const confirmDeleteOffer = (item) => {
-        Alert.alert(
-            "Delete Offer",
-            "Are you sure you want to delete this offer?",
-            [
-                { text: "Cancel", style: "cancel" },
-                { text: "Delete", style: "destructive", onPress: () => deleteOffer(item) }
-            ]
-        );
+        setDeleteConfirmItem(item);
     };
 
     const fetchOffers = useCallback(async () => {
@@ -266,6 +287,53 @@ export default function Active({ searchText = "" }) {
                     </Text>
                 }
             />
+
+            {/* Custom Delete Offer Confirmation Modal */}
+            <Modal
+                visible={!!deleteConfirmItem}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setDeleteConfirmItem(null)}
+                statusBarTranslucent
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={[styles.modalCard, { backgroundColor: colors.background === "#383838" ? "#2d2d2d" : "#ffffff" }]}>
+                        <View style={styles.modalIconContainer}>
+                            <MaterialCommunityIcons name="close-circle" size={40} color="#e53935" />
+                        </View>
+                        <Text style={[styles.modalTitleText, { color: colors.text }]}>Delete Offer</Text>
+                        <Text style={[styles.modalMessageText, { color: colors.text === "#ffffff" ? "#cccccc" : "#555555" }]}>
+                            Are you sure you want to delete this offer?
+                        </Text>
+                        <View style={styles.modalConfirmRow}>
+                            <TouchableOpacity
+                                style={[styles.modalHalfBtn, { backgroundColor: "#888888" }]}
+                                onPress={() => setDeleteConfirmItem(null)}
+                            >
+                                <Text style={styles.modalBtnText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.modalHalfBtn, { backgroundColor: "#e53935" }]}
+                                onPress={() => {
+                                    const target = deleteConfirmItem;
+                                    setDeleteConfirmItem(null);
+                                    if (target) deleteOffer(target);
+                                }}
+                            >
+                                <Text style={styles.modalBtnText}>Delete</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            <CustomAlertModal
+                visible={alertConfig.visible}
+                type={alertConfig.type}
+                title={alertConfig.title}
+                message={alertConfig.message}
+                onClose={handleCloseAlert}
+            />
         </View>
     );
 }
@@ -297,5 +365,58 @@ const styles = StyleSheet.create({
     actionButton: {
         padding: 4,
         marginLeft: 12,
-    }
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        justifyContent: "center",
+        alignItems: "center",
+        paddingHorizontal: 28,
+    },
+    modalCard: {
+        width: "100%",
+        maxWidth: 320,
+        borderRadius: 20,
+        padding: 24,
+        alignItems: "center",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 10,
+        elevation: 8,
+    },
+    modalIconContainer: {
+        marginBottom: 16,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    modalTitleText: {
+        ...textPresets.body,
+        textAlign: "center",
+        marginBottom: 8,
+        lineHeight: Math.round(14 * 1.5),
+    },
+    modalMessageText: {
+        ...textPresets.label,
+        textAlign: "center",
+        marginBottom: 20,
+        lineHeight: Math.round(14 * 1.5),
+    },
+    modalConfirmRow: {
+        flexDirection: "row",
+        gap: 12,
+        width: "100%",
+    },
+    modalHalfBtn: {
+        flex: 1,
+        paddingVertical: 12,
+        borderRadius: 12,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    modalBtnText: {
+        color: "#ffffff",
+        ...textPresets.body,
+        lineHeight: Math.round(14 * 1.5),
+    },
 });

@@ -1,20 +1,48 @@
 import React, { useState, useContext } from "react";
 import {
-  View, Text, TouchableOpacity, StyleSheet, FlatList, Image, Alert,
+  View, Text, TouchableOpacity, StyleSheet, FlatList, Image, Modal,
 } from "react-native";
 import { ThemeContext } from "../theme/ThemeContext";
-import { AntDesign, MaterialIcons } from "@expo/vector-icons";
+import { AntDesign, MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { BASE_URL } from "../config";
 import { getValidToken, handleAuthError } from "../services/authService";
 import { textPresets } from "../theme/typography";
+import CustomAlertModal from "../components/CustomAlertModal";
 
 export default function Total({ products, setProducts, searchText, }) {
 
   const { colors } = useContext(ThemeContext);
 
   const [deletingId, setDeletingId] = useState(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const navigation = useNavigation();
+
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    type: "error",
+    title: "",
+    message: "",
+    onClose: null,
+  });
+
+  const showAlert = (type, title, message, onClose = null) => {
+    setAlertConfig({
+      visible: true,
+      type,
+      title,
+      message,
+      onClose,
+    });
+  };
+
+  const handleCloseAlert = () => {
+    const cb = alertConfig.onClose;
+    setAlertConfig((prev) => ({ ...prev, visible: false }));
+    if (typeof cb === "function") {
+      cb();
+    }
+  };
 
   const getProductId = (item) => item?.productId || item?._id || item?.id;
 
@@ -31,7 +59,7 @@ export default function Total({ products, setProducts, searchText, }) {
         return;
       }
       if (!token) {
-        Alert.alert("Error", "Not authenticated");
+        showAlert("error", "Error", "Not authenticated");
         return;
       }
 
@@ -53,34 +81,23 @@ export default function Total({ products, setProducts, searchText, }) {
       }
 
       if (!res.ok) {
-        Alert.alert("Error", "Delete failed");
+        showAlert("error", "Error", "Delete failed");
         return;
       }
 
       setProducts((prev) => prev.filter((p) => getProductId(p) !== productId));
 
-      Alert.alert("Success", "Product deleted");
+      showAlert("success", "Success", "Product deleted");
     } catch (err) {
       console.error(err);
-      Alert.alert("Error", "Server error");
+      showAlert("error", "Error", "Server error");
     } finally {
       setDeletingId(null);
     }
   };
 
   const confirmDelete = (productId) => {
-    Alert.alert(
-      "Delete Product",
-      "Are you sure?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => deleteProduct(productId),
-        },
-      ]
-    );
+    setDeleteConfirmId(productId);
   };
 
   // ================= FILTER =================
@@ -176,6 +193,53 @@ export default function Total({ products, setProducts, searchText, }) {
       >
         <AntDesign name="plus" size={24} color="#fff" />
       </TouchableOpacity>
+
+      {/* Custom Delete Product Confirmation Modal */}
+      <Modal
+        visible={!!deleteConfirmId}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDeleteConfirmId(null)}
+        statusBarTranslucent
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: colors.background === "#383838" ? "#2d2d2d" : "#ffffff" }]}>
+            <View style={styles.modalIconContainer}>
+              <MaterialCommunityIcons name="close-circle" size={40} color="#e53935" />
+            </View>
+            <Text style={[styles.modalTitleText, { color: colors.text }]}>Delete Product</Text>
+            <Text style={[styles.modalMessageText, { color: colors.text === "#ffffff" ? "#cccccc" : "#555555" }]}>
+              Are you sure you want to delete this product?
+            </Text>
+            <View style={styles.modalConfirmRow}>
+              <TouchableOpacity
+                style={[styles.modalHalfBtn, { backgroundColor: "#888888" }]}
+                onPress={() => setDeleteConfirmId(null)}
+              >
+                <Text style={styles.modalBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalHalfBtn, { backgroundColor: "#e53935" }]}
+                onPress={() => {
+                  const targetId = deleteConfirmId;
+                  setDeleteConfirmId(null);
+                  if (targetId) deleteProduct(targetId);
+                }}
+              >
+                <Text style={styles.modalBtnText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <CustomAlertModal
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        onClose={handleCloseAlert}
+      />
     </View>
   );
 }
@@ -208,5 +272,58 @@ const styles = StyleSheet.create({
     backgroundColor: "#157a4f",
     justifyContent: "center",
     alignItems: "center",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 28,
+  },
+  modalCard: {
+    width: "100%",
+    maxWidth: 320,
+    borderRadius: 20,
+    padding: 24,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  modalIconContainer: {
+    marginBottom: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalTitleText: {
+    ...textPresets.body,
+    textAlign: "center",
+    marginBottom: 8,
+    lineHeight: Math.round(14 * 1.5),
+  },
+  modalMessageText: {
+    ...textPresets.label,
+    textAlign: "center",
+    marginBottom: 20,
+    lineHeight: Math.round(14 * 1.5),
+  },
+  modalConfirmRow: {
+    flexDirection: "row",
+    gap: 12,
+    width: "100%",
+  },
+  modalHalfBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalBtnText: {
+    color: "#ffffff",
+    ...textPresets.body,
+    lineHeight: Math.round(14 * 1.5),
   },
 });

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Modal } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Camera, CameraView } from "expo-camera";
@@ -15,6 +15,31 @@ export default function ScanQRCodePage() {
   const [hasPermission, setHasPermission] = useState(null);
   const [scanned, setScanned] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
+  const [modalConfig, setModalConfig] = useState({
+    visible: false,
+    type: "success", // "success" | "error"
+    title: "",
+    message: "",
+    onClose: null,
+  });
+
+  const showAlertModal = (type, title, message, onClose) => {
+    setModalConfig({
+      visible: true,
+      type,
+      title,
+      message,
+      onClose: onClose || (() => navigation.goBack()),
+    });
+  };
+
+  const handleCloseModal = () => {
+    const cb = modalConfig.onClose;
+    setModalConfig((prev) => ({ ...prev, visible: false }));
+    if (typeof cb === "function") {
+      cb();
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -34,11 +59,10 @@ export default function ScanQRCodePage() {
     const scannedValue = String(data || "").trim();
 
     if (!scannedValue) {
-      Alert.alert(
+      showAlertModal(
+        "error",
         "Invalid QR Code",
-        "This QR code could not be read. Please try again.",
-        [{ text: "OK", onPress: () => navigation.goBack() }],
-        { cancelable: false }
+        "This QR code could not be read. Please try again."
       );
       return;
     }
@@ -48,18 +72,16 @@ export default function ScanQRCodePage() {
         await onScanned(scannedValue);
       }
 
-      Alert.alert(
+      showAlertModal(
+        "success",
         "QR Code Scanned",
-        "Scan successful.",
-        [{ text: "OK", onPress: () => navigation.goBack() }],
-        { cancelable: false }
+        "Scan successful."
       );
     } catch (error) {
-      Alert.alert(
+      showAlertModal(
+        "error",
         "Invalid QR Code",
-        String(error?.message || error || "This QR code could not be processed."),
-        [{ text: "OK", onPress: () => navigation.goBack() }],
-        { cancelable: false }
+        String(error?.message || error || "This QR code could not be processed.")
       );
     }
   };
@@ -117,6 +139,52 @@ export default function ScanQRCodePage() {
           </View>
         )}
       </View>
+
+      {/* Custom Designed Alert Modal */}
+      <Modal
+        visible={modalConfig.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={handleCloseModal}
+        statusBarTranslucent
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: colors.background === "#383838" ? "#2d2d2d" : "#ffffff" }]}>
+            {/* Centered Top Icon */}
+            <View style={styles.modalIconContainer}>
+              {modalConfig.type === "success" ? (
+                <MaterialCommunityIcons name="check-circle" size={40} color="#157a4f" />
+              ) : (
+                <MaterialCommunityIcons name="close-circle" size={40} color="#e53935" />
+              )}
+            </View>
+
+            {/* Title & Message */}
+            {!!modalConfig.title && (
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                {modalConfig.title}
+              </Text>
+            )}
+            {!!modalConfig.message && (
+              <Text style={[styles.modalMessage, { color: colors.text === "#ffffff" ? "#cccccc" : "#555555" }]}>
+                {modalConfig.message}
+              </Text>
+            )}
+
+            {/* Action Button */}
+            <TouchableOpacity
+              style={[
+                styles.modalButton,
+                { backgroundColor: modalConfig.type === "success" ? "#157a4f" : "#e53935" }
+              ]}
+              onPress={handleCloseModal}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.modalButtonText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -201,5 +269,50 @@ const styles = StyleSheet.create({
   permissionButtonText: {
     color: "white",
     ...textPresets.body,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 28,
+  },
+  modalCard: {
+    width: "100%",
+    maxWidth: 320,
+    borderRadius: 20,
+    padding: 24,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  modalIconContainer: {
+    marginBottom: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalTitle: {
+    ...textPresets.subtitle,
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  modalMessage: {
+    ...textPresets.body,
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  modalButton: {
+    width: "100%",
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalButtonText: {
+    ...textPresets.body,
+    color: "#ffffff",
   },
 });

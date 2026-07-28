@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect } from "react";
-import { View, TouchableOpacity, Text, StyleSheet, Image, ScrollView, Alert, TextInput, ActivityIndicator } from "react-native";
+import { View, TouchableOpacity, Text, StyleSheet, Image, ScrollView, TextInput, ActivityIndicator } from "react-native";
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -10,6 +10,7 @@ import { BASE_URL } from "../config";
 import { LinearGradient } from "expo-linear-gradient";
 import { getValidToken, handleAuthError } from "../services/authService";
 import { textPresets } from "../theme/typography";
+import CustomAlertModal from "../components/CustomAlertModal";
 
 export default function BannerList({ navigation }) {
     const { colors } = useContext(ThemeContext);
@@ -17,6 +18,32 @@ export default function BannerList({ navigation }) {
     const [banners, setBanners] = useState([]);
     const [loading, setLoading] = useState(true);
     const [payingId, setPayingId] = useState(null);
+
+    const [alertConfig, setAlertConfig] = useState({
+        visible: false,
+        type: "error",
+        title: "",
+        message: "",
+        onClose: null,
+    });
+
+    const showAlert = (type, title, message, onClose = null) => {
+        setAlertConfig({
+            visible: true,
+            type,
+            title,
+            message,
+            onClose,
+        });
+    };
+
+    const handleCloseAlert = () => {
+        const cb = alertConfig.onClose;
+        setAlertConfig((prev) => ({ ...prev, visible: false }));
+        if (typeof cb === "function") {
+            cb();
+        }
+    };
 
     const getAuthHeaders = async () => {
         let token;
@@ -50,7 +77,7 @@ export default function BannerList({ navigation }) {
             }
             setBanners(Array.isArray(payload?.data) ? payload.data : []);
         } catch (error) {
-            Alert.alert("Unable to load banners", error?.message || "Please try again.");
+            showAlert("error", "Unable to load banners", error?.message || "Please try again.");
         } finally {
             setLoading(false);
         }
@@ -91,10 +118,9 @@ export default function BannerList({ navigation }) {
             if (!response.ok) {
                 throw new Error(payload?.message || "Could not complete payment.");
             }
-            Alert.alert("Payment recorded", "Your banner is now active.");
-            loadBanners();
+            showAlert("success", "Payment Recorded", "Your banner is now active.", loadBanners);
         } catch (error) {
-            Alert.alert("Payment failed", error?.message || "Please try again.");
+            showAlert("error", "Payment Failed", error?.message || "Please try again.");
         } finally {
             setPayingId(null);
         }
@@ -217,6 +243,14 @@ export default function BannerList({ navigation }) {
             <SafeAreaView edges={["bottom"]} style={{ width: "100%", bottom: 0, position: "absolute" }}>
                 <Bottombar />
             </SafeAreaView>
+
+            <CustomAlertModal
+                visible={alertConfig.visible}
+                type={alertConfig.type}
+                title={alertConfig.title}
+                message={alertConfig.message}
+                onClose={handleCloseAlert}
+            />
         </SafeAreaView>
     );
 }

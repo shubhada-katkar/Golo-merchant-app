@@ -17,6 +17,7 @@ import { Entypo } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
 import { WebView } from "react-native-webview";
 import { BASE_URL } from "../config";
+import CustomAlertModal from "../components/CustomAlertModal";
 
 const { width, height } = Dimensions.get("window");
 
@@ -72,6 +73,33 @@ export default function Registration({ navigation }) {
 
   const [visiblePass, setVisiblePass] = useState(false);
   const [registerLoading, setRegisterLoading] = useState(false);
+
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    type: "error",
+    title: "",
+    message: "",
+    onClose: null,
+  });
+
+  const showAlert = (type, title, message, onClose = null) => {
+    setAlertConfig({
+      visible: true,
+      type,
+      title,
+      message,
+      onClose,
+    });
+  };
+
+  const handleCloseAlert = () => {
+    const cb = alertConfig.onClose;
+    setAlertConfig((prev) => ({ ...prev, visible: false }));
+    if (typeof cb === "function") {
+      cb();
+    }
+  };
+
   const subCategoryOptions = useMemo(
     () => STORE_SUBCATEGORIES[storeCategory] || [],
     [storeCategory],
@@ -98,164 +126,137 @@ export default function Registration({ navigation }) {
       background: #fff;
       border-radius: 10px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-      overflow: hidden;
-      font-family: Arial, sans-serif;
-    }
-    .search-row {
+      padding: 6px;
       display: flex;
-      border-bottom: 1px solid #e5e5e5;
+      gap: 6px;
     }
-    #searchInput {
+    .search-input {
       flex: 1;
-      border: 0;
-      outline: none;
-      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 8px 10px;
       font-size: 14px;
+      outline: none;
     }
-    #searchBtn {
-      border: 0;
+    .search-btn {
       background: #157a4f;
       color: #fff;
-      padding: 0 14px;
-      font-size: 13px;
-      font-weight: 700;
-    }
-    #results {
-      max-height: 160px;
-      overflow-y: auto;
-    }
-    .result-item {
-      padding: 10px 12px;
-      font-size: 13px;
-      border-bottom: 1px solid #f0f0f0;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 14px;
       cursor: pointer;
     }
   </style>
 </head>
 <body>
-  <div id="map"></div>
-
   <div class="search-wrap">
-    <div class="search-row">
-      <input id="searchInput" placeholder="Search location" />
-      <button id="searchBtn">Search</button>
-    </div>
-    <div id="results"></div>
+    <input id="q" class="search-input" placeholder="Search address or area..." />
+    <button class="search-btn" onclick="doSearch()">Search</button>
   </div>
+  <div id="map"></div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    const map = L.map('map').setView([20.5937, 78.9629], 5);
+    const defaultLat = ${storeLocationLatitude || 20.5937};
+    const defaultLng = ${storeLocationLongitude || 78.9629};
+
+    const map = L.map('map').setView([defaultLat, defaultLng], ${storeLocationLatitude ? 15 : 5});
+
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors'
+      attribution: '&copy; OpenStreetMap'
     }).addTo(map);
 
-    let marker = null;
+    let marker = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(map);
 
-    function emit(lat, lng, address) {
-      if (window.ReactNativeWebView) {
-        window.ReactNativeWebView.postMessage(JSON.stringify({ lat, lng, address: address || "" }));
+    function sendLocation(lat, lng, addressName = "") {
+      if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+          type: "locationSelected",
+          latitude: lat,
+          longitude: lng,
+          address: addressName
+        }));
       }
     }
 
-    function placeMarker(lat, lng, address) {
-      const latlng = L.latLng(lat, lng);
-      if (marker) {
-        marker.setLatLng(latlng);
-      } else {
-        marker = L.marker(latlng).addTo(map);
-      }
-      map.setView(latlng, 16);
-      emit(lat, lng, address);
-    }
-
-    map.on('click', function(e) {
-      const { lat, lng } = e.latlng;
-      placeMarker(lat, lng, "");
+    marker.on('dragend', function (e) {
+      const coord = e.target.getLatLng();
+      reverseGeocode(coord.lat, coord.lng);
     });
 
-    async function searchLocation() {
-      const input = document.getElementById('searchInput');
-      const query = (input.value || '').trim();
-      const results = document.getElementById('results');
-      results.innerHTML = '';
-      if (!query) return;
+    map.on('click', function (e) {
+      marker.setLatLng(e.latlng);
+      reverseGeocode(e.latlng.lat, e.latlng.lng);
+    });
+
+    async function reverseGeocode(lat, lng) {
+      try {
+        const res = await fetch(\`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=\${lat}&lon=\${lng}\`);
+        const data = await res.json();
+        const addressName = data.display_name || "";
+        sendLocation(lat, lng, addressName);
+      } catch (err) {
+        sendLocation(lat, lng, "");
+      }
+    }
+
+    async function doSearch() {
+      const q = document.getElementById("q").value;
+      if (!q || !q.trim()) return;
 
       try {
-        const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&q=' + encodeURIComponent(query);
-        const res = await fetch(url);
-        const data = await res.json();
+        const res = await fetch(\`https://nominatim.openstreetmap.org/search?format=jsonv2&q=\${encodeURIComponent(q)}\`);
+        const results = await res.json();
 
-        if (!Array.isArray(data) || data.length === 0) {
-          results.innerHTML = '<div class="result-item">No locations found</div>';
-          return;
+        if (results && results.length > 0) {
+          const item = results[0];
+          const lat = parseFloat(item.lat);
+          const lng = parseFloat(item.lon);
+          map.setView([lat, lng], 16);
+          marker.setLatLng([lat, lng]);
+          sendLocation(lat, lng, item.display_name || q);
+        } else {
+          alert("Location not found");
         }
-
-        data.slice(0, 6).forEach((item) => {
-          const div = document.createElement('div');
-          div.className = 'result-item';
-          div.textContent = item.display_name;
-          div.onclick = () => {
-            placeMarker(Number(item.lat), Number(item.lon), item.display_name || "");
-            results.innerHTML = '';
-          };
-          results.appendChild(div);
-        });
-      } catch (e) {
-        results.innerHTML = '<div class="result-item">Search failed. Try again.</div>';
+      } catch (err) {
+        alert("Search failed");
       }
     }
-
-    document.getElementById('searchBtn').addEventListener('click', searchLocation);
-    document.getElementById('searchInput').addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') searchLocation();
-    });
   </script>
 </body>
-</html>`,
-    [],
+</html>
+`,
+    [storeLocationLatitude, storeLocationLongitude],
   );
 
-  const reverseGeocode = async (lat, lng) => {
+  const handleMapMessage = (event) => {
     try {
-      const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`;
-      const response = await fetch(url, {
-        headers: {
-          Accept: "application/json",
-        },
-      });
-      const data = await response.json();
-      if (data?.display_name) {
-        setStoreLocation(data.display_name);
+      const data = JSON.parse(event.nativeEvent.data);
+      if (data?.type === "locationSelected") {
+        setStoreLocationLatitude(data.latitude);
+        setStoreLocationLongitude(data.longitude);
+        if (data.address) {
+          setStoreLocation(data.address);
+        }
       }
     } catch (e) {
-      // Keep manual address as fallback if reverse geocode fails.
-    }
-  };
-
-  const handleMapMessage = async (event) => {
-    try {
-      const { lat, lng, address } = JSON.parse(event.nativeEvent.data);
-      setStoreLocationLatitude(Number(lat));
-      setStoreLocationLongitude(Number(lng));
-      if (address && address.trim()) { setStoreLocation(address); } else { await reverseGeocode(lat, lng); }
-    } catch (e) {
-      // Ignore malformed messages from webview.
+      // ignore JSON parse error
     }
   };
 
   const handleRegister = async () => {
     if (registerLoading) return;
 
-    if (!BASE_URL) return alert("API URL is not configured");
-    if (!name.trim()) return alert("Enter merchant name");
-    if (!storeName.trim()) return alert("Enter shop name");
-    if (!email.trim() || !isValidEmail(email)) return alert("Enter valid login email");
-    if (!password || password.length < 6) return alert("Password should be at least 6 characters");
-    if (!storeLocation.trim()) return alert("Select or enter store location");
+    if (!BASE_URL) return showAlert("error", "Error", "API URL is not configured");
+    if (!name.trim()) return showAlert("error", "Error", "Enter merchant name");
+    if (!storeName.trim()) return showAlert("error", "Error", "Enter shop name");
+    if (!email.trim() || !isValidEmail(email)) return showAlert("error", "Error", "Enter valid login email");
+    if (!password || password.length < 6) return showAlert("error", "Error", "Password should be at least 6 characters");
+    if (!storeLocation.trim()) return showAlert("error", "Error", "Select or enter store location");
     if (storeLocationLatitude === null || storeLocationLongitude === null) {
-      return alert("Please select your store on the map");
+      return showAlert("error", "Error", "Please select your store on the map");
     }
 
     const payload = {
@@ -287,13 +288,17 @@ export default function Registration({ navigation }) {
       const data = await response.json();
 
       if (response.ok && data?.success) {
-        alert("Merchant registration successful");
-        navigation.navigate("Login");
+        showAlert(
+          "success",
+          "Success",
+          "Merchant registration successful",
+          () => navigation.navigate("Login")
+        );
       } else {
-        alert(data?.message || "Registration failed");
+        showAlert("error", "Registration Failed", data?.message || "Registration failed");
       }
     } catch (error) {
-      alert("Server error. Please try again.");
+      showAlert("error", "Server Error", "Server error. Please try again.");
     } finally {
       setRegisterLoading(false);
     }
@@ -357,9 +362,10 @@ export default function Registration({ navigation }) {
               <Text style={styles.label}>Password</Text>
               <View style={styles.inputPassword}>
                 <TextInput
-                  style={{ fontSize: 14, flex: 1,
-                    fontFamily:"Medium"
-                   }}
+                  style={{
+                    fontSize: 14, flex: 1,
+                    fontFamily: "Medium"
+                  }}
                   placeholder="Enter password"
                   secureTextEntry={!visiblePass}
                   value={password}
@@ -381,14 +387,14 @@ export default function Registration({ navigation }) {
                   style={styles.picker}
                 >
                   <Picker.Item label="Select store category" value="" style={{
-                    fontSize: 14, fontFamily:"Medium", lineHeight:Math.round(14 * 1.5)
+                    fontSize: 14, fontFamily: "Medium", lineHeight: Math.round(14 * 1.5)
                   }} />
                   {STORE_CATEGORIES.map((category) => (
-                    <Picker.Item key={category} label={category} value={category} 
-                    style={{fontSize: 14, fontFamily:"Medium", lineHeight:Math.round(14 * 1.5)}} />
+                    <Picker.Item key={category} label={category} value={category}
+                      style={{ fontSize: 14, fontFamily: "Medium", lineHeight: Math.round(14 * 1.5) }} />
                   ))}
                 </Picker>
-              </View> 
+              </View>
 
               <Text style={styles.label}>Store Sub-category</Text>
               <View style={styles.pickerWrap}>
@@ -404,8 +410,8 @@ export default function Registration({ navigation }) {
                     style={{ fontSize: 14, fontFamily: "Medium", lineHeight: Math.round(14 * 1.5) }}
                   />
                   {subCategoryOptions.map((subCategory) => (
-                    <Picker.Item key={subCategory} label={subCategory} value={subCategory} 
-                    style={{fontSize: 14, fontFamily:"Medium", lineHeight:Math.round(14 * 1.5)}} />
+                    <Picker.Item key={subCategory} label={subCategory} value={subCategory}
+                      style={{ fontSize: 14, fontFamily: "Medium", lineHeight: Math.round(14 * 1.5) }} />
                   ))}
                 </Picker>
               </View>
@@ -439,17 +445,18 @@ export default function Registration({ navigation }) {
                     <Text style={{ color: "white", fontSize: 16 }}>Please wait...</Text>
                   </View>
                 ) : (
-                  <Text style={{ color: "white", fontSize: 16,
-                    fontFamily:"Medium", lineHeight:Math.round(16 * 1.5)
-                   }}>Register</Text>
+                  <Text style={{
+                    color: "white", fontSize: 16,
+                    fontFamily: "Medium", lineHeight: Math.round(16 * 1.5)
+                  }}>Register</Text>
                 )}
               </TouchableOpacity>
             </View>
 
             <View style={{ flexDirection: "row", alignItems: "center", marginTop: 10 }}>
-              <Text style={{ fontSize: 16, fontFamily:"Medium", lineHeight:Math.round(16 * 1.5) }}>Have an account? </Text>
+              <Text style={{ fontSize: 16, fontFamily: "Medium", lineHeight: Math.round(16 * 1.5) }}>Have an account? </Text>
               <TouchableOpacity onPress={() => navigation.navigate("Login")}>
-                <Text style={{ fontSize: 16, color: "#157a4f", fontFamily:"Medium", lineHeight:Math.round(16 * 1.5) }}>Login</Text>
+                <Text style={{ fontSize: 16, color: "#157a4f", fontFamily: "Medium", lineHeight: Math.round(16 * 1.5) }}>Login</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -467,6 +474,14 @@ export default function Registration({ navigation }) {
           <WebView source={{ html: leafLetHtml }} onMessage={handleMapMessage} javaScriptEnabled />
         </SafeAreaView>
       </Modal>
+
+      <CustomAlertModal
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        onClose={handleCloseAlert}
+      />
     </SafeAreaView>
   );
 }
@@ -475,8 +490,8 @@ const styles = StyleSheet.create({
   title: {
     fontSize: width * 0.060,
     color: "#ffffff",
-    fontFamily:"Medium",
-    lineHeight:Math.round(width * 0.060 * 1.5),
+    fontFamily: "Medium",
+    lineHeight: Math.round(width * 0.060 * 1.5),
     marginBottom: 10,
   },
   card: {
@@ -491,8 +506,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 4,
     fontSize: 14,
-    fontFamily:"Medium",
-    lineHeight:Math.round(14 * 1.5),
+    fontFamily: "Medium",
+    lineHeight: Math.round(14 * 1.5),
   },
   scrollContainer: {
     flexGrow: 1,
@@ -506,7 +521,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12,
     fontSize: 14,
-    fontFamily:"Medium",
+    fontFamily: "Medium",
     borderWidth: 1,
     borderColor: "#000000",
   },
@@ -539,16 +554,16 @@ const styles = StyleSheet.create({
   },
   mapBtnText: {
     color: "#157a4f",
-    fontFamily:"Medium",
+    fontFamily: "Medium",
     fontSize: 14,
-    lineHeight:Math.round(14 * 1.5),
+    lineHeight: Math.round(14 * 1.5),
   },
   coordPreview: {
     marginTop: 8,
     fontSize: 12,
     color: "#444",
-    fontFamily:"Medium",
-    lineHeight:Math.round(12 * 1.5),
+    fontFamily: "Medium",
+    lineHeight: Math.round(12 * 1.5),
   },
   inputPassword: {
     flexDirection: "row",
@@ -577,13 +592,13 @@ const styles = StyleSheet.create({
   },
   mapTitle: {
     fontSize: 15,
-    fontFamily:"Medium",
-    lineHeight:Math.round(15 * 1.5),
+    fontFamily: "Medium",
+    lineHeight: Math.round(15 * 1.5),
   },
   mapClose: {
     fontSize: 15,
     color: "#157a4f",
-    fontFamily:"Medium",
-    lineHeight:Math.round(15 * 1.5),
+    fontFamily: "Medium",
+    lineHeight: Math.round(15 * 1.5),
   },
 });

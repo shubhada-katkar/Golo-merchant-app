@@ -11,12 +11,39 @@ import { BASE_URL as CONFIG_BASE_URL } from "../config";
 import { enrichOrderDetails } from "../services/orderService";
 import { getValidToken, handleAuthError } from "../services/authService";
 import { textPresets } from "../theme/typography";
+import CustomAlertModal from "../components/CustomAlertModal";
 
 export default function Orders() {
     const navigation = useNavigation(); const [activeTab, setactiveTab] = useState("All");
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const BASE_URL = (process.env.EXPO_PUBLIC_API_URL || CONFIG_BASE_URL || "").replace(/\/+$/, "");
+
+    const [alertConfig, setAlertConfig] = useState({
+        visible: false,
+        type: "error",
+        title: "",
+        message: "",
+        onClose: null,
+    });
+
+    const showAlert = (type, title, message, onClose = null) => {
+        setAlertConfig({
+            visible: true,
+            type,
+            title,
+            message,
+            onClose,
+        });
+    };
+
+    const handleCloseAlert = () => {
+        const cb = alertConfig.onClose;
+        setAlertConfig((prev) => ({ ...prev, visible: false }));
+        if (typeof cb === "function") {
+            cb();
+        }
+    };
 
     const fetchOrders = useCallback(async () => {
         try {
@@ -160,7 +187,8 @@ export default function Orders() {
                     })
                 );
 
-                Alert.alert(
+                showAlert(
+                    "error",
                     "Update Failed",
                     errData?.message || "Could not update order status on the server. Please try again."
                 );
@@ -174,7 +202,7 @@ export default function Orders() {
                     return String(matchId) === String(orderId) ? { ...o, status: prevStatus } : o;
                 })
             );
-            Alert.alert("Network Error", "Unable to reach the server to update order status. Please check your connection.");
+            showAlert("error", "Network Error", "Unable to reach the server to update order status. Please check your connection.");
         }
     };
 
@@ -288,6 +316,14 @@ export default function Orders() {
                     {activeTab == "Rejected" && <Rejected orders={rejectedOrders} onDelete={deleteOrder} />}
                 </>
             )}
+
+            <CustomAlertModal
+                visible={alertConfig.visible}
+                type={alertConfig.type}
+                title={alertConfig.title}
+                message={alertConfig.message}
+                onClose={handleCloseAlert}
+            />
 
         </View>
     );
