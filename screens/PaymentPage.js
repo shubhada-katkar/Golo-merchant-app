@@ -1,6 +1,7 @@
 import React, { useContext, useState, useMemo } from "react";
-import { View, TouchableOpacity, Text, StyleSheet, ScrollView, Modal, Pressable } from "react-native";
+import { View, TouchableOpacity, Text, StyleSheet, ScrollView, Modal, Pressable, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { WebView } from "react-native-webview";
 import { ThemeContext } from "../theme/ThemeContext";
 import { BASE_URL } from "../config";
 import { LinearGradient } from "expo-linear-gradient";
@@ -32,6 +33,9 @@ export default function PaymentPage({ navigation, route }) {
   const [durationModalVisible, setDurationModalVisible] = useState(false);
   const [planModalVisible, setPlanModalVisible] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isRazorpayProcessing, setIsRazorpayProcessing] = useState(false);
+  const [razorpayModalVisible, setRazorpayModalVisible] = useState(false);
+  const [razorpayOrderData, setRazorpayOrderData] = useState(null);
 
   const [alertConfig, setAlertConfig] = useState({
     visible: false,
@@ -113,6 +117,198 @@ export default function PaymentPage({ navigation, route }) {
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const handlePayWithRazorpay = async () => {
+    setIsRazorpayProcessing(true);
+    try {
+      let token;
+      try {
+        token = await getValidToken();
+      } catch (authErr) {
+        await handleAuthError(navigation);
+        return;
+      }
+
+      const response = await fetch(`${BASE_URL}/payments/create-order`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          amount: totalAmount,
+          currency: "INR",
+          description: `Subscription - ${plan.name} (${selectedDuration?.label || '1 Month'})`,
+          notes: {
+            planName: plan.originalName || plan.name,
+            billingCycle: selectedMonths === 12 ? "yearly" : "monthly"
+          }
+        })
+      });
+
+      const resData = await response.json();
+      if (!response.ok || !resData.success) {
+        throw new Error(resData?.message || "Failed to create Razorpay order.");
+      }
+
+      setRazorpayOrderData(resData.data);
+      setRazorpayModalVisible(true);
+    } catch (error) {
+      console.error("Razorpay order creation error:", error);
+      showAlert(
+        "error",
+        "Order Creation Failed",
+        error.message || "An error occurred while initializing Razorpay payment."
+      );
+    } finally {
+      setIsRazorpayProcessing(false);
+    }
+  };
+
+  const handleWebViewMessage = async (event) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      if (data.event === "SUCCESS") {
+        setRazorpayModalVisible(false);
+        setIsRazorpayProcessing(true);
+
+        let token;
+        try {
+          token = await getValidToken();
+        } catch (authErr) {
+          await handleAuthError(navigation);
+          return;
+        }
+
+        // 1. Verify Payment
+        const verifyRes = await fetch(`${BASE_URL}/payments/verify`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            razorpayOrderId: data.razorpay_order_id,
+            razorpayPaymentId: data.razorpay_payment_id,
+            razorpaySignature: data.razorpay_signature
+          })
+        });
+
+        const verifyData = await verifyRes.json();
+        if (!verifyRes.ok || !verifyData.success) {
+          throw new Error(verifyData?.message || "Payment verification failed.");
+        }
+
+        // 2. Activate Subscription
+        const subRes = await fetch(`${BASE_URL}/subscriptions/subscribe`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            planName: plan.originalName || plan.name,
+            billingCycle: selectedMonths === 12 ? "yearly" : "monthly"
+          })
+        });
+
+        const subData = await subRes.json();
+        if (!subRes.ok) {
+          throw new Error(subData?.message || "Payment verified, but failed to update subscription.");
+        }
+
+        showAlert(
+          "success",
+          "Payment Successful",
+          `Your subscription to ${plan.name} has been activated successfully via Razorpay!`,
+          () => navigation.navigate("HomePage")
+        );
+      } else if (data.event === "CANCELLED") {
+        setRazorpayModalVisible(false);
+        showAlert("error", "Payment Cancelled", "Payment process was cancelled.");
+      } else if (data.event === "FAILED") {
+        setRazorpayModalVisible(false);
+        showAlert("error", "Payment Failed", data.error?.description || "Razorpay payment failed.");
+      }
+    } catch (err) {
+      console.error("Razorpay webview message error:", err);
+      setRazorpayModalVisible(false);
+      showAlert("error", "Payment Error", err.message || "An unexpected error occurred.");
+    } finally {
+      setIsRazorpayProcessing(false);
+    }
+  };
+
+  const getRazorpayCheckoutHtml = () => {
+    if (!razorpayOrderData) return "";
+    const { keyId, order } = razorpayOrderData;
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+          <style>
+            body {
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              height: 100vh;
+              margin: 0;
+              background-color: #f8f9fa;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            }
+            .loading {
+              font-size: 16px;
+              color: #157a4f;
+              font-weight: bold;
+            }
+          </style>
+          <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+        </head>
+        <body>
+          <div class="loading">Loading Razorpay Gateway...</div>
+          <script>
+            var options = {
+              "key": "${keyId}",
+              "amount": "${order.amount}",
+              "currency": "${order.currency || 'INR'}",
+              "name": "Golo",
+              "description": "Subscription - ${plan.name}",
+              "order_id": "${order.id}",
+              "handler": function (response) {
+                window.ReactNativeWebView.postMessage(JSON.stringify({
+                  event: "SUCCESS",
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_signature: response.razorpay_signature
+                }));
+              },
+              "modal": {
+                "ondismiss": function() {
+                  window.ReactNativeWebView.postMessage(JSON.stringify({
+                    event: "CANCELLED"
+                  }));
+                }
+              },
+              "theme": {
+                "color": "#157a4f"
+              }
+            };
+            var rzp = new Razorpay(options);
+            rzp.on('payment.failed', function (response) {
+              window.ReactNativeWebView.postMessage(JSON.stringify({
+                event: "FAILED",
+                error: response.error
+              }));
+            });
+            window.onload = function() {
+              rzp.open();
+            };
+          </script>
+        </body>
+      </html>
+    `;
   };
 
   const handleChangePlan = (newPlan) => {
@@ -222,16 +418,31 @@ export default function PaymentPage({ navigation, route }) {
         </View>
       </ScrollView>
 
-      {/* Fixed pay button */}
+      {/* Fixed pay buttons */}
       <View style={[styles.footer, { backgroundColor: colors.background }]}>
         <TouchableOpacity
-          style={[styles.payButton, isProcessing && { opacity: 0.6 }]}
+          style={[styles.payButton, (isProcessing || isRazorpayProcessing) && { opacity: 0.6 }]}
           onPress={handlePayNow}
-          disabled={isProcessing}
+          disabled={isProcessing || isRazorpayProcessing}
           activeOpacity={0.85}
         >
           <Text style={styles.payButtonText}>
             {isProcessing ? "Processing..." : `Pay ₹${formatCurrency(totalAmount)}`}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.razorpayButton,
+            (isProcessing || isRazorpayProcessing) && { opacity: 0.6 }
+          ]}
+          onPress={handlePayWithRazorpay}
+          disabled={isProcessing || isRazorpayProcessing}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="card-outline" size={20} color="#ffffff" style={{ marginRight: 8 }} />
+          <Text style={styles.razorpayButtonText}>
+            {isRazorpayProcessing ? "Initializing..." : "Pay through Razorpay"}
           </Text>
         </TouchableOpacity>
       </View>
@@ -313,6 +524,44 @@ export default function PaymentPage({ navigation, route }) {
             })}
           </Pressable>
         </Pressable>
+      </Modal>
+
+      {/* Razorpay WebView Modal */}
+      <Modal
+        visible={razorpayModalVisible}
+        transparent={false}
+        animationType="slide"
+        onRequestClose={() => setRazorpayModalVisible(false)}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: "#ffffff" }}>
+          <View style={styles.razorpayHeader}>
+            <Text style={styles.razorpayHeaderTitle}>Razorpay Gateway (Test Mode)</Text>
+            <TouchableOpacity
+              onPress={() => {
+                setRazorpayModalVisible(false);
+                showAlert("error", "Payment Cancelled", "Razorpay payment window closed.");
+              }}
+              style={{ padding: 6 }}
+            >
+              <Ionicons name="close" size={24} color="#000000" />
+            </TouchableOpacity>
+          </View>
+          {razorpayOrderData && (
+            <WebView
+              originWhitelist={["*"]}
+              source={{ html: getRazorpayCheckoutHtml() }}
+              onMessage={handleWebViewMessage}
+              javaScriptEnabled={true}
+              domStorageEnabled={true}
+              startInLoadingState={true}
+              renderLoading={() => (
+                <View style={styles.webViewLoading}>
+                  <ActivityIndicator size="large" color="#157a4f" />
+                </View>
+              )}
+            />
+          )}
+        </SafeAreaView>
       </Modal>
 
       <CustomAlertModal
@@ -539,5 +788,43 @@ const styles = StyleSheet.create({
   },
   centeredCancelText: {
     ...textPresets.body,
+  },
+  razorpayButton: {
+    backgroundColor: "#0c2340",
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    marginTop: 10,
+  },
+  razorpayButtonText: {
+    color: "#fff",
+    ...textPresets.body,
+    fontWeight: "bold",
+  },
+  razorpayHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#ececec",
+    backgroundColor: "#ffffff",
+  },
+  razorpayHeaderTitle: {
+    ...textPresets.subtitle,
+    fontSize: 16,
+  },
+  webViewLoading: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#ffffff",
   },
 });
