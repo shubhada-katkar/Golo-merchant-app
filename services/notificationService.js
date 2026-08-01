@@ -161,8 +161,17 @@ async function scheduleNewNotifications(notifications) {
   }
 
   for (const item of newNotifications.slice(0, 5)) {
-    const title = item?.senderName || item?.title || item?.adTitle || "New notification";
-    const body = item?.message || item?.body || item?.adTitle || "You have a new notification.";
+    const isAdmin =
+      item?.isAdmin ||
+      item?.isBroadcast ||
+      ["admin_warning", "promotional", "alert", "emergency", "system_update", "admin", "broadcast"].includes(item?.type) ||
+      (item?.senderName && String(item.senderName).toLowerCase().includes("admin")) ||
+      (item?.title && (!item?.adTitle || item?.adTitle === "-"));
+
+    const title = (isAdmin && item?.title && item.title !== "-")
+      ? item.title
+      : (item?.title && item.title !== "-" ? item.title : (item?.adTitle && item.adTitle !== "-" ? item.adTitle : (item?.senderName || "New notification")));
+    const body = item?.description || item?.message || item?.body || "You have a new notification.";
     const id = String(item?._id || item?.id || "");
 
     await Notifications.scheduleNotificationAsync({

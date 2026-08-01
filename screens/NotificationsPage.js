@@ -12,7 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { ThemeContext } from "../theme/ThemeContext";
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
-import { AntDesign, MaterialIcons } from "@expo/vector-icons";
+import { MaterialIcons } from "@expo/vector-icons";
 import { BASE_URL as CONFIG_BASE_URL } from "../config";
 import { LinearGradient } from "expo-linear-gradient";
 import { getValidToken, handleAuthError } from "../services/authService";
@@ -124,45 +124,61 @@ export default function Notifications({ navigation }) {
     }, [loadNotifications, markAllAsSeen]);
 
     const renderItem = ({ item }) => {
-        const title = item.senderName || item.title || item.adTitle || "Notification";
-        const message = item.message || item.body || item.adTitle || "You have a new notification.";
-        const dateLabel = formatRelativeTime(item.createdAt || item.timestamp || item.updatedAt);
-        const initials = String(title)
-            .split(" ")
-            .filter(Boolean)
-            .map((word) => word[0])
-            .slice(0, 2)
-            .join("")
-            .toUpperCase();
         const isAccepted = item?.type === "order_accepted";
+        const isAdmin =
+            item?.isAdmin ||
+            item?.isBroadcast ||
+            ["admin_warning", "promotional", "alert", "emergency", "system_update", "admin", "broadcast"].includes(item?.type) ||
+            (item?.senderName && String(item.senderName).toLowerCase().includes("admin")) ||
+            (item?.title && (!item?.adTitle || item?.adTitle === "-"));
+
+        let title = "Notification";
+        if (isAdmin) {
+            title = (item?.title && item.title !== "-")
+                ? item.title
+                : (item?.adTitle && item.adTitle !== "-" ? item.adTitle : (item?.senderName && item.senderName !== "-" ? item.senderName : "Admin Notification"));
+        } else {
+            title = (item?.title && item.title !== "-")
+                ? item.title
+                : (item?.adTitle && item.adTitle !== "-" ? item.adTitle : (item?.senderName && item.senderName !== "-" ? item.senderName : "Notification"));
+        }
+
+        const message = item?.description || item?.message || item?.body || "You have a new notification.";
+        const dateLabel = formatRelativeTime(item.createdAt || item.timestamp || item.updatedAt);
+
+        let iconName = "notifications-active";
+        let iconColor = "#f8a812";
+        if (isAdmin) {
+            iconName = "campaign";
+            iconColor = "#f8a812";
+        } else if (isAccepted) {
+            iconName = "check-circle";
+            iconColor = "#16a34a";
+        }
 
         return (
-            <View style={styles.card}>
-                <View style={styles.cardFooter}>
+            <TouchableOpacity
+                activeOpacity={0.85}
+                style={[styles.card, !item.read && styles.cardUnread]}
+            >
+                <View style={styles.iconWrap}>
                     <MaterialIcons
-                        name={isAccepted ? "check-circle" : "notifications-active"}
-                        size={18}
-                        color={isAccepted ? "#16a34a" : "#f8a812"}
+                        name={iconName}
+                        size={22}
+                        color={iconColor}
                     />
-                    <Text style={styles.cardFooterText} numberOfLines={1}>
-                        {isAccepted ? "Accepted" : "New update"}
+                </View>
+                <View style={styles.cardBody}>
+                    <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={2}>
+                        {title}
                     </Text>
+                    <Text style={styles.cardMessage} numberOfLines={3}>
+                        {message}
+                    </Text>
+                    <Text style={styles.cardMeta}>{dateLabel}</Text>
                 </View>
-                <View style={styles.cardHeader}>
-                    <View style={styles.avatarCircle}>
-                        <Text style={styles.avatarText}>{initials}</Text>
-                    </View>
-                    <View style={styles.cardBody}>
-                        <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={2}>
-                            {title}
-                        </Text>
-                        <Text style={styles.cardMessage} numberOfLines={3}>
-                            {message}
-                        </Text>
-                        <Text style={styles.cardMeta}>{dateLabel}</Text>
-                    </View>
-                </View>
-            </View>
+                {!item.read ? <View style={styles.unreadDot} /> : null}
+            </TouchableOpacity>
         );
     };
 
@@ -273,6 +289,8 @@ const styles = StyleSheet.create({
         paddingBottom: 100,
     },
     card: {
+        flexDirection: "row",
+        alignItems: "flex-start",
         backgroundColor: "#fff",
         borderRadius: 16,
         padding: 12,
@@ -283,22 +301,18 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 2 },
         elevation: 2,
     },
-    cardHeader: {
-        flexDirection: "row",
-        alignItems: "flex-start",
+    cardUnread: {
+        borderLeftWidth: 4,
+        borderLeftColor: "#f8a812",
     },
-    avatarCircle: {
-        width: 42,
-        height: 42,
-        borderRadius: 21,
+    iconWrap: {
+        width: 38,
+        height: 38,
+        borderRadius: 19,
         backgroundColor: "#fff6df",
         alignItems: "center",
         justifyContent: "center",
         marginRight: 10,
-    },
-    avatarText: {
-        ...textPresets.subtitle,
-        color: "#8a5a00",
     },
     cardBody: {
         flex: 1,
@@ -313,19 +327,17 @@ const styles = StyleSheet.create({
         color: "#6b7280",
     },
     cardMeta: {
-        ...textPresets.label,
+        ...textPresets.caption,
         color: "#9ca3af",
         marginTop: 6,
     },
-    cardFooter: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 6,
-        marginBottom: 6,
-    },
-    cardFooterText: {
-        ...textPresets.label,
-        color: "#6b7280",
+    unreadDot: {
+        width: 10,
+        height: 10,
+        backgroundColor: "#f8a812",
+        borderRadius: 5,
+        marginLeft: 8,
+        marginTop: 4,
     },
     bottomBar: {
         position: "absolute",
