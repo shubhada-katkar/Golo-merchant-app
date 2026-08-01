@@ -17,6 +17,7 @@ import { MaterialIcons, Ionicons, Feather, MaterialCommunityIcons } from "@expo/
 import { Alert } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { uploadImageToCloudinary, uploadVideoToCloudinary } from "../services/cloudinaryService";
+import { Video, ResizeMode } from "expo-av";
 import { BASE_URL } from "../config";
 import { LinearGradient } from "expo-linear-gradient";
 import { textPresets } from "../theme/typography";
@@ -1196,25 +1197,43 @@ export default function AddOfferPage({ navigation, route }) {
                             activeOpacity={0.75}
                         >
                             {offerVideo ? (
-                                <View style={{ width: "100%", height: 180, borderRadius: 10, backgroundColor: "#1e293b", justifyContent: "center", alignItems: "center", position: "relative" }}>
-                                    <MaterialCommunityIcons name="movie-play-outline" size={42} color="#157a4f" />
-                                    <Text style={{ color: "#fff", marginTop: 6, paddingHorizontal: 16, textAlign: "center", ...textPresets.label }} numberOfLines={1}>
-                                        {getVideoFileName(offerVideo) || "Video Attached"}
-                                    </Text>
-                                    <View style={{ flexDirection: "row", marginTop: 8, gap: 12 }}>
+                                <View style={{ width: "100%", height: 180, borderRadius: 10, backgroundColor: "#000", overflow: "hidden", position: "relative" }}>
+                                    {/* Actual video preview — works for both local URIs and remote Cloudinary URLs */}
+                                    <Video
+                                        source={{ uri: offerVideo }}
+                                        style={{ width: "100%", height: 180 }}
+                                        resizeMode={ResizeMode.COVER}
+                                        isLooping
+                                        isMuted
+                                        shouldPlay
+                                        useNativeControls={false}
+                                    />
+                                    {/* Semi-transparent overlay with action buttons */}
+                                    <View style={{
+                                        position: "absolute",
+                                        bottom: 0,
+                                        left: 0,
+                                        right: 0,
+                                        backgroundColor: "rgba(0,0,0,0.45)",
+                                        flexDirection: "row",
+                                        justifyContent: "center",
+                                        alignItems: "center",
+                                        paddingVertical: 8,
+                                        gap: 12,
+                                    }}>
                                         <TouchableOpacity
-                                            style={{ flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.2)", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 }}
+                                            style={{ flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.2)", paddingHorizontal: 12, paddingVertical: 5, borderRadius: 6 }}
                                             onPress={pickOfferVideo}
                                         >
                                             <Feather name="edit-2" size={14} color="#fff" />
-                                            <Text style={{ color: "#fff", marginLeft: 4, ...textPresets.caption }}>Change</Text>
+                                            <Text style={{ color: "#fff", marginLeft: 4, ...textPresets.caption }}>Tap to Change</Text>
                                         </TouchableOpacity>
                                         <TouchableOpacity
-                                            style={{ flexDirection: "row", alignItems: "center", backgroundColor: "rgba(229,57,53,0.3)", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 }}
+                                            style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#d32a2aff", paddingHorizontal: 12, paddingVertical: 5, borderRadius: 6 }}
                                             onPress={removeOfferVideo}
                                         >
-                                            <Feather name="trash-2" size={14} color="#ef4444" />
-                                            <Text style={{ color: "#ef4444", marginLeft: 4, ...textPresets.caption }}>Remove</Text>
+                                            <Feather name="trash-2" size={14} color="#ffffffff" />
+                                            <Text style={{ color: "#ffffffff", marginLeft: 4, ...textPresets.caption }}>Remove</Text>
                                         </TouchableOpacity>
                                     </View>
                                 </View>

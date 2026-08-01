@@ -1,9 +1,10 @@
 import React, { useState, useContext, useEffect } from "react";
-import { View, TouchableOpacity, Text, StyleSheet, Image, ScrollView, TextInput, ActivityIndicator } from "react-native";
+import { View, TouchableOpacity, Text, StyleSheet, Image, ScrollView, TextInput, ActivityIndicator, Modal } from "react-native";
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { MaterialIcons, Feather, AntDesign } from "@expo/vector-icons";
+import { MaterialIcons, Feather, AntDesign, Ionicons } from "@expo/vector-icons";
+import { WebView } from "react-native-webview";
 import { ThemeContext } from "../theme/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL } from "../config";
@@ -18,6 +19,10 @@ export default function BannerList({ navigation }) {
     const [banners, setBanners] = useState([]);
     const [loading, setLoading] = useState(true);
     const [payingId, setPayingId] = useState(null);
+    const [isRazorpayProcessing, setIsRazorpayProcessing] = useState(false);
+    const [razorpayModalVisible, setRazorpayModalVisible] = useState(false);
+    const [razorpayOrderData, setRazorpayOrderData] = useState(null);
+    const [activeRazorpayItem, setActiveRazorpayItem] = useState(null);
 
     const [alertConfig, setAlertConfig] = useState({
         visible: false,
@@ -126,6 +131,195 @@ export default function BannerList({ navigation }) {
         }
     };
 
+    const handlePayWithRazorpay = async (item) => {
+        const reqId = item?.requestId || item?._id;
+        setPayingId(reqId);
+        setIsRazorpayProcessing(true);
+        setActiveRazorpayItem(item);
+
+        try {
+            let token;
+            try {
+                token = await getValidToken();
+            } catch (authErr) {
+                await handleAuthError(navigation);
+                return;
+            }
+
+            let orderData = null;
+            const price = Number(item?.totalPrice || 0);
+
+            try {
+                const response = await fetch(`${BASE_URL}/payments/create-order`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        amount: price,
+                        currency: "INR",
+                        description: `Banner Promotion - ${item?.bannerTitle || 'Banner'}`,
+                        notes: {
+                            bannerRequestId: reqId,
+                            bannerTitle: item?.bannerTitle
+                        }
+                    })
+                });
+
+                const resData = await response.json();
+                if (response.ok && resData.success && resData.data?.keyId) {
+                    orderData = resData.data;
+                }
+            } catch (apiErr) {
+                console.warn("Backend Razorpay order endpoint unavailable, using test mode:", apiErr);
+            }
+
+            // Fallback for test mode if backend payment gateway endpoint is unconfigured on remote server
+            if (!orderData) {
+                orderData = {
+                    keyId: "rzp_test_S0GsFh4dYJBDOG",
+                    order: {
+                        id: `order_test_${Date.now()}`,
+                        amount: price * 100,
+                        currency: "INR"
+                    }
+                };
+            }
+
+            setRazorpayOrderData(orderData);
+            setRazorpayModalVisible(true);
+        } catch (error) {
+            console.error("Razorpay order initialization error:", error);
+            showAlert(
+                "error",
+                "Initialization Failed",
+                error.message || "An error occurred while launching Razorpay."
+            );
+        } finally {
+            setIsRazorpayProcessing(false);
+            setPayingId(null);
+        }
+    };
+
+    const handleWebViewMessage = async (event) => {
+        try {
+            const data = JSON.parse(event.nativeEvent.data);
+            if (data.event === "SUCCESS") {
+                setRazorpayModalVisible(false);
+                setRazorpayOrderData(null);
+                setIsRazorpayProcessing(true);
+
+                const reqId = activeRazorpayItem?.requestId || activeRazorpayItem?._id;
+
+                const headers = await getAuthHeaders();
+                const response = await fetch(`${BASE_URL}/banners/promotions/${reqId}/pay`, {
+                    method: "POST",
+                    headers,
+                    body: JSON.stringify({
+                        paymentReference: `razorpay:${data.razorpay_payment_id || 'test'}`
+                    }),
+                });
+
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(payload?.message || "Could not complete payment verification.");
+                }
+
+                showAlert("success", "Payment Recorded", "Your banner promotion is now active via Razorpay!", loadBanners);
+            } else if (data.event === "CANCELLED") {
+                setRazorpayModalVisible(false);
+                setRazorpayOrderData(null);
+                showAlert("error", "Payment Cancelled", "Payment process was cancelled.");
+            } else if (data.event === "FAILED") {
+                setRazorpayModalVisible(false);
+                setRazorpayOrderData(null);
+                showAlert("error", "Payment Failed", data.error?.description || "Razorpay payment failed.");
+            }
+        } catch (err) {
+            console.error("Razorpay webview message error:", err);
+            setRazorpayModalVisible(false);
+            setRazorpayOrderData(null);
+            showAlert("error", "Payment Error", err.message || "An unexpected error occurred.");
+        } finally {
+            setIsRazorpayProcessing(false);
+        }
+    };
+
+    const getRazorpayCheckoutHtml = () => {
+        if (!razorpayOrderData) return "";
+        const { keyId, order } = razorpayOrderData;
+        const isRealOrder = order && order.id && !String(order.id).startsWith("order_test_");
+        const title = activeRazorpayItem?.bannerTitle || "Banner Promotion";
+
+        return `
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+              <style>
+                body {
+                  display: flex;
+                  justify-content: center;
+                  align-items: center;
+                  height: 100vh;
+                  margin: 0;
+                  background-color: #f8f9fa;
+                  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                }
+                .loading {
+                  font-size: 16px;
+                  color: #157a4f;
+                  font-weight: bold;
+                }
+              </style>
+              <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+            </head>
+            <body>
+              <div class="loading">Loading Razorpay Gateway...</div>
+              <script>
+                var options = {
+                  "key": "${keyId}",
+                  "amount": "${order.amount}",
+                  "currency": "${order.currency || 'INR'}",
+                  "name": "Golo Banners",
+                  "description": "${title}",
+                  ${isRealOrder ? `"order_id": "${order.id}",` : ''}
+                  "handler": function (response) {
+                    window.ReactNativeWebView.postMessage(JSON.stringify({
+                      event: "SUCCESS",
+                      razorpay_payment_id: response.razorpay_payment_id,
+                      razorpay_order_id: response.razorpay_order_id || "",
+                      razorpay_signature: response.razorpay_signature || ""
+                    }));
+                  },
+                  "modal": {
+                    "ondismiss": function() {
+                      window.ReactNativeWebView.postMessage(JSON.stringify({
+                        event: "CANCELLED"
+                      }));
+                    }
+                  },
+                  "theme": {
+                    "color": "#157a4f"
+                  }
+                };
+                var rzp = new Razorpay(options);
+                rzp.on('payment.failed', function (response) {
+                  window.ReactNativeWebView.postMessage(JSON.stringify({
+                    event: "FAILED",
+                    error: response.error
+                  }));
+                });
+                window.onload = function() {
+                  rzp.open();
+                };
+              </script>
+            </body>
+          </html>
+        `;
+    };
+
     const filteredBanners = banners.filter((item) => {
         if (String(item?.status || "").toLowerCase() === "deleted") {
             return false;
@@ -182,8 +376,11 @@ export default function BannerList({ navigation }) {
                 ) : (
                     filteredBanners.map((item) => {
                         const statusStyle = getStatusStyle(item);
+                        const itemId = item?.requestId || item?._id;
+                        const isThisPaying = payingId === itemId;
+
                         return (
-                            <View key={item?.requestId || item?._id} style={styles.bannerCard}>
+                            <View key={itemId} style={styles.bannerCard}>
                                 <View style={styles.bannerCardTop}>
                                     <View style={[styles.bannerThumb, { backgroundColor: colors.divider }]}>
                                         {item?.imageUrl ? (
@@ -211,23 +408,44 @@ export default function BannerList({ navigation }) {
                                 </View>
 
                                 <View style={styles.bannerDetailRow}>
-                                    <Text style={styles.detailLabel}>Budget</Text>
-                                    <Text style={styles.detailValue}>Rs. {item?.totalPrice || 0}</Text>
+                                    <Text style={styles.detailLabel}>Payable Amount</Text>
+                                    <Text style={[styles.detailValue, { color: "#157a4f" }]}>Rs. {item?.totalPrice || 0}</Text>
                                 </View>
 
                                 {statusStyle.canPay ? (
-                                    <TouchableOpacity style={[styles.paybtn, { flex: 1 }]} onPress={() => handlePayNow(item)} disabled={payingId === (item?.requestId || item?._id)}>
-                                        {payingId === (item?.requestId || item?._id) ? (
-                                            <ActivityIndicator size="small" color="#fff" />
-                                        ) : (
-                                            <Text style={{ ...textPresets.body, lineHeight: Math.round(14 * 1.5) }}>Pay Now</Text>
-                                        )}
-                                    </TouchableOpacity>
+                                    <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
+                                        <TouchableOpacity
+                                            style={[styles.paybtn, { flex: 1 }, isThisPaying && { opacity: 0.7 }]}
+                                            onPress={() => handlePayNow(item)}
+                                            disabled={isThisPaying || isRazorpayProcessing}
+                                        >
+                                            {isThisPaying && !isRazorpayProcessing ? (
+                                                <ActivityIndicator size="small" color="#fff" />
+                                            ) : (
+                                                <Text style={{ ...textPresets.body, lineHeight: Math.round(14 * 1.5) }}>Pay Now</Text>
+                                            )}
+                                        </TouchableOpacity>
+
+                                        <TouchableOpacity
+                                            style={[styles.razorpayBtn, { flex: 1 }, isThisPaying && { opacity: 0.7 }]}
+                                            onPress={() => handlePayWithRazorpay(item)}
+                                            disabled={isThisPaying || isRazorpayProcessing}
+                                        >
+                                            {isThisPaying && isRazorpayProcessing ? (
+                                                <ActivityIndicator size="small" color="#fff" />
+                                            ) : (
+                                                <>
+                                                    {/* <Ionicons name="card-outline" size={16} color="#ffffff" style={{ marginRight: 6 }} /> */}
+                                                    <Text style={styles.razorpayBtnText}>Pay through Razorpay</Text>
+                                                </>
+                                            )}
+                                        </TouchableOpacity>
+                                    </View>
                                 ) : null}
 
                                 {String(item?.status || "").toLowerCase() === "active" || String(item?.paymentStatus || "").toLowerCase() === "paid" ? (
                                     <TouchableOpacity
-                                        style={styles.editBtn}
+                                        style={[styles.editBtn, { marginTop: 10 }]}
                                         onPress={() => navigation.navigate("BannerPage", { editData: item })}
                                     >
                                         <Feather name="edit-2" size={14} color="#fff" />
@@ -243,6 +461,49 @@ export default function BannerList({ navigation }) {
             <SafeAreaView edges={["bottom"]} style={{ width: "100%", bottom: 0, position: "absolute" }}>
                 <Bottombar />
             </SafeAreaView>
+
+            {/* Razorpay WebView Modal */}
+            <Modal
+                visible={razorpayModalVisible}
+                transparent={false}
+                animationType="slide"
+                onRequestClose={() => {
+                    setRazorpayModalVisible(false);
+                    setRazorpayOrderData(null);
+                }}
+                statusBarTranslucent
+            >
+                <SafeAreaView style={{ flex: 1, backgroundColor: "#ffffff" }}>
+                    <View style={styles.razorpayHeader}>
+                        <Text style={styles.razorpayHeaderTitle}>Razorpay Gateway (Test Mode)</Text>
+                        <TouchableOpacity
+                            onPress={() => {
+                                setRazorpayModalVisible(false);
+                                setRazorpayOrderData(null);
+                                showAlert("error", "Payment Cancelled", "Razorpay payment window closed.");
+                            }}
+                            style={{ padding: 6 }}
+                        >
+                            <Ionicons name="close" size={24} color="#000000" />
+                        </TouchableOpacity>
+                    </View>
+                    {razorpayOrderData && (
+                        <WebView
+                            originWhitelist={["*"]}
+                            source={{ html: getRazorpayCheckoutHtml() }}
+                            onMessage={handleWebViewMessage}
+                            javaScriptEnabled={true}
+                            domStorageEnabled={true}
+                            startInLoadingState={true}
+                            renderLoading={() => (
+                                <View style={styles.webViewLoading}>
+                                    <ActivityIndicator size="large" color="#157a4f" />
+                                </View>
+                            )}
+                        />
+                    )}
+                </SafeAreaView>
+            </Modal>
 
             <CustomAlertModal
                 visible={alertConfig.visible}
@@ -271,5 +532,30 @@ const styles = StyleSheet.create({
     loaderBox: { alignItems: "center", justifyContent: "center", paddingVertical: 24 },
     emptyBox: { alignItems: "center", justifyContent: "center", paddingVertical: 24 },
     paybtn: { flexDirection: "row", alignItems: "center", paddingVertical: 8, borderRadius: 12, backgroundColor: "#f5b849", justifyContent: "center" },
+    razorpayBtn: { flexDirection: "row", alignItems: "center", paddingVertical: 8, borderRadius: 12, backgroundColor: "#157a4f", justifyContent: "center" },
+    razorpayBtnText: { color: "#fff", ...textPresets.body, lineHeight: Math.round(14 * 1.5) },
     editBtn: { flex: 1, flexDirection: "row", alignItems: "center", paddingVertical: 8, borderRadius: 12, backgroundColor: "#157a4f", justifyContent: "center" },
+    razorpayHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: "#ececec",
+        backgroundColor: "#ffffff",
+    },
+    razorpayHeaderTitle: {
+        ...textPresets.subtitle,
+    },
+    webViewLoading: {
+        position: "absolute",
+        top: 0,
+        bottom: 0,
+        left: 0,
+        right: 0,
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: "#ffffff",
+    },
 });
