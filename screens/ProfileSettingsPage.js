@@ -1027,7 +1027,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#ffffff",
   },
-
   card: {
     backgroundColor: "#ffffff",
     borderRadius: 16,
