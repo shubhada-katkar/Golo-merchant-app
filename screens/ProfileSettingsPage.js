@@ -72,6 +72,13 @@ export default function ProfileSettingsPage({ navigation }) {
   const [storeImage, setStoreImage] = useState(null);
   const [storeImageError, setStoreImageError] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(false);
+  const [originalEmail, setOriginalEmail] = useState("");
+  const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+  const [emailVerified, setEmailVerified] = useState(true);
+  const [timer, setTimer] = useState(0);
 
   const [alertConfig, setAlertConfig] = useState({
     visible: false,
@@ -320,6 +327,11 @@ export default function ProfileSettingsPage({ navigation }) {
 
       setName(mergedName);
       setEmail(mergedEmail);
+      setOriginalEmail(mergedEmail);
+      setEmailVerified(true);
+      setOtp("");
+      setOtpSent(false);
+      setTimer(0);
       setNumber(mergedNumber);
       setShopName(mergedShopName);
       setStoreCategory(mergedCategory);
@@ -523,6 +535,21 @@ export default function ProfileSettingsPage({ navigation }) {
     setLocationSearchResults([]);
   }, [locationModalVisible]);
 
+  useEffect(() => {
+    if (!otpSent || timer <= 0) return;
+    const countdown = setInterval(() => {
+      setTimer((prev) => {
+        if (prev <= 1) {
+          clearInterval(countdown);
+          setOtpSent(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(countdown);
+  }, [otpSent, timer]);
+
   // ================= LOAD MERCHANT PROFILE =================
   useEffect(() => {
     loadProfile();
@@ -579,59 +606,6 @@ export default function ProfileSettingsPage({ navigation }) {
     }
   };
 
-  // ================= SAVE PROFILE =================
-  const saveProfile = async () => {
-    try {
-      let token;
-      try {
-        token = await getValidToken();
-      } catch (authErr) {
-        await handleAuthError(navigation);
-        return;
-      }
-      if (!token) return showAlert("error", "Error", "Not authenticated");
-
-      const [merchantRes, userRes] = await Promise.all([
-        fetch(`${BASE_URL}/merchant/profile`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            storeName: shopName,
-            contactNumber: number,
-            storeCategory,
-            storeSubCategory,
-          }),
-        }),
-        fetch(`${BASE_URL}/users/profile`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            name,
-          }),
-        }),
-      ]);
-
-      const merchantData = await merchantRes.json();
-      const userData = await userRes.json();
-
-      if (merchantRes.ok && userRes.ok) {
-        await loadProfile();
-        showAlert("success", "Success", "Profile updated successfully");
-      } else {
-        showAlert("error", "Update Failed", merchantData.message || userData.message || "Update failed");
-      }
-    } catch (error) {
-      console.log("Error updating profile:", error);
-      showAlert("error", "Server Error", "Server Error while updating profile");
-    }
-  };
-
   const uploadImageForField = async (imageUri, fieldName) => {
     try {
       let token;
@@ -648,10 +622,8 @@ export default function ProfileSettingsPage({ navigation }) {
         return showAlert("error", "Upload Failed", uploadResult.message || "Image upload failed");
       }
 
-      const payload = {};
-      payload[fieldName] = uploadResult.url;
-
-      let res = await fetch(`${BASE_URL}/merchant/profile`, {
+      const payload = { [fieldName]: uploadResult.url };
+      const res = await fetch(`${BASE_URL}/merchant/profile`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -661,10 +633,9 @@ export default function ProfileSettingsPage({ navigation }) {
       });
 
       const data = await res.json();
-
       if (!res.ok) {
         console.log("Image upload error:", data);
-        return showAlert("error", "Upload Failed", data.message || "Image upload failed");
+        return showAlert("error", "Upload Failed", data.message || "Unable to save uploaded image");
       }
 
       const uploadedImageUrl = data?.data?.[fieldName] || data?.[fieldName] || uploadResult.url;
@@ -685,6 +656,173 @@ export default function ProfileSettingsPage({ navigation }) {
       showAlert("error", "Server Error", "Server error while uploading image");
     }
   };
+
+  // ================= SAVE PROFILE =================
+  const saveProfile = async () => {
+    try {
+      if (email.trim().toLowerCase() !== originalEmail.trim().toLowerCase() && !emailVerified) {
+        return showAlert("error", "Verification required", "Please verify your new email address via OTP before saving.");
+      }
+
+      let token;
+      try {
+        token = await getValidToken();
+      } catch (authErr) {
+        await handleAuthError(navigation);
+        return;
+      }
+      if (!token) return showAlert("error", "Error", "Not authenticated");
+
+      const merchantPayload = {
+        storeName: shopName,
+        contactNumber: number,
+        storeCategory,
+        storeSubCategory,
+      };
+
+      if (email.trim().toLowerCase() !== originalEmail.trim().toLowerCase()) {
+        merchantPayload.storeEmail = email.trim().toLowerCase();
+      }
+
+      const merchantRes = await fetch(`${BASE_URL}/merchant/profile`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(merchantPayload),
+      });
+
+      const merchantData = await merchantRes.json();
+      if (!merchantRes.ok) {
+        return showAlert("error", "Update Failed", merchantData.message || "Unable to update merchant profile");
+      }
+
+      const userRes = await fetch(`${BASE_URL}/users/profile`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name,
+        }),
+      });
+
+      const userData = await userRes.json();
+      if (!userRes.ok) {
+        return showAlert("error", "Update Failed", userData.message || "Unable to update user profile");
+      }
+
+      await loadProfile();
+      showAlert("success", "Success", "Profile updated successfully");
+    } catch (error) {
+      console.log("Error updating profile:", error);
+      showAlert("error", "Server Error", "Server Error while updating profile");
+    }
+  };
+
+  const handleEmailChange = (text) => {
+    setEmail(text);
+    const normalizedText = text.trim().toLowerCase();
+    const normalizedOriginal = originalEmail.trim().toLowerCase();
+    if (normalizedText !== normalizedOriginal) {
+      setEmailVerified(false);
+      setOtpSent(false);
+      setOtp("");
+      setTimer(0);
+    } else {
+      setEmailVerified(true);
+      setOtpSent(false);
+      setOtp("");
+      setTimer(0);
+    }
+  };
+
+  const handleSendEmailOtp = async () => {
+    if (timer > 0) {
+      showAlert("info", "Please wait", `You can request a new OTP in ${Math.floor(timer / 60)}:${String(timer % 60).padStart(2, '0')}.`);
+      return;
+    }
+
+    const emailToVerify = email.trim().toLowerCase();
+    if (!emailToVerify || !/\S+@\S+\.\S+/.test(emailToVerify)) {
+      return showAlert("warning", "Invalid email", "Please enter a valid email address.");
+    }
+
+    try {
+      setOtpLoading(true);
+      const token = await getValidToken();
+      const response = await fetch(`${BASE_URL}/users/profile/email-otp/send`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ email: emailToVerify }),
+      });
+
+      const data = await response.json();
+      setOtpLoading(false);
+
+      if (!response.ok) {
+        if (response.status === 409) {
+          return showAlert("error", "Email exists", data.message || "This email is already registered.");
+        }
+        return showAlert("error", "Verification failed", data.message || "Unable to send verification code.");
+      }
+
+      setOtpSent(true);
+      setTimer(300);
+      showAlert("success", "Verification Code Sent", "Please check your email for the OTP.");
+    } catch (error) {
+      setOtpLoading(false);
+      showAlert("error", "Server error", "Unable to send verification code.");
+    }
+  };
+
+  const handleVerifyEmailOtp = async () => {
+    if (timer === 0) {
+      return showAlert("error", "Expired", "OTP has expired.");
+    }
+
+    if (!otp.trim()) {
+      return showAlert("warning", "Code required", "Enter the OTP code sent to your email.");
+    }
+
+    try {
+      setVerifyingOtp(true);
+      const token = await getValidToken();
+      const response = await fetch(`${BASE_URL}/users/profile/email-otp/verify`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          otp: otp.trim(),
+        }),
+      });
+
+      const data = await response.json();
+      setVerifyingOtp(false);
+
+      if (!response.ok) {
+        return showAlert("error", "Verification failed", data.message || "Invalid or expired OTP.");
+      }
+
+      setEmailVerified(true);
+      setOtpSent(false);
+      setTimer(0);
+      setOtp("");
+      showAlert("success", "Verified", "Your new email address has been verified successfully!");
+    } catch (error) {
+      setVerifyingOtp(false);
+      showAlert("error", "Server error", "Unable to verify the code.");
+    }
+  };
+
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
@@ -778,22 +916,70 @@ export default function ProfileSettingsPage({ navigation }) {
             />
 
             <Text style={styles.fieldLabel}>EMAIL ADDRESS</Text>
-            <View style={styles.lockedInputWrap}>
-              <TextInput
-                style={[styles.input, styles.lockedInput]}
-                value={email}
-                placeholder="Enter email"
-                placeholderTextColor="#999"
-                editable={false}
-                selectTextOnFocus={false}
-              />
-              <MaterialIcons
-                name="lock"
-                size={16}
-                color="#9a9a9a"
-                style={styles.lockedInputIcon}
-              />
-            </View>
+            <TextInput
+              style={styles.input}
+              value={email}
+              placeholder="Enter email"
+              placeholderTextColor="#999"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              onChangeText={handleEmailChange}
+            />
+            {email.trim().toLowerCase() !== originalEmail.trim().toLowerCase() ? (
+              <>
+                <Text
+                  style={[
+                    styles.hintText,
+                    { color: emailVerified ? "#157a4f" : "#d32b2b" },
+                  ]}
+                >
+                  {emailVerified
+                    ? "Email verified and ready to save."
+                    : "Please verify this new email with OTP before saving."}
+                </Text>
+
+                <View style={styles.otpRow}>
+                  <TouchableOpacity
+                    style={styles.otpButton}
+                    onPress={handleSendEmailOtp}
+                    disabled={otpLoading}
+                  >
+                    {otpLoading ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <Text style={styles.otpButtonText}>Send OTP</Text>
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.otpButton, styles.otpButtonSecondary]}
+                    onPress={handleVerifyEmailOtp}
+                    disabled={verifyingOtp || !otp.trim()}
+                  >
+                    {verifyingOtp ? (
+                      <ActivityIndicator color="#157a4f" />
+                    ) : (
+                      <Text style={[styles.otpButtonText, styles.otpButtonSecondaryText]}>
+                        Verify OTP
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+
+                <TextInput
+                  style={[styles.input, styles.otpInput]}
+                  value={otp}
+                  placeholder="Enter OTP"
+                  placeholderTextColor="#999"
+                  keyboardType="numeric"
+                  onChangeText={setOtp}
+                />
+                {otpSent && timer > 0 ? (
+                  <Text style={styles.hintText}>
+                    OTP expires in {Math.floor(timer / 60)}:{String(timer % 60).padStart(2, "0")}
+                  </Text>
+                ) : null}
+              </>
+            ) : null}
           </View>
 
           {/* STORE SPECIFICATIONS CARD */}
@@ -979,26 +1165,21 @@ export default function ProfileSettingsPage({ navigation }) {
 const styles = StyleSheet.create({
   row1: { flexDirection: "row", alignItems: "center", padding: 12 },
   title: { ...textPresets.title },
-
-
   bannerContainer: {
     width: "100%",
     position: "relative",
     marginBottom: 70, // space for overlap
   },
-
   storeImage: {
     width: "100%",
     height: 170,
   },
-
   profileImageWrap: {
     position: "absolute",
     left: 16,
     bottom: -50, // pushes circle outside banner
     zIndex: 10,
   },
-
   profileImage: {
     width: 110,
     height: 110,
@@ -1006,7 +1187,6 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: "#fff",
   },
-
   cameraIcon: {
     position: "absolute",
     bottom: 0,
@@ -1085,7 +1265,6 @@ const styles = StyleSheet.create({
   pickerItem: {
     ...textPresets.body,
   },
-
   sectionLabel: {
     ...textPresets.body,
     marginBottom: 8,
@@ -1120,7 +1299,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
     ...textPresets.label,
   },
-
   buttonRow: {
     flexDirection: "row",
     gap: 12,
@@ -1149,7 +1327,39 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   discardButtonText: { ...textPresets.body, color: "#fff", lineHeight: Math.round(textPresets.body.fontSize * 1.5) },
-
+  otpRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 10,
+  },
+  otpButton: {
+    flex: 1,
+    backgroundColor: "#157a4f",
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  otpButtonSecondary: {
+    marginLeft: 10,
+    backgroundColor: "#ffffff",
+    borderColor: "#157a4f",
+    borderWidth: 1,
+  },
+  otpButtonText: {
+    ...textPresets.body,
+    color: "#ffffff",
+  },
+  otpButtonSecondaryText: {
+    color: "#157a4f",
+  },
+  otpInput: {
+    marginTop: 10,
+  },
+  hintText: {
+    ...textPresets.label,
+    marginTop: 8,
+  },
   modalContainer: {
     flex: 1,
     padding: 16,
