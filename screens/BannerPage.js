@@ -102,9 +102,44 @@ const BANNER_CATEGORIES = ["Food & Restaurants",
     "Daily Needs & Utilities",
     "Local Businesses & Vendors",];
 
-// Hardcoded pricing
-const RATE_PER_DAY = 240;
+// Hardcoded pricing baseline
 const PLATFORM_FEE = 0;
+
+/**
+ * Extract only the first name in an address string (e.g. "Kolhapur, Maharashtra, India" -> "Kolhapur")
+ */
+const getFirstName = (addressStr) => {
+    if (!addressStr) return "";
+    const firstPart = String(addressStr).split(",")[0].trim();
+    return firstPart || addressStr;
+};
+
+/**
+ * Calculate per-day rate based on population tiers (matching backend BannerPricingService)
+ * Population < 50,000 -> Rs. 200
+ * 50,000 - 100,000 -> Rs. 300
+ * 100,000 - 200,000 -> Rs. 500
+ * 200,000 - 500,000 -> Rs. 800
+ * 500,000 - 1,000,000 -> Rs. 1,200
+ * 1,000,000 - 5,000,000 -> Rs. 2,000
+ * >= 5,000,000 -> Rs. 3,000
+ */
+const calculateDailyRate = (population, coverageType) => {
+    const pop = Number(population) || 0;
+    if (pop > 0) {
+        if (pop < 50000) return 200;
+        if (pop < 100000) return 300;
+        if (pop < 200000) return 500;
+        if (pop < 500000) return 800;
+        if (pop < 1000000) return 1200;
+        if (pop < 5000000) return 2000;
+        return 3000;
+    }
+    // Baseline fallback if population metadata is missing from Nominatim
+    if (coverageType === "Town") return 200;
+    if (coverageType === "District") return 800;
+    return 500; // City default
+};
 
 /**
  * Normalize a Date object or ISO date string from the backend
@@ -177,6 +212,7 @@ export default function BannerPage({ navigation, route }) {
     };
 
     const [locations, setLocations] = useState([]);
+    const [coverageType, setCoverageType] = useState("City"); // "Town" | "City" | "District"
     const [locationInputText, setLocationInputText] = useState("");
     const [locationSuggestions, setLocationSuggestions] = useState([]);
     const [suggestionsLoading, setSuggestionsLoading] = useState(false);
@@ -287,12 +323,27 @@ export default function BannerPage({ navigation, route }) {
             setCategory(editData.bannerCategory);
         }
 
+        // Coverage Type
+        if (editData.coverageType) {
+            setCoverageType(editData.coverageType);
+        }
+
         // Image
         if (editData.imageUrl) setBannerImage(editData.imageUrl);
 
         // Locations
         if (Array.isArray(editData.targetCities)) {
-            setLocations(editData.targetCities);
+            const normalized = editData.targetCities.map((c) => {
+                const nameStr = typeof c === "string" ? c : c.name || c.fullName || "";
+                const firstName = getFirstName(nameStr);
+                const rate = (typeof c === "object" && c.rate) || editData.dailyRate || calculateDailyRate(0, editData.coverageType || "City");
+                return {
+                    name: firstName,
+                    fullName: nameStr,
+                    rate: rate,
+                };
+            });
+            setLocations(normalized);
         }
 
         // Dates – backend stores as Date[] (ISO strings); normalise to "YYYY-MM-DD" keys
@@ -305,8 +356,8 @@ export default function BannerPage({ navigation, route }) {
         setSelectedDates([...new Set(dateKeys)]);
     }, [isEditMode]); // only run once on mount if editing
 
-    // ── Location autocomplete via Nominatim ────────────────────
-    const fetchLocationSuggestions = useCallback(async (query) => {
+    // ── Location autocomplete via Nominatim with Coverage Type & Rate ────────
+    const fetchLocationSuggestions = useCallback(async (query, currentType) => {
         const trimmed = (query || "").trim();
         if (!trimmed || trimmed.length < 2) {
             setLocationSuggestions([]);
@@ -315,11 +366,18 @@ export default function BannerPage({ navigation, route }) {
         }
         setSuggestionsLoading(true);
         try {
+            const activeCoverage = currentType || coverageType;
+            let searchQuery = trimmed;
+            if (activeCoverage === "District" && !trimmed.toLowerCase().includes("district")) {
+                searchQuery = `${trimmed} district`;
+            }
+
             const params = new URLSearchParams({
-                q: trimmed,
+                q: searchQuery,
                 format: "json",
                 addressdetails: "1",
-                limit: "6",
+                extratags: "1",
+                limit: "10",
                 "accept-language": "en",
             });
             const response = await fetch(
@@ -330,16 +388,37 @@ export default function BannerPage({ navigation, route }) {
             const seen = new Set();
             const suggestions = (data || []).map((item) => {
                 const addr = item.address || {};
-                const city = addr.city || addr.town || addr.village || addr.state_district || addr.county || "";
+                const extratags = item.extratags || {};
+                const placeType = item.addresstype || item.type || "";
+                
+                let mainName = addr.city || addr.town || addr.village || addr.state_district || addr.county || addr.suburb || "";
+                if (!mainName && item.display_name) {
+                    mainName = getFirstName(item.display_name);
+                }
                 const state = addr.state || "";
                 const country = addr.country || "";
-                const label = [city, state, country].filter(Boolean).join(", ") || item.display_name || trimmed;
-                return { id: String(item.place_id), label, city };
+                const fullName = [mainName, state, country].filter(Boolean).join(", ") || item.display_name || trimmed;
+                const firstName = getFirstName(fullName || mainName);
+
+                // Population from extratags or fallback
+                const pop = Number(extratags.population || addr.population || 0);
+                const rate = calculateDailyRate(pop, activeCoverage);
+
+                return {
+                    id: String(item.place_id || Math.random()),
+                    label: fullName,
+                    firstName: firstName,
+                    fullName: fullName,
+                    placeType: placeType,
+                    rate: rate,
+                    population: pop,
+                };
             }).filter((s) => {
-                if (!s.city || seen.has(s.city.toLowerCase())) return false;
-                seen.add(s.city.toLowerCase());
+                if (!s.firstName || seen.has(s.firstName.toLowerCase())) return false;
+                seen.add(s.firstName.toLowerCase());
                 return true;
             });
+
             setLocationSuggestions(suggestions);
         } catch (err) {
             console.warn("Location suggestion error:", err);
@@ -347,48 +426,57 @@ export default function BannerPage({ navigation, route }) {
         } finally {
             setSuggestionsLoading(false);
         }
-    }, []);
+    }, [coverageType]);
 
     const handleLocationInputChange = useCallback((text) => {
         setLocationInputText(text);
         setLocationSuggestions([]);
         if (debounceTimer.current) clearTimeout(debounceTimer.current);
-        debounceTimer.current = setTimeout(() => fetchLocationSuggestions(text), 400);
-    }, [fetchLocationSuggestions]);
+        debounceTimer.current = setTimeout(() => fetchLocationSuggestions(text, coverageType), 400);
+    }, [fetchLocationSuggestions, coverageType]);
 
     const handleSelectSuggestion = useCallback((suggestion) => {
-        const cityName = suggestion.city || suggestion.label;
+        const firstName = suggestion.firstName || getFirstName(suggestion.label);
+        const rate = suggestion.rate || calculateDailyRate(0, coverageType);
+
         if (locations.length >= 7) {
             showAlert("error", "Limit Reached", "You can specify up to 7 locations only.");
             return;
         }
-        if (locations.some((l) => l.toLowerCase() === cityName.toLowerCase())) {
+        if (locations.some((l) => (typeof l === "string" ? l : l.name).toLowerCase() === firstName.toLowerCase())) {
             showAlert("error", "Duplicate", "This location is already in your list.");
             return;
         }
-        setLocations([...locations, cityName]);
+        setLocations([...locations, { name: firstName, fullName: suggestion.fullName || suggestion.label, rate }]);
         setLocationInputText("");
         setLocationSuggestions([]);
-    }, [locations]);
+    }, [locations, coverageType]);
 
     const handleAddLocation = () => {
         const trimmed = locationInputText.trim();
         if (!trimmed) return;
+        const firstName = getFirstName(trimmed);
+        const rate = calculateDailyRate(0, coverageType);
+
         if (locations.length >= 7) {
             showAlert("error", "Limit Reached", "You can specify up to 7 locations only.");
             return;
         }
-        if (locations.includes(trimmed)) {
+        if (locations.some((l) => (typeof l === "string" ? l : l.name).toLowerCase() === firstName.toLowerCase())) {
             showAlert("error", "Duplicate Location", "This location has already been added.");
             return;
         }
-        setLocations([...locations, trimmed]);
+        setLocations([...locations, { name: firstName, fullName: trimmed, rate }]);
         setLocationInputText("");
         setLocationSuggestions([]);
     };
 
     const handleRemoveLocation = (locToRemove) => {
-        setLocations(locations.filter((loc) => loc !== locToRemove));
+        const targetName = typeof locToRemove === "string" ? locToRemove : locToRemove.name;
+        setLocations(locations.filter((loc) => {
+            const locName = typeof loc === "string" ? loc : loc.name;
+            return locName !== targetName;
+        }));
     };
 
     // ── Delete banner ───────────────────────────────────────────
@@ -481,7 +569,11 @@ export default function BannerPage({ navigation, route }) {
     }, []);
 
     const selectedDaysCount = selectedDates.length;
-    const subtotal = RATE_PER_DAY * selectedDaysCount;
+    const totalDailyRate = locations.length > 0
+        ? locations.reduce((sum, loc) => sum + (typeof loc === "object" && loc.rate ? loc.rate : calculateDailyRate(0, coverageType)), 0)
+        : calculateDailyRate(0, coverageType);
+
+    const subtotal = totalDailyRate * selectedDaysCount;
     const totalPayable = subtotal + PLATFORM_FEE;
 
     const handleSubmit = async () => {
@@ -554,11 +646,9 @@ export default function BannerPage({ navigation, route }) {
                 return;
             }
 
+            const targetCityNames = locations.map((l) => (typeof l === "string" ? l : l.name));
+
             // ── Edit mode with a new image: run the same moderation pre-check ──
-            // The backend PUT route skips isImageSafe, so we fire a temporary POST
-            // (which DOES run moderation) to screen the new Cloudinary URL.
-            // On pass: the probe record is deleted and we proceed with PUT.
-            // On fail: the moderation modal is shown, same as the create flow.
             if (isEditMode && imageChangedDuringEdit) {
                 const probePayload = {
                     bannerTitle: bannerTitle.trim() || "Moderation Check",
@@ -566,10 +656,11 @@ export default function BannerPage({ navigation, route }) {
                     imageUrl,
                     selectedDates: selectedDates.length ? selectedDates : [new Date().toISOString().slice(0, 10)],
                     totalPrice: 0,
-                    dailyRate: RATE_PER_DAY,
+                    dailyRate: totalDailyRate,
                     platformFee: PLATFORM_FEE,
                     recommendedSize: "1920 x 520 px",
-                    targetCities: locations.length ? locations : ["Moderation"],
+                    targetCities: targetCityNames.length ? targetCityNames : ["Moderation"],
+                    coverageType: coverageType,
                 };
 
                 const probeResponse = await fetch(`${BASE_URL}/banners/promotions/request`, {
@@ -602,7 +693,6 @@ export default function BannerPage({ navigation, route }) {
                         return;
                     }
 
-                    // Check if this is a moderation failure from the probe POST
                     const isModerationError = isModerationFailureResponse(probePayloadResult);
                     if (isModerationError) {
                         try {
@@ -613,12 +703,7 @@ export default function BannerPage({ navigation, route }) {
                         setFlaggedModalVisible(true);
                         return;
                     }
-                    // Non-moderation error on probe (e.g. validation) — fall through
-                    // and attempt the actual PUT anyway, so the user isn't blocked
-                    // unnecessarily by an unrelated probe issue.
                 } else {
-                    // Probe passed moderation — delete the temporary record to keep
-                    // the list clean before doing the real PUT.
                     const probeRequestId =
                         probePayloadResult?.data?.requestId ||
                         probePayloadResult?.requestId ||
@@ -630,7 +715,6 @@ export default function BannerPage({ navigation, route }) {
                                 headers: { Authorization: `Bearer ${token}` },
                             });
                         } catch (cleanupErr) {
-                            // Non-fatal — the record will be orphaned but moderation passed
                             console.warn("Probe cleanup failed:", cleanupErr);
                         }
                     }
@@ -644,8 +728,6 @@ export default function BannerPage({ navigation, route }) {
 
             const method = isEditMode ? "PUT" : "POST";
 
-            // NOTE: UpdateBannerPromotionDto does NOT include targetCities
-            // (backend forbidNonWhitelisted: true), so we only send it on create.
             const bodyPayload = isEditMode
                 ? {
                     bannerTitle: bannerTitle.trim(),
@@ -660,10 +742,11 @@ export default function BannerPage({ navigation, route }) {
                     imageUrl,
                     selectedDates,
                     totalPrice: totalPayable,
-                    dailyRate: RATE_PER_DAY,
+                    dailyRate: totalDailyRate,
                     platformFee: PLATFORM_FEE,
                     recommendedSize: "1920 x 520 px",
-                    targetCities: locations,
+                    targetCities: targetCityNames,
+                    coverageType: coverageType,
                 };
 
             const response = await fetch(url, {
