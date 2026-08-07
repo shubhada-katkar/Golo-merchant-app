@@ -114,16 +114,6 @@ const getFirstName = (addressStr) => {
     return firstPart || addressStr;
 };
 
-/**
- * Calculate per-day rate based on population tiers (matching backend BannerPricingService)
- * Population < 50,000 -> Rs. 200
- * 50,000 - 100,000 -> Rs. 300
- * 100,000 - 200,000 -> Rs. 500
- * 200,000 - 500,000 -> Rs. 800
- * 500,000 - 1,000,000 -> Rs. 1,200
- * 1,000,000 - 5,000,000 -> Rs. 2,000
- * >= 5,000,000 -> Rs. 3,000
- */
 const calculateDailyRate = (population, coverageType) => {
     const pop = Number(population) || 0;
     if (pop > 0) {
@@ -137,7 +127,7 @@ const calculateDailyRate = (population, coverageType) => {
     }
     // Baseline fallback if population metadata is missing from Nominatim
     if (coverageType === "Town") return 200;
-    if (coverageType === "District") return 800;
+    if (coverageType === "District") return 1200;
     return 500; // City default
 };
 
@@ -390,7 +380,7 @@ export default function BannerPage({ navigation, route }) {
                 const addr = item.address || {};
                 const extratags = item.extratags || {};
                 const placeType = item.addresstype || item.type || "";
-                
+
                 let mainName = addr.city || addr.town || addr.village || addr.state_district || addr.county || addr.suburb || "";
                 if (!mainName && item.display_name) {
                     mainName = getFirstName(item.display_name);
@@ -874,6 +864,44 @@ export default function BannerPage({ navigation, route }) {
                         </View>
                     )}
 
+                    {/* COVERAGE AREA (SELECT ONE) */}
+                    <Text style={[styles.label, { color: colors.subtext, marginTop: 18 }]}>COVERAGE AREA (SELECT ONE)</Text>
+                    <View style={styles.coverageToggleContainer}>
+                        {["Town", "City", "District"].map((type) => {
+                            const active = coverageType === type;
+                            return (
+                                <TouchableOpacity
+                                    key={type}
+                                    style={[
+                                        styles.coverageButton,
+                                        {
+                                            backgroundColor: active ? (colors.success || "#157a4f") : colors.inputBackground,
+                                            borderColor: active ? (colors.success || "#157a4f") : colors.border,
+                                        },
+                                    ]}
+                                    onPress={() => {
+                                        if (!isEditMode) {
+                                            setCoverageType(type);
+                                            if (locationInputText.trim()) {
+                                                fetchLocationSuggestions(locationInputText, type);
+                                            }
+                                        }
+                                    }}
+                                    disabled={isEditMode}
+                                >
+                                    <Text
+                                        style={[
+                                            styles.coverageButtonText,
+                                            { color: active ? "#ffffff" : colors.text },
+                                        ]}
+                                    >
+                                        {type === "Town" ? "🏡 Town" : type === "City" ? "🏙️ City" : "🏛️ District"}
+                                    </Text>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+
                     {/* BANNER LOCATIONS (MAX 7) */}
                     <Text style={[styles.label, { color: colors.subtext, marginTop: 18 }]}>BANNER LOCATIONS (MAX 7)</Text>
                     {!isEditMode ? (
@@ -891,7 +919,7 @@ export default function BannerPage({ navigation, route }) {
                                             marginBottom: 0,
                                         }
                                     ]}
-                                    placeholder="Search city / area (e.g. Kolhapur)"
+                                    placeholder={`Search ${coverageType.toLowerCase()} (e.g. Kolhapur)`}
                                     placeholderTextColor={colors.subtext}
                                     value={locationInputText}
                                     onChangeText={handleLocationInputChange}
@@ -911,7 +939,7 @@ export default function BannerPage({ navigation, route }) {
                                 </TouchableOpacity>
                             </View>
 
-                            {/* Autocomplete dropdown */}
+                            {/* Autocomplete dropdown with per-day rates */}
                             {locationSuggestions.length > 0 && (
                                 <View style={[styles.suggestionsDropdown, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}>
                                     {locationSuggestions.map((s) => (
@@ -920,8 +948,20 @@ export default function BannerPage({ navigation, route }) {
                                             style={styles.suggestionItem}
                                             onPress={() => handleSelectSuggestion(s)}
                                         >
-                                            <Feather name="map-pin" size={14} color={colors.subtext} style={{ marginRight: 8 }} />
-                                            <Text style={[styles.suggestionText, { color: colors.text }]} numberOfLines={1}>{s.label}</Text>
+                                            <Feather name="map-pin" size={15} color={colors.success || "#157a4f"} style={{ marginRight: 8, marginTop: 2 }} />
+                                            <View style={{ flex: 1, marginRight: 8 }}>
+                                                <Text style={[styles.suggestionTitle, { color: colors.text }]} numberOfLines={1}>
+                                                    {s.firstName}
+                                                </Text>
+                                                <Text style={[styles.suggestionSubtitle, { color: colors.subtext }]} numberOfLines={1}>
+                                                    {s.fullName}
+                                                </Text>
+                                            </View>
+                                            <View style={[styles.suggestionRateBadge, { backgroundColor: colors.successLight || "#e3f3ea" }]}>
+                                                <Text style={[styles.suggestionRateText, { color: colors.success || "#157a4f" }]}>
+                                                    Rs. {s.rate}/day
+                                                </Text>
+                                            </View>
                                         </TouchableOpacity>
                                     ))}
                                 </View>
@@ -929,19 +969,25 @@ export default function BannerPage({ navigation, route }) {
                         </View>
                     ) : null}
 
+                    {/* Selected Location Chips showing ONLY first name + rate */}
                     {locations.length > 0 ? (
                         <View style={[styles.chipsWrap, { marginTop: 10 }]}>
-                            {locations.map((loc, idx) => (
-                                <View key={idx} style={[styles.chip, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}>
-                                    <Feather name="map-pin" size={12} color={colors.subtext} style={{ marginRight: 4 }} />
-                                    <Text style={{ ...textPresets.label }}>{loc}</Text>
-                                    {!isEditMode && (
-                                        <TouchableOpacity onPress={() => handleRemoveLocation(loc)} style={{ marginLeft: 6 }}>
-                                            <Feather name="x" size={14} color={colors.subtext} />
-                                        </TouchableOpacity>
-                                    )}
-                                </View>
-                            ))}
+                            {locations.map((loc, idx) => {
+                                const name = typeof loc === "string" ? loc : loc.name;
+                                const rate = typeof loc === "object" && loc.rate ? loc.rate : calculateDailyRate(0, coverageType);
+                                return (
+                                    <View key={idx} style={[styles.chip, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}>
+                                        <Feather name="map-pin" size={12} color={colors.success || "#157a4f"} style={{ marginRight: 4 }} />
+                                        <Text style={{ ...textPresets.label, color: colors.text }}>{name}</Text>
+                                        <Text style={[styles.chipRateText, { color: colors.success || "#157a4f" }]}> (Rs. {rate}/d)</Text>
+                                        {!isEditMode && (
+                                            <TouchableOpacity onPress={() => handleRemoveLocation(loc)} style={{ marginLeft: 6 }}>
+                                                <Feather name="x" size={14} color={colors.subtext} />
+                                            </TouchableOpacity>
+                                        )}
+                                    </View>
+                                );
+                            })}
                         </View>
                     ) : (
                         <Text style={[styles.noDatesText, { color: colors.subtext, marginTop: 6 }]}>
@@ -1051,20 +1097,44 @@ export default function BannerPage({ navigation, route }) {
                     </Modal>
                 </View>
 
-                {/* Pricing summary card */}
+                {/* Pricing summary card & Bill breakdown */}
                 <View style={styles.card}>
-                    <Text style={[styles.cardTitle, { color: colors.text }]}>Pricing Summary</Text>
+                    <Text style={[styles.cardTitle, { color: colors.text }]}>Pricing Summary & Bill</Text>
 
                     <View style={styles.priceRow}>
-                        <Text style={[styles.priceLabel, { color: colors.subtext }]}>Rate per day</Text>
-                        <Text style={[styles.priceValue, { color: colors.text }]}>Rs. {RATE_PER_DAY}</Text>
+                        <Text style={[styles.priceLabel, { color: colors.subtext }]}>Coverage Area</Text>
+                        <Text style={[styles.priceValue, { color: colors.text }]}>{coverageType}</Text>
+                    </View>
+
+                    {/* Per location rates list */}
+                    {locations.length > 0 && (
+                        <View style={{ marginVertical: 4 }}>
+                            <Text style={[styles.priceLabel, { color: colors.subtext, marginBottom: 4 }]}>
+                                Locations Rate Breakdown ({locations.length}):
+                            </Text>
+                            {locations.map((loc, index) => {
+                                const name = typeof loc === "string" ? loc : loc.name;
+                                const rate = typeof loc === "object" && loc.rate ? loc.rate : calculateDailyRate(0, coverageType);
+                                return (
+                                    <View key={index} style={[styles.priceRow, { paddingLeft: 8, paddingVertical: 2 }]}>
+                                        <Text style={styles.priceLabel}>• {name}</Text>
+                                        <Text style={styles.priceValue}>Rs. {rate} / day</Text>
+                                    </View>
+                                );
+                            })}
+                        </View>
+                    )}
+
+                    <View style={styles.priceRow}>
+                        <Text style={[styles.priceLabel, { color: colors.subtext }]}>Total daily rate</Text>
+                        <Text style={[styles.priceValue, { color: colors.text }]}>Rs. {totalDailyRate} / day</Text>
                     </View>
                     <View style={styles.priceRow}>
                         <Text style={[styles.priceLabel, { color: colors.subtext }]}>Selected days</Text>
-                        <Text style={[styles.priceValue, { color: colors.text }]}>{selectedDaysCount}</Text>
+                        <Text style={[styles.priceValue, { color: colors.text }]}>{selectedDaysCount} {selectedDaysCount === 1 ? "day" : "days"}</Text>
                     </View>
                     <View style={styles.priceRow}>
-                        <Text style={[styles.priceLabel, { color: colors.subtext }]}>Subtotal</Text>
+                        <Text style={[styles.priceLabel, { color: colors.subtext }]}>Subtotal (Daily Rate × Days)</Text>
                         <Text style={[styles.priceValue, { color: colors.text }]}>Rs. {subtotal}</Text>
                     </View>
                     <View style={styles.priceRow}>
@@ -1504,18 +1574,50 @@ const styles = StyleSheet.create({
         marginTop: 4,
         overflow: "hidden",
     },
+    coverageToggleContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 8,
+        marginTop: 6,
+        marginBottom: 6,
+    },
+    coverageButton: {
+        flex: 1,
+        borderWidth: 1,
+        borderRadius: 12,
+        paddingVertical: 10,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    coverageButtonText: {
+        ...textPresets.label,
+    },
     suggestionItem: {
         flexDirection: "row",
         alignItems: "center",
         paddingHorizontal: 14,
-        paddingVertical: 11,
+        paddingVertical: 10,
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: "#e5e5e5",
     },
-    suggestionText: {
-        flex: 1,
+    suggestionTitle: {
         ...textPresets.body,
-        lineHeight: Math.round(14 * 1.5)
+    },
+    suggestionSubtitle: {
+        ...textPresets.caption,
+        marginTop: 1,
+    },
+    suggestionRateBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 8,
+    },
+    suggestionRateText: {
+        ...textPresets.caption,
+    },
+    chipRateText: {
+        ...textPresets.caption,
     },
     deleteBtn: {
         flexDirection: "row",
