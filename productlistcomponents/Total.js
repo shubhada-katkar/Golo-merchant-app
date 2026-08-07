@@ -108,70 +108,109 @@ export default function Total({ products, setProducts, searchText, }) {
   );
 
   // ================= UI =================
-  const renderItem = ({ item }) => (
-    <View style={styles.card}>
-      <View style={{ flexDirection: "row" }}>
-        {(() => {
-          const imageUri =
-            typeof item.image === "string"
-              ? item.image
-              : item.image?.url || item.image?.imageUrl || item.imageUrl || item.images?.[0] || item.productImages?.[0];
-          return imageUri ? (
+  const renderItem = ({ item }) => {
+    const id = getProductId(item);
+    const isActive = item.isActive !== false;
+    const isDeleting = deletingId === id;
+
+    const imageUri =
+      typeof item.image === "string"
+        ? item.image
+        : item.image?.url || item.image?.imageUrl || item.imageUrl || item.images?.[0] || item.productImages?.[0];
+
+    return (
+      <View style={styles.card}>
+        {/* ---- Top section: image + main info ---- */}
+        <View style={styles.topSection}>
+          {imageUri ? (
             <Image source={{ uri: imageUri }} style={styles.image} />
           ) : (
-            <View style={styles.image} />
-          );
-        })()}
+            <View style={[styles.image, styles.imagePlaceholder]}>
+              <MaterialIcons name="image-not-supported" size={22} color="#9a9a9a" />
+            </View>
+          )}
 
-        <View style={{ flex: 1, paddingHorizontal: 10 }}>
-          <View style={styles.row}>
-            <Text style={{ width: "65%", ...textPresets.body }}
-              numberOfLines={1} ellipsizeMode="tail">
-              {item.productname}
+          <View style={styles.infoContainer}>
+            <View style={styles.titleRow}>
+              <Text
+                style={[styles.productName, { color: colors.text }]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {item.productname}
+              </Text>
+
+              <View
+                style={[
+                  styles.statusBadge,
+                  { backgroundColor: isActive ? "#e6f4ea" : "#fde8e6" },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.statusDot,
+                    { backgroundColor: isActive ? "#157a4f" : "#d90d06" },
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.statusText,
+                    { color: isActive ? "#157a4f" : "#d90d06" },
+                  ]}
+                >
+                  {isActive ? "Active" : "Inactive"}
+                </Text>
+              </View>
+            </View>
+
+            {/* ---- Description section ---- */}
+            <Text
+              numberOfLines={1}
+              ellipsizeMode="tail"
+              style={styles.description}
+            >
+              Description: {item.description}
             </Text>
 
-            <View style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
-              <TouchableOpacity
-                disabled={deletingId === getProductId(item)}
-                onPress={() => confirmDelete(getProductId(item))}
-              >
-                <MaterialIcons
-                  name={
-                    deletingId === getProductId(item)
-                      ? "hourglass-empty"
-                      : "delete-outline"
-                  }
-                  size={22}
-                  color="red"
-                />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() =>
-                  navigation.navigate("NewProductPage", { product: item })
-                }
-              >
-                <AntDesign name="edit" size={20} />
-              </TouchableOpacity>
+            <View style={styles.categoryPill}>
+              <AntDesign name="tag" size={11} color="#157a4f" />
+              <Text style={styles.categoryText} numberOfLines={1}>
+                {item.category}
+              </Text>
             </View>
           </View>
+        </View>
 
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-            <AntDesign name="tag" size={12} color="#157a4f" />
-            <Text style={{
-              ...textPresets.label, color: "#157a4f"
-            }}>
-              Category: {item.category}
+        {/* ---- Footer: actions, clearly separated ---- */}
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={styles.footerBtn}
+            onPress={() => navigation.navigate("NewProductPage", { product: item })}
+          >
+            <AntDesign name="edit" size={16} color="#157a4f" />
+            <Text style={[styles.footerBtnText, { color: "#157a4f" }]}>Edit</Text>
+          </TouchableOpacity>
+
+          <View style={styles.footerDivider} />
+
+          <TouchableOpacity
+            style={styles.footerBtn}
+            disabled={isDeleting}
+            onPress={() => confirmDelete(id)}
+          >
+            <MaterialIcons
+              name={isDeleting ? "hourglass-empty" : "delete-outline"}
+              size={16}
+              color="#d90d06"
+            />
+            <Text style={[styles.footerBtnText, { color: "#d90d06" }]}>
+              {isDeleting ? "Deleting..." : "Delete"}
             </Text>
-          </View>
-
-          <Text numberOfLines={2} ellipsizeMode="tail" style={{ ...textPresets.label, color: colors.text }}>
-            Description: {item.description}
-          </Text>
+          </TouchableOpacity>
         </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <View style={{ flex: 1 }}>
@@ -247,20 +286,102 @@ export default function Total({ products, setProducts, searchText, }) {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: "#fff",
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 12,
-    elevation: 5,
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 14,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
   },
-  row: {
+  topSection: {
     flexDirection: "row",
-    justifyContent: "space-between",
   },
   image: {
-    width: 90,
-    height: 90,
-    borderRadius: 12,
-    backgroundColor: "#ccc",
+    width: 100,
+    height: 100,
+    borderRadius: 10,
+    backgroundColor: "#eee",
+  },
+  imagePlaceholder: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  infoContainer: {
+    flex: 1,
+    marginLeft: 12,
+    justifyContent: "center",
+    gap: 5,
+  },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  productName: {
+    ...textPresets.body,
+    lineHeight: Math.round(14 * 1.5),
+    flexShrink: 1,
+    marginRight: 8,
+  },
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 20,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  statusText: {
+    ...textPresets.caption,
+  },
+  categoryPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    alignSelf: "flex-start",
+    backgroundColor: "#eef7f1",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  categoryText: {
+    ...textPresets.caption,
+    color: "#157a4f",
+  },
+  description: {
+    ...textPresets.label,
+    opacity: 0.85,
+  },
+  footer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#b3b3b3ff",
+  },
+  footerBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  footerBtnText: {
+    ...textPresets.label,
+  },
+  footerDivider: {
+    width: StyleSheet.hairlineWidth,
+    height: 20,
+    backgroundColor: "#b3b3b3ff",
   },
   addbuttton: {
     position: "absolute",
