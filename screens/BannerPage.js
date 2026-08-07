@@ -125,9 +125,9 @@ const calculateDailyRate = (population, coverageType) => {
         if (pop < 5000000) return 2000;
         return 3000;
     }
-    // Baseline fallback if population metadata is missing from Nominatim
+    // Baseline fallback if population metadata is missing
     if (coverageType === "Town") return 200;
-    if (coverageType === "District") return 1200;
+    if (coverageType === "District") return 2000; // District baseline (pop > 1M in India)
     return 500; // City default
 };
 
@@ -346,7 +346,7 @@ export default function BannerPage({ navigation, route }) {
         setSelectedDates([...new Set(dateKeys)]);
     }, [isEditMode]); // only run once on mount if editing
 
-    // ── Location autocomplete via Nominatim with Coverage Type & Rate ────────
+    // ── Location autocomplete via Backend /Regions & GeoNames ────────
     const fetchLocationSuggestions = useCallback(async (query, currentType) => {
         const trimmed = (query || "").trim();
         if (!trimmed || trimmed.length < 2) {
@@ -357,59 +357,135 @@ export default function BannerPage({ navigation, route }) {
         setSuggestionsLoading(true);
         try {
             const activeCoverage = currentType || coverageType;
-            let searchQuery = trimmed;
-            if (activeCoverage === "District" && !trimmed.toLowerCase().includes("district")) {
-                searchQuery = `${trimmed} district`;
+            let results = [];
+
+            // 1. Try Backend Regions Search Endpoint First (Matches Web & Backend Logic Exactly)
+            if (BASE_URL) {
+                try {
+                    const res = await fetch(
+                        `${BASE_URL}/regions/search?q=${encodeURIComponent(trimmed)}&scale=${encodeURIComponent(activeCoverage)}`
+                    );
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (Array.isArray(data) && data.length > 0) {
+                            results = data.map((item, idx) => {
+                                const firstName = getFirstName(item.name || item.displayName);
+                                const pop = Number(item.population || 0);
+                                const rate = Number(item.dailyRate) || calculateDailyRate(pop, activeCoverage);
+                                return {
+                                    id: `backend_${idx}_${item.name}`,
+                                    label: item.displayName || item.name,
+                                    firstName: firstName,
+                                    fullName: item.displayName || item.name,
+                                    rate: rate,
+                                    population: pop,
+                                };
+                            });
+                        }
+                    }
+                } catch (e) {
+                    console.warn("Backend regions search error:", e);
+                }
             }
 
-            const params = new URLSearchParams({
-                q: searchQuery,
-                format: "json",
-                addressdetails: "1",
-                extratags: "1",
-                limit: "10",
-                "accept-language": "en",
-            });
-            const response = await fetch(
-                `https://nominatim.openstreetmap.org/search?${params.toString()}`,
-                { headers: { "User-Agent": "GoloMerchantApp/1.0" } }
-            );
-            const data = await response.json();
-            const seen = new Set();
-            const suggestions = (data || []).map((item) => {
-                const addr = item.address || {};
-                const extratags = item.extratags || {};
-                const placeType = item.addresstype || item.type || "";
-
-                let mainName = addr.city || addr.town || addr.village || addr.state_district || addr.county || addr.suburb || "";
-                if (!mainName && item.display_name) {
-                    mainName = getFirstName(item.display_name);
+            // 2. Fallback to direct GeoNames API if backend endpoint returns no items or fails
+            if (results.length === 0) {
+                const username = "atharvapugade";
+                let url = `http://api.geonames.org/searchJSON?name_startsWith=${encodeURIComponent(trimmed)}&country=IN&maxRows=30&username=${username}`;
+                if (activeCoverage === "District") {
+                    url += "&featureCode=ADM2";
+                } else {
+                    url += "&featureClass=P";
                 }
-                const state = addr.state || "";
-                const country = addr.country || "";
-                const fullName = [mainName, state, country].filter(Boolean).join(", ") || item.display_name || trimmed;
-                const firstName = getFirstName(fullName || mainName);
 
-                // Population from extratags or fallback
-                const pop = Number(extratags.population || addr.population || 0);
-                const rate = calculateDailyRate(pop, activeCoverage);
+                try {
+                    const geoRes = await fetch(url);
+                    const geoData = await geoRes.json();
+                    const geonames = geoData?.geonames || [];
 
-                return {
-                    id: String(item.place_id || Math.random()),
-                    label: fullName,
-                    firstName: firstName,
-                    fullName: fullName,
-                    placeType: placeType,
-                    rate: rate,
-                    population: pop,
-                };
-            }).filter((s) => {
-                if (!s.firstName || seen.has(s.firstName.toLowerCase())) return false;
-                seen.add(s.firstName.toLowerCase());
-                return true;
-            });
+                    const seen = new Set();
+                    results = geonames
+                        .filter((place) => {
+                            const pop = Number(place.population || 0);
+                            if (activeCoverage === "Town" && pop >= 100000) return false;
+                            if (activeCoverage === "City" && pop < 100000) return false;
+                            return true;
+                        })
+                        .map((place) => {
+                            const firstName = getFirstName(place.name);
+                            const fullName = `${place.name}, ${place.adminName1 || "India"}`;
+                            const pop = Number(place.population || 0);
+                            const rate = calculateDailyRate(pop, activeCoverage);
+                            return {
+                                id: String(place.geonameId || Math.random()),
+                                label: fullName,
+                                firstName: firstName,
+                                fullName: fullName,
+                                rate: rate,
+                                population: pop,
+                            };
+                        })
+                        .filter((s) => {
+                            if (!s.firstName || seen.has(s.firstName.toLowerCase())) return false;
+                            seen.add(s.firstName.toLowerCase());
+                            return true;
+                        });
+                } catch (geoErr) {
+                    console.warn("GeoNames direct fetch error:", geoErr);
+                }
+            }
 
-            setLocationSuggestions(suggestions);
+            // 3. Last fallback: OpenStreetMap Nominatim
+            if (results.length === 0) {
+                let searchQuery = trimmed;
+                if (activeCoverage === "District" && !trimmed.toLowerCase().includes("district")) {
+                    searchQuery = `${trimmed} district`;
+                }
+
+                const params = new URLSearchParams({
+                    q: searchQuery,
+                    format: "json",
+                    addressdetails: "1",
+                    extratags: "1",
+                    limit: "10",
+                    "accept-language": "en",
+                });
+                const response = await fetch(
+                    `https://nominatim.openstreetmap.org/search?${params.toString()}`,
+                    { headers: { "User-Agent": "GoloMerchantApp/1.0" } }
+                );
+                const data = await response.json();
+                const seen = new Set();
+                results = (data || []).map((item) => {
+                    const addr = item.address || {};
+                    const extratags = item.extratags || {};
+                    let mainName = addr.city || addr.town || addr.village || addr.state_district || addr.county || addr.suburb || "";
+                    if (!mainName && item.display_name) {
+                        mainName = getFirstName(item.display_name);
+                    }
+                    const state = addr.state || "";
+                    const country = addr.country || "";
+                    const fullName = [mainName, state, country].filter(Boolean).join(", ") || item.display_name || trimmed;
+                    const firstName = getFirstName(fullName || mainName);
+                    const pop = Number(extratags.population || addr.population || 0);
+                    const rate = calculateDailyRate(pop, activeCoverage);
+
+                    return {
+                        id: String(item.place_id || Math.random()),
+                        label: fullName,
+                        firstName: firstName,
+                        fullName: fullName,
+                        rate: rate,
+                        population: pop,
+                    };
+                }).filter((s) => {
+                    if (!s.firstName || seen.has(s.firstName.toLowerCase())) return false;
+                    seen.add(s.firstName.toLowerCase());
+                    return true;
+                });
+            }
+
+            setLocationSuggestions(results.slice(0, 10));
         } catch (err) {
             console.warn("Location suggestion error:", err);
             setLocationSuggestions([]);
@@ -442,11 +518,43 @@ export default function BannerPage({ navigation, route }) {
         setLocationSuggestions([]);
     }, [locations, coverageType]);
 
-    const handleAddLocation = () => {
+    const fetchLocationRate = useCallback(async (name, type) => {
+        const activeCoverage = type || coverageType;
+        try {
+            if (BASE_URL) {
+                const res = await fetch(
+                    `${BASE_URL}/regions/search?q=${encodeURIComponent(name)}&scale=${encodeURIComponent(activeCoverage)}`
+                );
+                if (res.ok) {
+                    const data = await res.json();
+                    if (Array.isArray(data) && data.length > 0) {
+                        return Number(data[0].dailyRate) || calculateDailyRate(data[0].population, activeCoverage);
+                    }
+                }
+            }
+            const username = "atharvapugade";
+            let url = `http://api.geonames.org/searchJSON?name_equals=${encodeURIComponent(name)}&country=IN&maxRows=1&username=${username}`;
+            if (activeCoverage === "District") {
+                url += "&featureCode=ADM2";
+            } else {
+                url += "&featureClass=P";
+            }
+            const geoRes = await fetch(url);
+            const geoData = await geoRes.json();
+            if (geoData?.geonames?.length > 0) {
+                const pop = Number(geoData.geonames[0].population || 0);
+                return calculateDailyRate(pop, activeCoverage);
+            }
+        } catch (e) {
+            console.warn("Failed to fetch location rate:", e);
+        }
+        return calculateDailyRate(0, activeCoverage);
+    }, [coverageType]);
+
+    const handleAddLocation = async () => {
         const trimmed = locationInputText.trim();
         if (!trimmed) return;
         const firstName = getFirstName(trimmed);
-        const rate = calculateDailyRate(0, coverageType);
 
         if (locations.length >= 7) {
             showAlert("error", "Limit Reached", "You can specify up to 7 locations only.");
@@ -456,6 +564,12 @@ export default function BannerPage({ navigation, route }) {
             showAlert("error", "Duplicate Location", "This location has already been added.");
             return;
         }
+
+        const matchingSuggestion = locationSuggestions.find(
+            (s) => (s.firstName || "").toLowerCase() === firstName.toLowerCase() || (s.label || "").toLowerCase().includes(firstName.toLowerCase())
+        );
+        const rate = matchingSuggestion ? matchingSuggestion.rate : await fetchLocationRate(firstName, coverageType);
+
         setLocations([...locations, { name: firstName, fullName: trimmed, rate }]);
         setLocationInputText("");
         setLocationSuggestions([]);
@@ -880,11 +994,11 @@ export default function BannerPage({ navigation, route }) {
                                         },
                                     ]}
                                     onPress={() => {
-                                        if (!isEditMode) {
+                                        if (!isEditMode && coverageType !== type) {
                                             setCoverageType(type);
-                                            if (locationInputText.trim()) {
-                                                fetchLocationSuggestions(locationInputText, type);
-                                            }
+                                            setLocations([]);
+                                            setLocationInputText("");
+                                            setLocationSuggestions([]);
                                         }
                                     }}
                                     disabled={isEditMode}
@@ -895,7 +1009,7 @@ export default function BannerPage({ navigation, route }) {
                                             { color: active ? "#ffffff" : colors.text },
                                         ]}
                                     >
-                                        {type === "Town" ? "🏡 Town" : type === "City" ? "🏙️ City" : "🏛️ District"}
+                                        {type === "Town" ? "Town" : type === "City" ? "City" : "District"}
                                     </Text>
                                 </TouchableOpacity>
                             );

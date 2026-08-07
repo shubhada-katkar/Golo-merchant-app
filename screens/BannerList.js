@@ -94,20 +94,37 @@ export default function BannerList({ navigation }) {
     }, [navigation]);
 
     const getStatusStyle = (item) => {
-        const normalizedStatus = String(item?.status || "").toLowerCase();
+        const status = String(item?.status || "").toLowerCase();
         const paymentStatus = String(item?.paymentStatus || "").toLowerCase();
 
-        const canPay = normalizedStatus === "approved" && paymentStatus !== "paid";
-        const isActive = normalizedStatus === "active" || paymentStatus === "paid";
-        const isExpired = normalizedStatus === "expired";
+        if (status === "active" || paymentStatus === "paid") {
+            return { label: "Active", bg: "#E3F8EA", text: "#15803D", canPay: false, canEdit: true };
+        }
+        if (status === "approved" && paymentStatus !== "paid") {
+            return { label: "Approved - Pay Now", bg: "#EFF6FF", text: "#1D4ED8", canPay: true, canEdit: true };
+        }
+        if (status === "pending" && paymentStatus !== "paid") {
+            return { label: "Pending Payment", bg: "#FFF7ED", text: "#C2410C", canPay: true, canEdit: true };
+        }
+        if (status === "under_review") {
+            return { label: "Under Review", bg: "#FEF3C7", text: "#B45309", canPay: false, canEdit: true };
+        }
+        if (status === "rejected") {
+            return { label: "Rejected", bg: "#FEE2E2", text: "#DC2626", canPay: false, canEdit: true };
+        }
+        if (status === "expired") {
+            return { label: "Expired", bg: "#F3F4F6", text: "#6B7280", canPay: false, canEdit: false };
+        }
 
-        if (isActive) {
-            return { label: "Active", bg: "#E3F8EA", text: "#15803D", canPay: false };
-        }
-        if (isExpired) {
-            return { label: "Expired", bg: "#F3F4F6", text: "#6B7280", canPay: false };
-        }
-        return { label: null, bg: null, text: null, canPay };
+        // Default fallback if any unhandled status
+        const canPay = paymentStatus !== "paid" && status !== "expired" && status !== "deleted";
+        return {
+            label: status ? status.toUpperCase() : "Pending",
+            bg: "#FFF7ED",
+            text: "#C2410C",
+            canPay: canPay,
+            canEdit: status !== "expired" && status !== "deleted",
+        };
     };
 
     const handlePayNow = async (item) => {
@@ -384,14 +401,14 @@ export default function BannerList({ navigation }) {
                                 <View style={styles.bannerCardTop}>
                                     <View style={[styles.bannerThumb, { backgroundColor: colors.divider }]}>
                                         {item?.imageUrl ? (
-                                            <Image source={{ uri: item.imageUrl }} style={{ width: "100%", height: "100%", borderRadius: 8 }} />
+                                            <Image source={{ uri: item.imageUrl }} style={{ width: "100%", height: "100%", borderRadius: 8 }} resizeMode="cover" />
                                         ) : (
                                             <Feather name="image" size={20} color={colors.subtext} />
                                         )}
                                     </View>
-                                    <View style={{ flex: 1, marginLeft: 10 }}>
-                                        <Text style={{ ...textPresets.body }}>{item?.bannerTitle || "Banner"}</Text>
-                                        <Text style={{ ...textPresets.caption }}>{item?.bannerCategory || "General"}</Text>
+                                    <View style={{ flex: 1, marginLeft: 10, marginRight: 6 }}>
+                                        <Text style={{ ...textPresets.body }} numberOfLines={1}>{item?.bannerTitle || "Banner Promotion"}</Text>
+                                        <Text style={{ ...textPresets.caption, color: colors.subtext }}>{item?.bannerCategory || "General"}</Text>
                                     </View>
                                     {statusStyle.label ? (
                                         <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
@@ -402,14 +419,34 @@ export default function BannerList({ navigation }) {
 
                                 <View style={[styles.divider, { backgroundColor: colors.divider }]} />
 
+                                {item?.coverageType ? (
+                                    <View style={styles.bannerDetailRow}>
+                                        <Text style={styles.detailLabel}>Coverage Area</Text>
+                                        <Text style={styles.detailValue}>{item.coverageType}</Text>
+                                    </View>
+                                ) : null}
+
+                                {Array.isArray(item?.targetCities) && item.targetCities.length > 0 ? (
+                                    <View style={styles.bannerDetailRow}>
+                                        <Text style={styles.detailLabel}>Target Locations</Text>
+                                        <Text style={[styles.detailValue, { flex: 1, textAlign: "right", marginLeft: 12 }]} numberOfLines={1}>
+                                            {item.targetCities.join(", ")}
+                                        </Text>
+                                    </View>
+                                ) : null}
+
                                 <View style={styles.bannerDetailRow}>
                                     <Text style={styles.detailLabel}>Posted Date</Text>
-                                    <Text style={styles.detailValue}>{item?.createdAt ? new Date(item.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "-"}</Text>
+                                    <Text style={styles.detailValue}>
+                                        {item?.createdAt ? new Date(item.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "-"}
+                                    </Text>
                                 </View>
 
                                 <View style={styles.bannerDetailRow}>
                                     <Text style={styles.detailLabel}>Payable Amount</Text>
-                                    <Text style={[styles.detailValue, { color: "#157a4f" }]}>Rs. {item?.totalPrice || 0}</Text>
+                                    <Text style={[styles.detailValue, { color: colors.success || "#157a4f" }]}>
+                                        Rs. {item?.totalPrice || 0}
+                                    </Text>
                                 </View>
 
                                 {statusStyle.canPay ? (
@@ -422,7 +459,7 @@ export default function BannerList({ navigation }) {
                                             {isThisPaying && !isRazorpayProcessing ? (
                                                 <ActivityIndicator size="small" color="#fff" />
                                             ) : (
-                                                <Text style={{ ...textPresets.body, lineHeight: Math.round(14 * 1.5) }}>Pay Now</Text>
+                                                <Text style={styles.payBtnText}>Pay Now</Text>
                                             )}
                                         </TouchableOpacity>
 
@@ -434,22 +471,19 @@ export default function BannerList({ navigation }) {
                                             {isThisPaying && isRazorpayProcessing ? (
                                                 <ActivityIndicator size="small" color="#fff" />
                                             ) : (
-                                                <>
-                                                    {/* <Ionicons name="card-outline" size={16} color="#ffffff" style={{ marginRight: 6 }} /> */}
-                                                    <Text style={styles.razorpayBtnText}>Pay through Razorpay</Text>
-                                                </>
+                                                <Text style={styles.razorpayBtnText}>Pay through Razorpay</Text>
                                             )}
                                         </TouchableOpacity>
                                     </View>
                                 ) : null}
 
-                                {String(item?.status || "").toLowerCase() === "active" || String(item?.paymentStatus || "").toLowerCase() === "paid" ? (
+                                {statusStyle.canEdit ? (
                                     <TouchableOpacity
-                                        style={[styles.editBtn, { marginTop: 10 }]}
+                                        style={[styles.editBtn, { marginTop: statusStyle.canPay ? 8 : 10 }]}
                                         onPress={() => navigation.navigate("BannerPage", { editData: item })}
                                     >
-                                        <Feather name="edit-2" size={14} color="#fff" />
-                                        <Text style={{ color: "#fff", marginLeft: 4, ...textPresets.body, lineHeight: Math.round(14 * 1.5) }}>Edit</Text>
+                                        <Feather name="edit-2" size={14} color="#157a4f" />
+                                        <Text style={styles.editBtnText}>Edit Banner</Text>
                                     </TouchableOpacity>
                                 ) : null}
                             </View>
@@ -532,9 +566,11 @@ const styles = StyleSheet.create({
     loaderBox: { alignItems: "center", justifyContent: "center", paddingVertical: 24 },
     emptyBox: { alignItems: "center", justifyContent: "center", paddingVertical: 24 },
     paybtn: { flexDirection: "row", alignItems: "center", paddingVertical: 8, borderRadius: 12, backgroundColor: "#f5b849", justifyContent: "center" },
+    payBtnText: { color: "#fff", ...textPresets.label },
     razorpayBtn: { flexDirection: "row", alignItems: "center", paddingVertical: 8, borderRadius: 12, backgroundColor: "#157a4f", justifyContent: "center" },
-    razorpayBtnText: { color: "#fff", ...textPresets.body, lineHeight: Math.round(14 * 1.5) },
-    editBtn: { flex: 1, flexDirection: "row", alignItems: "center", paddingVertical: 8, borderRadius: 12, backgroundColor: "#157a4f", justifyContent: "center" },
+    razorpayBtnText: { color: "#fff", ...textPresets.label },
+    editBtn: { flexDirection: "row", alignItems: "center", paddingVertical: 8, borderRadius: 12, borderWidth: 1.5, borderColor: "#157a4f", backgroundColor: "#f0fdf4", justifyContent: "center" },
+    editBtnText: { color: "#157a4f", marginLeft: 6, ...textPresets.label },
     razorpayHeader: {
         flexDirection: "row",
         alignItems: "center",
