@@ -187,7 +187,7 @@ export default function ProductListPage({ navigation }) {
 
         try {
           if (savedIdsRaw) savedIds = JSON.parse(savedIdsRaw);
-        } catch (e) {}
+        } catch (e) { }
 
         const isAlreadySelected = savedCycle === cycleId && Array.isArray(savedIds);
         setHasConfiguredActiveProducts(isAlreadySelected);

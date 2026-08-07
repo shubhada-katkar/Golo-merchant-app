@@ -75,18 +75,42 @@ export default function Dropdown({ BASE_URL, token, onChange, value: parentValue
             const rawList = Array.isArray(data)
                 ? data
                 : data?.products || data?.data?.products || data?.data || [];
-            const list = rawList.filter((item) => {
+
+            let list = rawList.filter((item) => {
                 const publicationStatus = String(item?.publicationStatus || "").toLowerCase();
-                if (publicationStatus) return publicationStatus === "published";
+                if (publicationStatus && publicationStatus !== "published") return false;
                 const status = String(item?.status || "").toLowerCase();
-                if (status) {
-                    return status !== "draft" && status !== "inactive";
-                }
+                if (status && (status === "draft" || status === "inactive")) return false;
                 return true;
             });
+
+            // Filter strictly against stored active products configuration
+            if (merchantId) {
+                try {
+                    const storageKey = `active_products_selected_${merchantId}`;
+                    const idsKey = `active_product_ids_${merchantId}`;
+                    const savedCycle = await AsyncStorage.getItem(storageKey);
+                    const savedIdsRaw = await AsyncStorage.getItem(idsKey);
+
+                    let savedIds = null;
+                    if (savedIdsRaw) savedIds = JSON.parse(savedIdsRaw);
+
+                    if (Array.isArray(savedIds) && savedIds.length > 0) {
+                        list = list.filter((p) => savedIds.includes(p._id || p.id || p.productId));
+                    } else {
+                        // Fallback: if not confirmed yet, take products marked isActive !== false
+                        list = list.filter((p) => p.isActive !== false);
+                    }
+                } catch (filterErr) {
+                    console.log("Error filtering dropdown active products:", filterErr);
+                }
+            } else {
+                list = list.filter((p) => p.isActive !== false);
+            }
+
             const formatted = list.map(p => ({
                 label: p.productname || p.name || p.productName || "Product",
-                value: p._id || p.id
+                value: p._id || p.id || p.productId
             }));
 
             setItems(formatted);

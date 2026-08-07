@@ -227,6 +227,9 @@ export default function AddOfferPage({ navigation, route }) {
     const [warningModalVisible, setWarningModalVisible] = useState(false);
     const [warningModalMessage, setWarningModalMessage] = useState("");
     const [upgradeModalVisible, setUpgradeModalVisible] = useState(false);
+    const [confirmActiveModalVisible, setConfirmActiveModalVisible] = useState(false);
+    const [confirmModalPlanName, setConfirmModalPlanName] = useState("");
+    const [confirmModalMaxProducts, setConfirmModalMaxProducts] = useState(1);
     const [currentPlanName, setCurrentPlanName] = useState("");
     const [offerLimit, setOfferLimit] = useState(0);
 
@@ -762,10 +765,36 @@ export default function AddOfferPage({ navigation, route }) {
                     if (subRes.ok) {
                         const subData = await subRes.json();
                         const maxMonthlyOffers = subData?.planFeatures?.maxMonthlyOffers ?? 2;
+                        const maxProducts = subData?.planFeatures?.maxProducts ?? -1;
                         const planName = subData?.name || "Free Tier";
+                        const cycleToken = subData?.startedAt || subData?.expiresAt || subData?.assignedAt || "";
+                        const cycleId = `${planName}_${cycleToken}`;
 
                         setCurrentPlanName(planName);
                         setOfferLimit(maxMonthlyOffers);
+
+                        // Check active products confirmation for plan cycle
+                        if (maxProducts > 0 && maxProducts !== -1) {
+                            const storageKey = `active_products_selected_${storedMerchantId}`;
+                            const idsKey = `active_product_ids_${storedMerchantId}`;
+                            const savedCycle = await AsyncStorage.getItem(storageKey);
+                            const savedIdsRaw = await AsyncStorage.getItem(idsKey);
+
+                            let savedIds = null;
+                            if (savedIdsRaw) {
+                                try { savedIds = JSON.parse(savedIdsRaw); } catch (e) { }
+                            }
+
+                            const isConfirmed = (savedCycle === cycleId) && Array.isArray(savedIds);
+                            const totalProducts = Array.isArray(merchantProducts) ? merchantProducts.length : 0;
+
+                            if (!isConfirmed && totalProducts > maxProducts) {
+                                setConfirmModalPlanName(planName);
+                                setConfirmModalMaxProducts(maxProducts);
+                                setConfirmActiveModalVisible(true);
+                                return;
+                            }
+                        }
 
                         if (maxMonthlyOffers !== -1) {
                             const resOffers = await fetch(`${BASE_URL}/offers/my?page=1&limit=100`, {
@@ -1718,6 +1747,55 @@ export default function AddOfferPage({ navigation, route }) {
                             >
                                 <Text style={styles.upgradeModalPrimaryButtonText}>Upgrade Plan</Text>
                                 <Feather name="arrow-right" size={18} color="#fff" />
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Confirm Active Products Required Modal */}
+            <Modal
+                visible={confirmActiveModalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setConfirmActiveModalVisible(false)}
+                statusBarTranslucent
+            >
+                <View style={styles.upgradeModalOverlay}>
+                    <View style={styles.upgradeModalCard}>
+                        <TouchableOpacity
+                            style={styles.upgradeModalCloseButton}
+                            onPress={() => setConfirmActiveModalVisible(false)}
+                        >
+                            <Feather name="x" size={20} color="#9ca3af" />
+                        </TouchableOpacity>
+
+                        <View style={[styles.upgradeModalIconCircle, { backgroundColor: "#e6f4ea" }]}>
+                            <MaterialCommunityIcons name="tag-check-outline" size={32} color="#157a4f" />
+                        </View>
+
+                        <Text style={styles.upgradeModalTitle}>Confirm Active Products First</Text>
+
+                        <Text style={styles.upgradeModalDescription}>
+                            Under your <Text style={{ color: "#157a4f" }}>{confirmModalPlanName || "Subscription Plan"}</Text> ({confirmModalMaxProducts} active product limit), please select and confirm your active products on the Product List page before creating an offer.
+                        </Text>
+
+                        <View style={styles.upgradeModalActionsRow}>
+                            <TouchableOpacity
+                                style={styles.upgradeModalSecondaryButton}
+                                onPress={() => setConfirmActiveModalVisible(false)}
+                            >
+                                <Text style={styles.upgradeModalSecondaryButtonText}>Cancel</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.upgradeModalPrimaryButton}
+                                onPress={() => {
+                                    setConfirmActiveModalVisible(false);
+                                    navigation.navigate("ProductListPage");
+                                }}
+                            >
+                                <Text style={styles.upgradeModalPrimaryButtonText}>Go to Product List</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
