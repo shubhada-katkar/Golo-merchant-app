@@ -672,9 +672,20 @@ export default function BannerPage({ navigation, route }) {
         setSelectedDates((prev) => prev.filter((d) => d !== key));
     }, []);
 
+    const getLocationRate = useCallback((loc, type) => {
+        const activeType = type || coverageType;
+        if (typeof loc === "object" && loc) {
+            if (loc.population && Number(loc.population) > 0) {
+                return calculateDailyRate(loc.population, activeType);
+            }
+            if (loc.rate) return loc.rate;
+        }
+        return calculateDailyRate(0, activeType);
+    }, [coverageType]);
+
     const selectedDaysCount = selectedDates.length;
     const totalDailyRate = locations.length > 0
-        ? locations.reduce((sum, loc) => sum + (typeof loc === "object" && loc.rate ? loc.rate : calculateDailyRate(0, coverageType)), 0)
+        ? locations.reduce((sum, loc) => sum + getLocationRate(loc, coverageType), 0)
         : calculateDailyRate(0, coverageType);
 
     const subtotal = totalDailyRate * selectedDaysCount;
@@ -996,7 +1007,6 @@ export default function BannerPage({ navigation, route }) {
                                     onPress={() => {
                                         if (!isEditMode && coverageType !== type) {
                                             setCoverageType(type);
-                                            setLocations([]);
                                             setLocationInputText("");
                                             setLocationSuggestions([]);
                                         }
@@ -1033,7 +1043,7 @@ export default function BannerPage({ navigation, route }) {
                                             marginBottom: 0,
                                         }
                                     ]}
-                                    placeholder={`Search ${coverageType.toLowerCase()} (e.g. Kolhapur)`}
+                                    placeholder={`Search ${coverageType.toLowerCase()}`}
                                     placeholderTextColor={colors.subtext}
                                     value={locationInputText}
                                     onChangeText={handleLocationInputChange}
@@ -1088,7 +1098,7 @@ export default function BannerPage({ navigation, route }) {
                         <View style={[styles.chipsWrap, { marginTop: 10 }]}>
                             {locations.map((loc, idx) => {
                                 const name = typeof loc === "string" ? loc : loc.name;
-                                const rate = typeof loc === "object" && loc.rate ? loc.rate : calculateDailyRate(0, coverageType);
+                                const rate = getLocationRate(loc, coverageType);
                                 return (
                                     <View key={idx} style={[styles.chip, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}>
                                         <Feather name="map-pin" size={12} color={colors.success || "#157a4f"} style={{ marginRight: 4 }} />
@@ -1228,7 +1238,7 @@ export default function BannerPage({ navigation, route }) {
                             </Text>
                             {locations.map((loc, index) => {
                                 const name = typeof loc === "string" ? loc : loc.name;
-                                const rate = typeof loc === "object" && loc.rate ? loc.rate : calculateDailyRate(0, coverageType);
+                                const rate = getLocationRate(loc, coverageType);
                                 return (
                                     <View key={index} style={[styles.priceRow, { paddingLeft: 8, paddingVertical: 2 }]}>
                                         <Text style={styles.priceLabel}>• {name}</Text>

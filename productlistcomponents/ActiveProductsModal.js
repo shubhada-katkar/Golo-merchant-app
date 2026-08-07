@@ -114,7 +114,7 @@ export default function ActiveProductsModal({
             <View style={styles.headerTitleRow}>
               <View style={styles.badge}>
                 <Ionicons name="sparkles" size={14} color="#157a4f" />
-                <Text style={styles.badgeText}>{planName}</Text>
+                <Text style={styles.badgeText}>Active Plan: {planName}</Text>
               </View>
               <TouchableOpacity onPress={onSkip} style={styles.closeBtn}>
                 <Feather name="x" size={20} color={colors.text || "#333"} />
@@ -184,9 +184,9 @@ export default function ActiveProductsModal({
                   style={[
                     styles.itemCard,
                     {
-                      backgroundColor: isDark ? "#333333" : "#ffffff",
-                      borderColor: isSelected ? "#157a4f" : isDark ? "#444" : "#e5e7eb",
-                      borderWidth: isSelected ? 2 : 1,
+                      backgroundColor: "#ffffff",
+                      borderColor: isSelected ? "#157a4f" : "#444",
+                      borderWidth: isSelected ? 1.5 : 1,
                     },
                   ]}
                 >
@@ -314,7 +314,6 @@ const styles = StyleSheet.create({
     ...textPresets.caption
   },
   highlight: {
-    fontWeight: "700",
     color: "#157a4f",
   },
   counterRow: {
@@ -365,8 +364,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   itemImage: {
-    width: 52,
-    height: 52,
+    width: 58,
+    height: 58,
     borderRadius: 8,
     marginRight: 12,
   },
@@ -384,7 +383,7 @@ const styles = StyleSheet.create({
   },
   itemPrice: {
     color: "#157a4f",
-    ...textPresets.label
+    ...textPresets.caption
   },
   checkboxContainer: {
     paddingLeft: 10,
@@ -414,8 +413,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   skipBtnText: {
-    ...textPresets.body,
-    lineHeight: Math.round(14 * 1.5)
+    ...textPresets.label
   },
   saveBtn: {
     flex: 1.5,
@@ -426,7 +424,6 @@ const styles = StyleSheet.create({
   },
   saveBtnText: {
     color: "#ffffff",
-    ...textPresets.body,
-    lineHeight: Math.round(14 * 1.5)
+    ...textPresets.label,
   },
 });
