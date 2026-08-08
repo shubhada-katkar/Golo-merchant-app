@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import * as SplashScreen from "expo-splash-screen";
-import { NavigationContainer } from "@react-navigation/native";
+import { NavigationContainer, createNavigationContainerRef } from "@react-navigation/native";
+import * as Notifications from "expo-notifications";
 import { createStackNavigator, CardStyleInterpolators } from "@react-navigation/stack";
 import { ThemeProvider } from "./theme/ThemeContext";
 import HomePage from './screens/HomePage';
@@ -33,9 +34,11 @@ import {
   Poppins_700Bold,
   useFonts,
 } from "@expo-google-fonts/poppins";
-import { startMerchantNotificationPolling, stopMerchantNotificationPolling } from "./services/notificationService";
+import { startMerchantNotificationPolling, stopMerchantNotificationPolling, registerMerchantPushToken } from "./services/notificationService";
 
 SplashScreen.preventAutoHideAsync();
+
+export const navigationRef = createNavigationContainerRef();
 
 const Stack = createStackNavigator();
 
@@ -56,9 +59,22 @@ export default function App() {
 
   useEffect(() => {
     startMerchantNotificationPolling();
+    void registerMerchantPushToken();
+
+    const responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response?.notification?.request?.content?.data;
+      if (navigationRef.isReady()) {
+        if (data?.orderId) {
+          navigationRef.navigate("OrderDetailPage", { orderId: data.orderId });
+        } else {
+          navigationRef.navigate("NotificationsPage");
+        }
+      }
+    });
 
     return () => {
       stopMerchantNotificationPolling();
+      responseSubscription.remove();
     };
   }, []);
 
@@ -67,7 +83,7 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      <NavigationContainer>
+      <NavigationContainer ref={navigationRef}>
         <Stack.Navigator
           initialRouteName="AuthLoading"
           screenOptions={{

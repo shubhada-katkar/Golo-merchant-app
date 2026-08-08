@@ -44,17 +44,26 @@ async function ensureNotificationPermission() {
       lightColor: "#157a4f",
       sound: "default",
     });
+    await Notifications.setNotificationChannelAsync("default", {
+      name: "Default Notifications",
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      sound: "default",
+    });
   }
 
   return true;
 }
 
-async function registerPushTokenWithBackend() {
-  if (pushTokenRegistered) {
+export async function registerMerchantPushToken(force = false) {
+  if (pushTokenRegistered && !force) {
     return;
   }
 
   try {
+    const permissionGranted = await ensureNotificationPermission();
+    if (!permissionGranted) return;
+
     const token = await Notifications.getExpoPushTokenAsync();
     const expoToken = token?.data;
 
@@ -219,7 +228,7 @@ export async function startMerchantNotificationPolling() {
 
   const permissionGranted = await ensureNotificationPermission();
   if (permissionGranted) {
-    await registerPushTokenWithBackend();
+    await registerMerchantPushToken();
   }
   await pollMerchantNotifications();
 
