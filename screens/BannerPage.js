@@ -1126,11 +1126,17 @@ export default function BannerPage({ navigation, route }) {
 
                     <Text style={[styles.label, { color: colors.subtext, marginTop: 18 }]}>UPLOAD BANNER</Text>
                     <TouchableOpacity
-                        style={[styles.uploadBox, { borderColor: colors.border }]}
+                        style={[styles.uploadBox, { borderColor: colors.border }, bannerImage && { paddingVertical: 0, paddingHorizontal: 0 }]}
                         onPress={handlePickImage}
                         activeOpacity={0.7} >
                         {bannerImage ? (
-                            <Image source={{ uri: bannerImage }} style={styles.previewImage} resizeMode="cover" />
+                            <View style={{ width: "100%", position: "relative" }}>
+                                <Image source={{ uri: bannerImage }} style={styles.previewImage} resizeMode="cover" />
+                                <View style={styles.bannerEditStrip}>
+                                    <Feather name="edit-2" size={14} color="#fff" style={{ marginRight: 6 }} />
+                                    <Text style={styles.bannerEditStripText}>Tap to edit</Text>
+                                </View>
+                            </View>
                         ) : (
                             <>
                                 <View style={[styles.uploadIconCircle, { backgroundColor: colors.successLight || "#e3f3ea" }]}>
@@ -1605,7 +1611,7 @@ const styles = StyleSheet.create({
     },
     previewImage: {
         width: "100%",
-        height: 140,
+        height: 180,
         borderRadius: 10,
     },
     datesHeaderRow: {
@@ -1850,5 +1856,22 @@ const styles = StyleSheet.create({
     flaggedButtonText: {
         color: "#fff",
         ...textPresets.body,
+    },
+    bannerEditStrip: {
+        position: "absolute",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: "rgba(0, 0, 0, 0.45)",
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: 8,
+        borderBottomLeftRadius: 10,
+        borderBottomRightRadius: 10,
+    },
+    bannerEditStripText: {
+        color: "#fff",
+        ...textPresets.label,
     },
 });

@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from "react";
+import React, { useContext, useState, useEffect, useCallback } from "react";
 import {
     View, StyleSheet, Text, Switch, TouchableOpacity,
     TextInput, ScrollView, TouchableWithoutFeedback, KeyboardAvoidingView,
@@ -383,7 +383,22 @@ export default function AddOfferPage({ navigation, route }) {
         return () => clearInterval(interval);
     }, [restrictionUntil]);
 
-    // Prefill form if editing
+    const clearAllFields = useCallback(() => {
+        setTitle("");
+        setOfferType("");
+        setFromDate(null);
+        setToDate(null);
+        setIsDarkMode(false);
+        setStars("");
+        setTerms("");
+        setSelectedIds([]);
+        setSelectedProducts([]);
+        setBannerImage(null);
+        setOfferVideo(null);
+        setShowOffers(false);
+    }, []);
+
+    // Prefill form if editing or reset if creating new offer
     useEffect(() => {
         const loadMerchantProfile = async () => {
             try {
@@ -435,8 +450,10 @@ export default function AddOfferPage({ navigation, route }) {
             );
             setBannerImage(offerData.bannerUrl || offerData.imageUrl || null);
             setOfferVideo(offerData.videoUrl || null);
+        } else {
+            clearAllFields();
         }
-    }, [offerData]);
+    }, [offerData, route.params?.resetKey, clearAllFields]);
 
     // Fetch all merchant products on page load
     useEffect(() => {
@@ -566,19 +583,7 @@ export default function AddOfferPage({ navigation, route }) {
         return diffDays;
     };
 
-    const clearAllFields = () => {
-        setTitle("");
-        setOfferType("");
-        setFromDate(null);
-        setToDate(null);
-        setIsDarkMode(false);
-        setStars("");
-        setTerms("");
-        setSelectedIds([]);
-        setSelectedProducts([]);
-        setBannerImage(null);
-        setOfferVideo(null);
-    };
+
 
     const pickBannerImage = async () => {
         if (restrictionUntil && restrictionUntil > new Date()) {
@@ -721,6 +726,10 @@ export default function AddOfferPage({ navigation, route }) {
     };
 
     const onChange = (event, selectedDate) => {
+        if (offerData) {
+            setShowPicker(false);
+            return;
+        }
         if (event.type === "dismissed") {
             setShowPicker(false);
             return;
@@ -1342,30 +1351,37 @@ export default function AddOfferPage({ navigation, route }) {
                         <Text style={[styles.text, { color: colors.text }]}>Offer Validity</Text>
                         <View style={{ flexDirection: "row", gap: 10 }}>
                             <TouchableOpacity
-                                style={styles.dateCard}
-                                onPress={() => { setActiveField("from"); setShowPicker(true); }}
+                                style={[styles.dateCard, offerData && { opacity: 0.6, backgroundColor: "#f2f2f2" }]}
+                                onPress={() => { if (offerData) return; setActiveField("from"); setShowPicker(true); }}
+                                disabled={Boolean(offerData)}
                             >
-                                <Ionicons name="calendar-outline" size={20} color="#157a4f" />
+                                <Ionicons name="calendar-outline" size={20} color={offerData ? "#888" : "#157a4f"} />
                                 <View style={{ marginLeft: 8 }}>
                                     <Text style={styles.dateLabel}>STARTS</Text>
-                                    <Text style={styles.dateValue}>
+                                    <Text style={[styles.dateValue, offerData && { color: colors.subtext || "#888" }]}>
                                         {fromDate ? fromDate.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "Select date"}
                                     </Text>
                                 </View>
                             </TouchableOpacity>
                             <TouchableOpacity
-                                style={styles.dateCard}
-                                onPress={() => { setActiveField("to"); setShowPicker(true); }}
+                                style={[styles.dateCard, offerData && { opacity: 0.6, backgroundColor: "#f2f2f2" }]}
+                                onPress={() => { if (offerData) return; setActiveField("to"); setShowPicker(true); }}
+                                disabled={Boolean(offerData)}
                             >
-                                <Ionicons name="calendar-outline" size={20} color="#157a4f" />
+                                <Ionicons name="calendar-outline" size={20} color={offerData ? "#888" : "#157a4f"} />
                                 <View style={{ marginLeft: 8 }}>
                                     <Text style={styles.dateLabel}>ENDS</Text>
-                                    <Text style={styles.dateValue}>
+                                    <Text style={[styles.dateValue, offerData && { color: colors.subtext || "#888" }]}>
                                         {toDate ? toDate.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "Select date"}
                                     </Text>
                                 </View>
                             </TouchableOpacity>
                         </View>
+                        {offerData && (
+                            <Text style={{ color: colors.subtext || "#6b7280", marginTop: 6, ...textPresets.caption }}>
+                                * Validity dates cannot be modified after offer creation.
+                            </Text>
+                        )}
 
                         {fromDate && toDate && (
                             <View style={styles.validitySummary}>
