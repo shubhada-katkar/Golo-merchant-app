@@ -150,25 +150,33 @@ export const enrichOrderDetails = async (order, token) => {
   // Ensure voucherId is properly set (in case it's only stored under different field names)
   if (!enrichedOrder.voucherId) {
     // Try alternative field names that might contain the voucher ID
-    enrichedOrder.voucherId = order?.voucher?.voucherId || 
-                              order?.voucher?._id || 
-                              order?.voucher?.id ||
-                              order?.voucherId;
+    enrichedOrder.voucherId = order?.voucher?.voucherId ||
+      order?.voucher?._id ||
+      order?.voucher?.id ||
+      order?.voucherId;
   }
 
   // Fetch voucher details if voucherId exists
-  if (enrichedOrder.voucherId && !enrichedOrder.offerTitle) {
+  if (enrichedOrder.voucherId) {
     const voucherDetails = await fetchVoucherDetails(enrichedOrder.voucherId, token);
     if (voucherDetails) {
-      enrichedOrder.offerTitle = voucherDetails.offerTitle || voucherDetails.offer?.title;
-      enrichedOrder.merchantName = voucherDetails.merchantName;
-      enrichedOrder.discount = voucherDetails.discount;
-      // Ensure voucherId is set from fetched details
+      if (!enrichedOrder.offerTitle) {
+        enrichedOrder.offerTitle = voucherDetails.offerTitle || voucherDetails.offer?.title;
+      }
+      enrichedOrder.merchantName = voucherDetails.merchantName || enrichedOrder.merchantName;
+      enrichedOrder.discount = voucherDetails.discount || enrichedOrder.discount;
       enrichedOrder.voucherId = voucherDetails.voucherId || enrichedOrder.voucherId;
       enrichedOrder.voucher = enrichedOrder.voucher || voucherDetails;
-      // If voucher details include the claimant userId, copy it so we can fetch customer profile
-      if (!enrichedOrder.userId && (voucherDetails.userId || voucherDetails.user?._id || voucherDetails.user?._id)) {
-        enrichedOrder.userId = String(voucherDetails.userId || voucherDetails.user?._id || voucherDetails.user?._id);
+
+      const isVoucherRedeemed =
+        String(voucherDetails.status || "").toLowerCase() === "redeemed" ||
+        Boolean(voucherDetails.redeemedAt);
+      if (isVoucherRedeemed) {
+        enrichedOrder.status = "completed";
+      }
+
+      if (!enrichedOrder.userId && (voucherDetails.userId || voucherDetails.user?._id)) {
+        enrichedOrder.userId = String(voucherDetails.userId || voucherDetails.user?._id);
       }
       console.log('[enrichOrderDetails] Enriched order with voucher:', enrichedOrder.voucherId);
     } else {
@@ -194,9 +202,16 @@ export const enrichOrderDetails = async (order, token) => {
         matchedVoucher.offer?.title;
       enrichedOrder.voucherId = enrichedOrder.voucherId || matchedVoucher.voucherId || matchedVoucher._id;
       enrichedOrder.voucher = matchedVoucher;
-      // If the matched merchant voucher contains the claimant user id, copy it for customer lookup
-      if (!enrichedOrder.userId && (matchedVoucher.userId || matchedVoucher.user?._id || matchedVoucher.user?._id)) {
-        enrichedOrder.userId = String(matchedVoucher.userId || matchedVoucher.user?._id || matchedVoucher.user?._id);
+
+      const isVoucherRedeemed =
+        String(matchedVoucher.status || "").toLowerCase() === "redeemed" ||
+        Boolean(matchedVoucher.redeemedAt);
+      if (isVoucherRedeemed) {
+        enrichedOrder.status = "completed";
+      }
+
+      if (!enrichedOrder.userId && (matchedVoucher.userId || matchedVoucher.user?._id)) {
+        enrichedOrder.userId = String(matchedVoucher.userId || matchedVoucher.user?._id);
       }
       console.log('[enrichOrderDetails] Matched order to merchant voucher for offer title:', enrichedOrder.voucherId);
     }

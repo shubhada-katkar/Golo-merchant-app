@@ -110,20 +110,39 @@ export default function Orders() {
         [orders]
     );
     const totalCount = orders.length;
+    const isOrderCompleted = (o) => {
+        const orderStatus = String(o?.status || "").toLowerCase();
+        const voucherStatus = String(o?.voucher?.status || "").toLowerCase();
+        return (
+            ["completed", "redeemed"].includes(orderStatus) ||
+            voucherStatus === "redeemed" ||
+            Boolean(o?.redeemedAt || o?.voucher?.redeemedAt)
+        );
+    };
+
     const completedOrders = useMemo(
-        () => orders.filter((o) => ["completed"].includes(String(o?.status || "").toLowerCase())),
+        () => orders.filter((o) => isOrderCompleted(o)),
         [orders]
     );
     const acceptedOrders = useMemo(
-        () => orders.filter((o) => ["accepted"].includes(String(o?.status || "").toLowerCase())),
+        () => orders.filter((o) => {
+            const orderStatus = String(o?.status || "").toLowerCase();
+            return (orderStatus === "accepted" || orderStatus === "approved") && !isOrderCompleted(o);
+        }),
         [orders]
     );
     const pendingOrders = useMemo(
-        () => orders.filter((o) => ["pending", "new", "claimed"].includes(String(o?.status || "").toLowerCase())),
+        () => orders.filter((o) => {
+            const orderStatus = String(o?.status || "").toLowerCase();
+            return ["pending", "new", "claimed"].includes(orderStatus) && !isOrderCompleted(o);
+        }),
         [orders]
     );
     const rejectedOrders = useMemo(
-        () => orders.filter((o) => ["rejected"].includes(String(o?.status || "").toLowerCase())),
+        () => orders.filter((o) => {
+            const orderStatus = String(o?.status || "").toLowerCase();
+            return orderStatus === "rejected" && !isOrderCompleted(o);
+        }),
         [orders]
     );
 

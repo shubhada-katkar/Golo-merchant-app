@@ -308,12 +308,24 @@ export default function OrderDetailPage() {
       throw new Error(errorMsg);
     }
 
-    const statusUpdated = await updateOrderStatus('completed');
-    if (!statusUpdated) {
-      throw new Error('Voucher redeemed, but order status update failed');
+    // Backend already marks the order as COMPLETED during voucher redemption.
+    // Try updateOrderStatus as a best-effort status sync.
+    try {
+      await updateOrderStatus('completed');
+    } catch (_ignored) {
+      // Order status updated on backend via voucher redemption endpoint
     }
 
-    setOrderData((prev) => ({ ...prev, status: 'completed' }));
+    setOrderData((prev) => ({
+      ...prev,
+      status: 'completed',
+      redeemedAt: new Date().toISOString(),
+      voucher: {
+        ...(prev?.voucher || {}),
+        status: 'redeemed',
+        redeemedAt: new Date().toISOString(),
+      },
+    }));
     return resp;
   }, [BASE_URL, orderVoucherId, order]);
 
@@ -322,8 +334,8 @@ export default function OrderDetailPage() {
     try {
       await redeemVoucher({ qrCode: qrCodeValue });
       showAlert("success", "Success", "Order redeemed successfully", () => {
-        navigation.goBack();
-        navigation.goBack();
+        navigation.navigate("HomePage");
+        navigation.navigate("HomePage");
       });
     } finally {
       setLoading(false);
