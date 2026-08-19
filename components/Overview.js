@@ -5,7 +5,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { ThemeContext } from "../theme/ThemeContext";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { BASE_URL } from "../config";
-import { enrichOrderDetails } from "../services/orderService";
+import { enrichOrderDetails, enrichOrdersList } from "../services/orderService";
 import { getValidToken, handleAuthError } from "../services/authService";
 import { textPresets } from '../theme/typography';
 
@@ -244,9 +244,7 @@ export default function Overview() {
                     let data = await res.json();
                     const list = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : data?.orders || [];
                     const slicedOrders = list.slice(0, 2);
-                    const enrichedOrders = await Promise.all(
-                        slicedOrders.map((order) => enrichOrderDetails(order, token).catch(() => order))
-                    );
+                    const enrichedOrders = await enrichOrdersList(slicedOrders, token);
                     if (active) setRecentOrders(enrichedOrders);
                 } catch (error) {
                     console.log("Overview recent orders fetch error:", error);

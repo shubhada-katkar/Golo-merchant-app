@@ -217,6 +217,22 @@ export default function ProductListPage({ navigation }) {
             }
           }
           setProducts(updatedList);
+        } else if (maxProducts === -1) {
+          if (isAlreadySelected && savedIds) {
+            updatedList = normalizedProductsList.map((p) => {
+              const id = p.productId || p._id;
+              return {
+                ...p,
+                isActive: savedIds.includes(id),
+              };
+            });
+          } else {
+            updatedList = normalizedProductsList.map((p) => ({
+              ...p,
+              isActive: true,
+            }));
+          }
+          setProducts(updatedList);
         }
       }
     } catch (err) {

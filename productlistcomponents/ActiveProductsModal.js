@@ -49,12 +49,19 @@ export default function ActiveProductsModal({
       const currentlyActive = products.filter((p) => p.isActive !== false);
       let initialIds = currentlyActive.map(getProductId);
 
-      // If active count exceeds max, take first maxProducts
-      if (initialIds.length > maxProducts) {
-        initialIds = initialIds.slice(0, maxProducts);
-      } else if (initialIds.length === 0 && products.length > 0 && maxProducts > 0) {
-        // If none are active, preselect first maxProducts items
-        initialIds = products.slice(0, maxProducts).map(getProductId);
+      if (maxProducts !== -1 && maxProducts > 0) {
+        // If active count exceeds max, take first maxProducts
+        if (initialIds.length > maxProducts) {
+          initialIds = initialIds.slice(0, maxProducts);
+        } else if (initialIds.length === 0 && products.length > 0) {
+          // If none are active, preselect first maxProducts items
+          initialIds = products.slice(0, maxProducts).map(getProductId);
+        }
+      } else if (maxProducts === -1) {
+        // For unlimited plan (-1), if currently active list is empty, preselect all products
+        if (initialIds.length === 0 && products.length > 0) {
+          initialIds = products.map(getProductId);
+        }
       }
 
       setSelectedIds(initialIds);
@@ -66,7 +73,7 @@ export default function ActiveProductsModal({
     if (selectedIds.includes(id)) {
       setSelectedIds((prev) => prev.filter((item) => item !== id));
     } else {
-      if (selectedIds.length >= maxProducts) {
+      if (maxProducts !== -1 && selectedIds.length >= maxProducts) {
         setAlertConfig({
           visible: true,
           title: "Limit Reached",
@@ -130,15 +137,19 @@ export default function ActiveProductsModal({
                 { color: isDark ? "#aaaaaa" : "#666666" },
               ]}
             >
-              Choose up to <Text style={styles.highlight}>{maxProducts}</Text> products to keep active. Only active products can be added to offers.
+              {maxProducts === -1 ? (
+                <>Your <Text style={styles.highlight}>{planName}</Text> allows unlimited active products. Only active products can be added to offers.</>
+              ) : (
+                <>Choose up to <Text style={styles.highlight}>{maxProducts}</Text> products to keep active. Only active products can be added to offers.</>
+              )}
             </Text>
 
             {/* Selection Counter Pill */}
             <View style={styles.counterRow}>
               <Text style={styles.counterText}>
-                Selected: <Text style={styles.counterBold}>{selectedIds.length}</Text> / {maxProducts}
+                Selected: <Text style={styles.counterBold}>{selectedIds.length}</Text> / {maxProducts === -1 ? "Unlimited" : maxProducts}
               </Text>
-              {selectedIds.length === maxProducts && (
+              {maxProducts !== -1 && selectedIds.length >= maxProducts && (
                 <View style={styles.maxReachedBadge}>
                   <Text style={styles.maxReachedText}>Limit Reached</Text>
                 </View>

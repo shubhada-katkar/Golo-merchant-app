@@ -1,6 +1,30 @@
 import { BASE_URL } from "../config";
 
 /**
+ * Short-lived caches to eliminate redundant network requests during bulk enrichment
+ */
+const voucherDetailsCache = new Map();
+const customerProfileCache = new Map();
+let pendingVouchersCache = null;
+let pendingVouchersCacheTime = 0;
+let historyVouchersCache = null;
+let historyVouchersCacheTime = 0;
+
+const VOUCHER_CACHE_TTL = 15000; // 15 seconds
+
+/**
+ * Clear in-memory caches (useful if fresh data is explicitly forced)
+ */
+export const clearOrderServiceCaches = () => {
+  voucherDetailsCache.clear();
+  customerProfileCache.clear();
+  pendingVouchersCache = null;
+  pendingVouchersCacheTime = 0;
+  historyVouchersCache = null;
+  historyVouchersCacheTime = 0;
+};
+
+/**
  * Fetch voucher details by voucherId to get offer title and other details
  */
 export const fetchVoucherDetails = async (voucherId, token) => {
@@ -9,19 +33,28 @@ export const fetchVoucherDetails = async (voucherId, token) => {
       return null;
     }
 
-    const response = await fetch(`${BASE_URL}/vouchers/${voucherId}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      console.log("Failed to fetch voucher details:", response.status);
-      return null;
+    if (voucherDetailsCache.has(voucherId)) {
+      return voucherDetailsCache.get(voucherId);
     }
 
-    const data = await response.json();
-    return data?.data || null;
+    const promise = (async () => {
+      const response = await fetch(`${BASE_URL}/vouchers/${voucherId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        console.log("Failed to fetch voucher details:", response.status);
+        return null;
+      }
+
+      const data = await response.json();
+      return data?.data || null;
+    })();
+
+    voucherDetailsCache.set(voucherId, promise);
+    return await promise;
   } catch (error) {
     console.error("Error fetching voucher details:", error);
     return null;
@@ -89,23 +122,43 @@ const fetchMerchantVouchers = async (token, status = "pending", page = 1, limit 
     return [];
   }
 
+  const now = Date.now();
+  if (status === "pending" && pendingVouchersCache && (now - pendingVouchersCacheTime < VOUCHER_CACHE_TTL)) {
+    return pendingVouchersCache;
+  }
+  if (status === "history" && historyVouchersCache && (now - historyVouchersCacheTime < VOUCHER_CACHE_TTL)) {
+    return historyVouchersCache;
+  }
+
   const path = status === "history" ? "/vouchers/merchant/history" : "/vouchers/merchant/pending";
   const url = `${BASE_URL}${path}?page=${page}&limit=${limit}`;
 
   try {
-    const response = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const promise = (async () => {
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-    if (!response.ok) {
-      console.warn(`Failed to fetch merchant vouchers (${status}):`, response.status);
-      return [];
+      if (!response.ok) {
+        console.warn(`Failed to fetch merchant vouchers (${status}):`, response.status);
+        return [];
+      }
+
+      const payload = await response.json();
+      return Array.isArray(payload?.data) ? payload.data : [];
+    })();
+
+    if (status === "pending") {
+      pendingVouchersCache = promise;
+      pendingVouchersCacheTime = now;
+    } else {
+      historyVouchersCache = promise;
+      historyVouchersCacheTime = now;
     }
 
-    const payload = await response.json();
-    return Array.isArray(payload?.data) ? payload.data : [];
+    return await promise;
   } catch (error) {
     console.error(`Error fetching merchant vouchers (${status}):`, error);
     return [];
@@ -118,19 +171,28 @@ export const fetchCustomerProfile = async (userId, token) => {
       return null;
     }
 
-    const response = await fetch(`${BASE_URL}/users/${userId}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      console.log("Failed to fetch customer profile:", response.status);
-      return null;
+    if (customerProfileCache.has(userId)) {
+      return customerProfileCache.get(userId);
     }
 
-    const data = await response.json();
-    return data?.data || null;
+    const promise = (async () => {
+      const response = await fetch(`${BASE_URL}/users/${userId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        console.log("Failed to fetch customer profile:", response.status);
+        return null;
+      }
+
+      const data = await response.json();
+      return data?.data || null;
+    })();
+
+    customerProfileCache.set(userId, promise);
+    return await promise;
   } catch (error) {
     console.error("Error fetching customer profile:", error);
     return null;
@@ -140,7 +202,7 @@ export const fetchCustomerProfile = async (userId, token) => {
 /**
  * Enrich order with voucher and customer details
  */
-export const enrichOrderDetails = async (order, token) => {
+export const enrichOrderDetails = async (order, token, options = {}) => {
   if (!order || !token) {
     return order;
   }
@@ -149,15 +211,18 @@ export const enrichOrderDetails = async (order, token) => {
 
   // Ensure voucherId is properly set (in case it's only stored under different field names)
   if (!enrichedOrder.voucherId) {
-    // Try alternative field names that might contain the voucher ID
     enrichedOrder.voucherId = order?.voucher?.voucherId ||
       order?.voucher?._id ||
       order?.voucher?.id ||
       order?.voucherId;
   }
 
-  // Fetch voucher details if voucherId exists
-  if (enrichedOrder.voucherId) {
+  // Fetch voucher details ONLY if voucherId exists AND voucher details or offerTitle are missing
+  const needsVoucherFetch =
+    enrichedOrder.voucherId &&
+    (!enrichedOrder.offerTitle || !enrichedOrder.voucher || !enrichedOrder.userId);
+
+  if (needsVoucherFetch) {
     const voucherDetails = await fetchVoucherDetails(enrichedOrder.voucherId, token);
     if (voucherDetails) {
       if (!enrichedOrder.offerTitle) {
@@ -178,19 +243,16 @@ export const enrichOrderDetails = async (order, token) => {
       if (!enrichedOrder.userId && (voucherDetails.userId || voucherDetails.user?._id)) {
         enrichedOrder.userId = String(voucherDetails.userId || voucherDetails.user?._id);
       }
-      console.log('[enrichOrderDetails] Enriched order with voucher:', enrichedOrder.voucherId);
-    } else {
-      console.warn('[enrichOrderDetails] Failed to fetch voucher details for:', enrichedOrder.voucherId);
     }
   }
 
   // If order details still lack offerTitle, attempt to match a merchant voucher by customer.
   if (!enrichedOrder.offerTitle) {
-    const pendingVouchers = await fetchMerchantVouchers(token, 'pending');
+    const pendingVouchers = options.pendingVouchers || (await fetchMerchantVouchers(token, 'pending'));
     let matchedVoucher = findBestOrderVoucherMatch(enrichedOrder, pendingVouchers);
 
     if (!matchedVoucher) {
-      const historyVouchers = await fetchMerchantVouchers(token, 'history');
+      const historyVouchers = options.historyVouchers || (await fetchMerchantVouchers(token, 'history'));
       matchedVoucher = findBestOrderVoucherMatch(enrichedOrder, historyVouchers);
     }
 
@@ -213,11 +275,10 @@ export const enrichOrderDetails = async (order, token) => {
       if (!enrichedOrder.userId && (matchedVoucher.userId || matchedVoucher.user?._id)) {
         enrichedOrder.userId = String(matchedVoucher.userId || matchedVoucher.user?._id);
       }
-      console.log('[enrichOrderDetails] Matched order to merchant voucher for offer title:', enrichedOrder.voucherId);
     }
   }
 
-  // Fetch customer details if userId exists
+  // Fetch customer details ONLY if userId exists AND customerPhone is missing
   if (enrichedOrder.userId && !enrichedOrder.customerPhone) {
     const customerProfile = await fetchCustomerProfile(enrichedOrder.userId, token);
     if (customerProfile) {
@@ -231,3 +292,32 @@ export const enrichOrderDetails = async (order, token) => {
 
   return enrichedOrder;
 };
+
+/**
+ * Bulk enrich list of orders concurrently with pre-fetched shared resources
+ */
+export const enrichOrdersList = async (list, token) => {
+  if (!Array.isArray(list) || list.length === 0 || !token) {
+    return list || [];
+  }
+
+  // Check if any order in list actually needs merchant voucher matching
+  const needsVoucherSearch = list.some((order) => !order?.offerTitle && !order?.voucherId);
+
+  let pendingVouchers = [];
+  let historyVouchers = [];
+
+  if (needsVoucherSearch) {
+    [pendingVouchers, historyVouchers] = await Promise.all([
+      fetchMerchantVouchers(token, 'pending'),
+      fetchMerchantVouchers(token, 'history'),
+    ]);
+  }
+
+  const options = { pendingVouchers, historyVouchers };
+
+  return Promise.all(
+    list.map((order) => enrichOrderDetails(order, token, options).catch(() => order))
+  );
+};
+

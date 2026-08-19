@@ -232,6 +232,13 @@ export default function AddOfferPage({ navigation, route }) {
     const [confirmModalMaxProducts, setConfirmModalMaxProducts] = useState(1);
     const [currentPlanName, setCurrentPlanName] = useState("");
     const [offerLimit, setOfferLimit] = useState(0);
+    const [subscriptionPlan, setSubscriptionPlan] = useState({
+        name: "Free Tier",
+        maxOfferDurationDays: 5,
+        maxMonthlyOffers: 2,
+        maxProducts: 5,
+        loading: true,
+    });
 
     const [selectedIds, setSelectedIds] = useState([]);
     const [selectedProducts, setSelectedProducts] = useState([]);
@@ -418,7 +425,41 @@ export default function AddOfferPage({ navigation, route }) {
             }
         };
 
+        const loadSubscriptionDetails = async () => {
+            try {
+                let token;
+                try { token = await getValidToken(); } catch { return; }
+                if (!token) return;
+                const storedMerchantId = await AsyncStorage.getItem("merchantId");
+                if (!storedMerchantId) return;
+
+                const subRes = await fetch(`${BASE_URL}/merchants/${storedMerchantId}/subscription`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (subRes.ok) {
+                    const subData = await subRes.json();
+                    const planName = subData?.name || subData?.planType || "Free Tier";
+                    const maxOfferDurationDays = subData?.planFeatures?.maxOfferDurationDays ?? 5;
+                    const maxMonthlyOffers = subData?.planFeatures?.maxMonthlyOffers ?? 2;
+                    const maxProducts = subData?.planFeatures?.maxProducts ?? -1;
+
+                    setSubscriptionPlan({
+                        name: planName,
+                        maxOfferDurationDays,
+                        maxMonthlyOffers,
+                        maxProducts,
+                        loading: false,
+                    });
+                    setCurrentPlanName(planName);
+                    setOfferLimit(maxMonthlyOffers);
+                }
+            } catch (err) {
+                console.warn("Error fetching subscription details:", err);
+            }
+        };
+
         loadMerchantProfile();
+        loadSubscriptionDetails();
 
         if (offerData) {
             setTitle(offerData.title || offerData.bannerTitle || "");
@@ -736,11 +777,51 @@ export default function AddOfferPage({ navigation, route }) {
         }
         setShowPicker(false);
 
+        if (!selectedDate) return;
+
+        const maxDays = subscriptionPlan.maxOfferDurationDays;
+
         if (activeField === "from") {
             setFromDate(selectedDate);
-            if (toDate && selectedDate > toDate) setToDate(null);
+            if (toDate) {
+                const start = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+                const end = new Date(toDate.getFullYear(), toDate.getMonth(), toDate.getDate());
+                const diffDays = Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
+
+                if (selectedDate > toDate) {
+                    setToDate(null);
+                } else if (maxDays && maxDays !== -1 && diffDays > maxDays) {
+                    const maxToDate = new Date(start);
+                    maxToDate.setDate(maxToDate.getDate() + maxDays - 1);
+                    setToDate(maxToDate);
+                    showAlert(
+                        "info",
+                        "Offer Duration Adjusted",
+                        `Your ${subscriptionPlan.name} plan limits offer duration to ${maxDays} days. End date updated to ${maxToDate.toLocaleDateString("en-GB")}.`
+                    );
+                }
+            }
         }
-        if (activeField === "to") setToDate(selectedDate);
+        if (activeField === "to") {
+            if (fromDate) {
+                const start = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate());
+                const end = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+                const diffDays = Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
+
+                if (maxDays && maxDays !== -1 && diffDays > maxDays) {
+                    const maxToDate = new Date(start);
+                    maxToDate.setDate(maxToDate.getDate() + maxDays - 1);
+                    setToDate(maxToDate);
+                    showAlert(
+                        "warning",
+                        "Duration Exceeds Plan Limit",
+                        `Your ${subscriptionPlan.name} plan permits a maximum offer duration of ${maxDays} days. End date set to ${maxToDate.toLocaleDateString("en-GB")}.`
+                    );
+                    return;
+                }
+            }
+            setToDate(selectedDate);
+        }
     };
 
     const handleSubmit = async () => {
@@ -750,6 +831,18 @@ export default function AddOfferPage({ navigation, route }) {
             showAlert("error", "Missing Fields", "Please fill all required fields");
             return;
         }
+
+        const activeDays = getActiveDays();
+        const maxDays = subscriptionPlan.maxOfferDurationDays;
+        if (maxDays && maxDays !== -1 && activeDays > maxDays) {
+            showAlert(
+                "error",
+                "Duration Exceeds Limit",
+                `Your ${subscriptionPlan.name} plan allows an offer duration up to ${maxDays} days. Current selected duration is ${activeDays} days.`
+            );
+            return;
+        }
+
         if (isDarkMode && !stars) {
             showAlert("error", "Points Required", "Please enter loyalty points");
             return;
@@ -1377,8 +1470,14 @@ export default function AddOfferPage({ navigation, route }) {
                                 </View>
                             </TouchableOpacity>
                         </View>
+                        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6, gap: 4 }}>
+                            <Ionicons name="information-circle-outline" size={16} color="#157a4f" />
+                            <Text style={{ color: "#157a4f", ...textPresets.caption }}>
+                                {subscriptionPlan.name} Plan: Maximum offer duration is {subscriptionPlan.maxOfferDurationDays === -1 ? "Unlimited" : `${subscriptionPlan.maxOfferDurationDays} days`}.
+                            </Text>
+                        </View>
                         {offerData && (
-                            <Text style={{ color: colors.subtext || "#6b7280", marginTop: 6, ...textPresets.caption }}>
+                            <Text style={{ color: colors.subtext || "#6b7280", marginTop: 4, ...textPresets.caption }}>
                                 * Validity dates cannot be modified after offer creation.
                             </Text>
                         )}
@@ -1413,7 +1512,12 @@ export default function AddOfferPage({ navigation, route }) {
                                 value={activeField === "from" ? fromDate || new Date() : toDate || fromDate || new Date()}
                                 mode="date"
                                 display={Platform.OS === "ios" ? "spinner" : "default"}
-                                minimumDate={activeField === "to" ? fromDate : new Date()}
+                                minimumDate={activeField === "to" ? fromDate || new Date() : new Date()}
+                                maximumDate={
+                                    activeField === "to" && fromDate && subscriptionPlan.maxOfferDurationDays && subscriptionPlan.maxOfferDurationDays !== -1
+                                        ? new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate() + subscriptionPlan.maxOfferDurationDays - 1)
+                                        : undefined
+                                }
                                 onChange={onChange}
                             />
                         )}

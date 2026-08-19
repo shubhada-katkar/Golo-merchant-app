@@ -8,7 +8,7 @@ import Completed from "../components/Completed";
 import Pending from "../components/Pending";
 import Rejected from "../components/Rejected";
 import { BASE_URL as CONFIG_BASE_URL } from "../config";
-import { enrichOrderDetails } from "../services/orderService";
+import { enrichOrderDetails, enrichOrdersList } from "../services/orderService";
 import { getValidToken, handleAuthError } from "../services/authService";
 import { textPresets } from "../theme/typography";
 import CustomAlertModal from "../components/CustomAlertModal";
@@ -82,9 +82,7 @@ export default function Orders() {
                     ? data.data
                     : data?.orders || [];
 
-            const enrichedList = await Promise.all(
-                list.map((order) => enrichOrderDetails(order, token).catch(() => order))
-            );
+            const enrichedList = await enrichOrdersList(list, token);
 
             setOrders(enrichedList);
         } catch (error) {
