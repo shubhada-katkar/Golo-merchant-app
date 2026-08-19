@@ -130,7 +130,7 @@ export default function Pending({ orders = [], onStatusChange }) {
       renderItem={renderItem}
       contentContainerStyle={styles.colcontainer}
       ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
-      ListEmptyComponent={<Text style={{ textAlign: "center", marginTop: 24 }}>No pending orders</Text>}
+      ListEmptyComponent={<Text style={{ textAlign: "center", marginTop: 24, ...textPresets.caption }}>No pending orders</Text>}
       ListFooterComponent={ListFooter}
       onEndReached={loadMore}
       onEndReachedThreshold={0.3}

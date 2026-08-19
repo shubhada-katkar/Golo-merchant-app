@@ -88,7 +88,8 @@ export default function App() {
           initialRouteName="AuthLoading"
           screenOptions={{
             headerShown: false,
-            cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
+            animationEnabled: false,
+            cardStyleInterpolator: CardStyleInterpolators.forNoAnimation,
           }}
         >
 

@@ -5,7 +5,7 @@ import Bottombar from "../components/Bottombar";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons, Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { ThemeContext } from "../theme/ThemeContext";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL } from "../config";
 import { LinearGradient } from "expo-linear-gradient";
@@ -18,6 +18,7 @@ import CustomAlertModal from "../components/CustomAlertModal";
 
 export default function ProductListPage({ navigation }) {
   const { colors } = useContext(ThemeContext);
+  const isFocused = useIsFocused();
 
   const [searchText, setSearchText] = useState("");
   const [products, setProducts] = useState([]); // ✅ SINGLE SOURCE OF TRUTH
@@ -270,10 +271,13 @@ export default function ProductListPage({ navigation }) {
     fetchProducts();
   }, []);
 
-  // ✅ Refresh products when screen comes into focus (after add/edit)
+  // ✅ Refresh products when screen comes into focus, hide modal on screen blur/leave
   useFocusEffect(
     useCallback(() => {
       fetchProducts();
+      return () => {
+        setShowModal(false);
+      };
     }, [])
   );
 
@@ -484,7 +488,7 @@ export default function ProductListPage({ navigation }) {
 
       {/* Active Products Limit Selection Modal */}
       <ActiveProductsModal
-        visible={showModal}
+        visible={showModal && isFocused}
         products={products}
         maxProducts={subscriptionInfo.maxProducts}
         planName={subscriptionInfo.planName}

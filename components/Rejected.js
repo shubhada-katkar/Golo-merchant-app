@@ -122,7 +122,7 @@ export default function Rejected({ orders = [], onDelete }) {
       renderItem={renderItem}
       contentContainerStyle={styles.colcontainer}
       ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
-      ListEmptyComponent={<Text style={{ textAlign: "center", marginTop: 24 }}>No rejected orders</Text>}
+      ListEmptyComponent={<Text style={{ textAlign: "center", marginTop: 24, ...textPresets.caption }}>No rejected orders</Text>}
       ListFooterComponent={ListFooter}
       onEndReached={loadMore}
       onEndReachedThreshold={0.3}

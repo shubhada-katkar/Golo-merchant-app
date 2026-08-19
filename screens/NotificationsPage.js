@@ -200,10 +200,9 @@ export default function Notifications({ navigation }) {
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Notifications</Text>
                 </View>
-                <View style={styles.headerBadge}>
-                    <Text style={styles.headerBadgeText}>{notifications.length > 0 ? "Seen" : "Live"}</Text>
-                </View>
             </View>
+
+            <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1 }} />
 
             {loading ? (
                 <View style={styles.centerState}>
