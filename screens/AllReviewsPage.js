@@ -2,7 +2,6 @@ import React, { useState, useContext, useCallback } from "react";
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
-import { ThemeContext } from "../theme/ThemeContext";
 import { BASE_URL } from "../config";
 import Topbar from "../components/Topbar";
 import { MaterialIcons, AntDesign, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -11,7 +10,6 @@ import { getValidToken, handleAuthError } from "../services/authService";
 import { textPresets } from "../theme/typography";
 
 export default function AllReviewsPage({ navigation }) {
-  const { colors } = useContext(ThemeContext);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -72,7 +70,7 @@ export default function AllReviewsPage({ navigation }) {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={styles.container}>
       <LinearGradient
         colors={["#f8a812", "#fad081", "#f8f6f265"]}
         start={{ x: 0, y: 0 }}
@@ -82,14 +80,14 @@ export default function AllReviewsPage({ navigation }) {
       <Topbar />
       <View style={styles.row1}>
         <TouchableOpacity style={{ padding: 10 }} onPress={() => navigation.goBack()}>
-          <MaterialIcons name="arrow-back-ios" size={22} color={colors.text} />
+          <MaterialIcons name="arrow-back-ios" size={22} />
         </TouchableOpacity>
         <Text style={{
           ...textPresets.title
         }}>All Reviews</Text>
       </View>
 
-      <View style={{ height: 1, backgroundColor: colors.divider, marginBottom: 10 }} />
+      <View style={{ height: 1, backgroundColor: "#000", marginBottom: 10 }} />
 
       <ScrollView contentContainerStyle={styles.content}>
         {loading ? (
@@ -98,7 +96,7 @@ export default function AllReviewsPage({ navigation }) {
           </View>
         ) : reviews.length === 0 ? (
           <View style={styles.emptyBox}>
-            <Text style={[styles.emptyText, { color: colors.text }]}>No reviews found yet.</Text>
+            <Text style={styles.emptyText}>No reviews found yet.</Text>
           </View>
         ) : (
           reviews.map((item) => {
@@ -125,7 +123,7 @@ export default function AllReviewsPage({ navigation }) {
                   </View>
                 </View>
 
-                <Text style={[styles.reviewText, { color: colors.text }]}>{item.content || "No review content."}</Text>
+                <Text style={styles.reviewText}>{item.content || "No review content."}</Text>
                 {item.createdAt ? (
                   <Text style={styles.reviewDate}>{new Date(item.createdAt).toLocaleDateString()}</Text>
                 ) : null}

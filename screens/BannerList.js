@@ -5,7 +5,6 @@ import Bottombar from "../components/Bottombar";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons, Feather, AntDesign, Ionicons } from "@expo/vector-icons";
 import { WebView } from "react-native-webview";
-import { ThemeContext } from "../theme/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL } from "../config";
 import { LinearGradient } from "expo-linear-gradient";
@@ -14,7 +13,6 @@ import { textPresets } from "../theme/typography";
 import CustomAlertModal from "../components/CustomAlertModal";
 
 export default function BannerList({ navigation }) {
-    const { colors } = useContext(ThemeContext);
     const [search, setSearch] = useState("");
     const [banners, setBanners] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -346,7 +344,7 @@ export default function BannerList({ navigation }) {
     });
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView style={{ flex: 1 }}>
             <LinearGradient
                 colors={["#f8a812", "#fad081", "#f8f6f265"]}
                 start={{ x: 0, y: 0 }}
@@ -357,19 +355,19 @@ export default function BannerList({ navigation }) {
 
             <View style={styles.row1}>
                 <TouchableOpacity onPress={() => navigation.goBack()}>
-                    <MaterialIcons name="arrow-back-ios" size={22} color={colors.text} style={{ padding: 10 }} />
+                    <MaterialIcons name="arrow-back-ios" size={22} style={{ padding: 10 }} />
                 </TouchableOpacity>
                 <Text style={{ ...textPresets.title, flex: 1 }}>Banner Promotions List</Text>
             </View>
 
-            <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1 }} />
+            <View style={{ flexDirection: "row", backgroundColor: "#000", height: 1 }} />
 
             <ScrollView contentContainerStyle={{ paddingBottom: 110, padding: 14 }} showsVerticalScrollIndicator={false}>
                 <View style={styles.searchBar}>
                     <Feather name="search" size={16} color="#a7a7a7" />
                     <TextInput
                         placeholder="Search by banner title"
-                        placeholderTextColor={colors.subtext}
+                        placeholderTextColor={"#8f8f8fff"}
                         value={search}
                         onChangeText={setSearch}
                         style={{ marginLeft: 6, top: 2, flex: 1, ...textPresets.body }}
@@ -384,11 +382,11 @@ export default function BannerList({ navigation }) {
                 {loading ? (
                     <View style={styles.loaderBox}>
                         <ActivityIndicator size="small" color="#f8a812" />
-                        <Text style={{ color: colors.subtext, marginTop: 8, ...textPresets.body }}>Loading requests...</Text>
+                        <Text style={{ marginTop: 8, ...textPresets.body }}>Loading requests...</Text>
                     </View>
                 ) : filteredBanners.length === 0 ? (
                     <View style={styles.emptyBox}>
-                        <Text style={{ color: colors.subtext, ...textPresets.body }}>No banner requests found.</Text>
+                        <Text style={{ ...textPresets.body }}>No banner requests found.</Text>
                     </View>
                 ) : (
                     filteredBanners.map((item) => {
@@ -399,16 +397,16 @@ export default function BannerList({ navigation }) {
                         return (
                             <View key={itemId} style={styles.bannerCard}>
                                 <View style={styles.bannerCardTop}>
-                                    <View style={[styles.bannerThumb, { backgroundColor: colors.divider }]}>
+                                    <View style={styles.bannerThumb}>
                                         {item?.imageUrl ? (
                                             <Image source={{ uri: item.imageUrl }} style={{ width: "100%", height: "100%", borderRadius: 8 }} resizeMode="cover" />
                                         ) : (
-                                            <Feather name="image" size={20} color={colors.subtext} />
+                                            <Feather name="image" size={20} color={"#000"} />
                                         )}
                                     </View>
                                     <View style={{ flex: 1, marginLeft: 10, marginRight: 6 }}>
                                         <Text style={{ ...textPresets.body }} numberOfLines={1}>{item?.bannerTitle || "Banner Promotion"}</Text>
-                                        <Text style={{ ...textPresets.caption, color: colors.subtext }}>{item?.bannerCategory || "General"}</Text>
+                                        <Text style={{ ...textPresets.caption }}>{item?.bannerCategory || "General"}</Text>
                                     </View>
                                     {statusStyle.label ? (
                                         <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
@@ -417,7 +415,7 @@ export default function BannerList({ navigation }) {
                                     ) : null}
                                 </View>
 
-                                <View style={[styles.divider, { backgroundColor: colors.divider }]} />
+                                <View style={[styles.divider, { backgroundColor: "#000" }]} />
 
                                 {item?.coverageType ? (
                                     <View style={styles.bannerDetailRow}>
@@ -444,7 +442,7 @@ export default function BannerList({ navigation }) {
 
                                 <View style={styles.bannerDetailRow}>
                                     <Text style={styles.detailLabel}>Payable Amount</Text>
-                                    <Text style={[styles.detailValue, { color: colors.success || "#157a4f" }]}>
+                                    <Text style={[styles.detailValue, { color: "#157a4f" }]}>
                                         Rs. {item?.totalPrice || 0}
                                     </Text>
                                 </View>

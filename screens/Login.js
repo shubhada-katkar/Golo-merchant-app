@@ -1,7 +1,6 @@
 import React, { useState, useContext, useEffect, useRef } from "react";
 import { View, TouchableOpacity, Text, TextInput, StyleSheet, Alert, Linking, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ThemeContext } from "../theme/ThemeContext";
 import { Dimensions } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Entypo, Feather, AntDesign, FontAwesome } from "@expo/vector-icons";
@@ -13,7 +12,6 @@ import { textPresets } from "../theme/typography";
 const MERCHANT_REGISTER_URL = "https://golo-frontend-inky.vercel.app/merchant";
 
 export default function Login({ navigation, route }) {
-  const { colors } = useContext(ThemeContext);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

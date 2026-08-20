@@ -4,7 +4,6 @@ import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons, MaterialIcons, Feather, AntDesign, EvilIcons } from "@expo/vector-icons";
-import { ThemeContext } from "../theme/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { clearAuthStorage, getValidToken } from "../services/authService";
 import { useFocusEffect } from "@react-navigation/native";
@@ -15,7 +14,6 @@ import { textPresets } from "../theme/typography";
 import CustomAlertModal from "../components/CustomAlertModal";
 
 export default function ProfilePage({ navigation }) {
-    const { theme, colors, toggleTheme } = useContext(ThemeContext);
     const [loadingLogout, setLoadingLogout] = useState(false);
     const [logoutModalVisible, setLogoutModalVisible] = useState(false);
 
@@ -159,7 +157,7 @@ export default function ProfilePage({ navigation }) {
     );
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView style={{ flex: 1 }}>
             <LinearGradient
                 colors={["#f8a812", "#fad081", "#f8f6f265"]}
                 start={{ x: 0, y: 0 }}
@@ -170,12 +168,12 @@ export default function ProfilePage({ navigation }) {
 
             <View style={styles.row1}>
                 <TouchableOpacity onPress={() => navigation.goBack()}>
-                    <MaterialIcons name="arrow-back-ios" size={22} color={colors.text} style={{ padding: 10 }} />
+                    <MaterialIcons name="arrow-back-ios" size={22} style={{ padding: 10 }} />
                 </TouchableOpacity>
                 <Text style={{ ...textPresets.title, flex: 1 }}>Profile</Text>
             </View>
 
-            <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1 }} />
+            <View style={{ flexDirection: "row", backgroundColor: "#000", height: 1 }} />
             <ScrollView contentContainerStyle={{ paddingBottom: 90 }} showsVerticalScrollIndicator={false}>
 
                 {/* Banner + Avatar */}
@@ -183,90 +181,90 @@ export default function ProfilePage({ navigation }) {
                     <Image source={profileImage} style={styles.image} />
                     {/* Name + meta */}
                     <View style={styles.nameBlock}>
-                        <Text style={[styles.shopName, { color: colors.text }]}>{shopName}</Text>
+                        <Text style={styles.shopName}>{shopName}</Text>
                     </View>
                 </View>
 
                 {/* Menu */}
                 <View style={styles.menuContainer}>
 
-                    <Text style={[styles.sectionHeader, { color: colors.text }]}>GENERAL SETTINGS</Text>
+                    <Text style={styles.sectionHeader}>GENERAL SETTINGS</Text>
 
-                    <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]} onPress={() => navigation.navigate("ProfileSettingsPage")}>
+                    <TouchableOpacity style={[styles.menuItem, { backgroundColor: "#fff" }]} onPress={() => navigation.navigate("ProfileSettingsPage")}>
                         <View style={styles.iconCircle}>
                             <MaterialCommunityIcons name="account-cog-outline" size={20} color="#157a4f" />
                         </View>
                         <View style={styles.menuText}>
-                            <Text style={[styles.menuTitle, { color: colors.text }]}>Profile Settings</Text>
-                            <Text style={[styles.menuSub, { color: colors.subText || "#888" }]}>Manage your business information</Text>
+                            <Text style={styles.menuTitle}>Profile Settings</Text>
+                            <Text style={styles.menuSub}>Manage your business information</Text>
                         </View>
-                        <Feather name="chevron-right" size={20} color={colors.subText || "#aaa"} />
+                        <Feather name="chevron-right" size={20} />
                     </TouchableOpacity>
 
-                    <Text style={[styles.sectionHeader, { color: colors.text, marginTop: 18 }]}>PROMOTE AND UPGRADE</Text>
+                    <Text style={[styles.sectionHeader, { marginTop: 18 }]}>PROMOTE AND UPGRADE</Text>
 
-                    <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]} onPress={() => navigation.navigate("BannerList")}>
+                    <TouchableOpacity style={[styles.menuItem, { backgroundColor: "#fff" }]} onPress={() => navigation.navigate("BannerList")}>
                         <View style={styles.iconCircle}>
                             <Feather name="list" size={20} color="#157a4f" />
                         </View>
                         <View style={styles.menuText}>
-                            <Text style={[styles.menuTitle, { color: colors.text }]}>Banners</Text>
-                            <Text style={[styles.menuSub, { color: colors.subText || "#888" }]}>Attract More Customers with Every Banner.</Text>
+                            <Text style={styles.menuTitle}>Banners</Text>
+                            <Text style={[styles.menuSub, { color: "#888" }]}>Attract More Customers with Every Banner.</Text>
                         </View>
-                        <Feather name="chevron-right" size={20} color={colors.subText || "#aaa"} />
+                        <Feather name="chevron-right" size={20} color={"#aaa"} />
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]} onPress={() => navigation.navigate("UpgradePlanPage")}>
+                    <TouchableOpacity style={[styles.menuItem, { backgroundColor: "#fff" }]} onPress={() => navigation.navigate("UpgradePlanPage")}>
                         <View style={styles.iconCircle}>
                             <MaterialCommunityIcons name="crown-outline" size={20} color="#157a4f" />
                         </View>
                         <View style={styles.menuText}>
-                            <Text style={[styles.menuTitle, { color: colors.text }]}>Upgrade Your Plan</Text>
-                            <Text style={[styles.menuSub, { color: colors.subText || "#888" }]}>Enhance your business with premium features.</Text>
+                            <Text style={styles.menuTitle}>Upgrade Your Plan</Text>
+                            <Text style={[styles.menuSub, { color: "#888" }]}>Enhance your business with premium features.</Text>
                         </View>
-                        <Feather name="chevron-right" size={20} color={colors.subText || "#aaa"} />
+                        <Feather name="chevron-right" size={20} color={"#aaa"} />
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]} onPress={() => navigation.navigate("TransactionPage")}>
+                    <TouchableOpacity style={[styles.menuItem, { backgroundColor: "#fff" }]} onPress={() => navigation.navigate("TransactionPage")}>
                         <View style={styles.iconCircle}>
                             <AntDesign name="credit-card" size={20} color="#157a4f" />
                         </View>
                         <View style={styles.menuText}>
-                            <Text style={[styles.menuTitle, { color: colors.text }]}>View Transactions</Text>
-                            <Text style={[styles.menuSub, { color: colors.subText || "#888" }]}>Track your transaction history</Text>
+                            <Text style={styles.menuTitle}>View Transactions</Text>
+                            <Text style={[styles.menuSub, { color: "#888" }]}>Track your transaction history</Text>
                         </View>
-                        <Feather name="chevron-right" size={20} color={colors.subText || "#aaa"} />
+                        <Feather name="chevron-right" size={20} color={"#aaa"} />
                     </TouchableOpacity>
 
-                    <Text style={[styles.sectionHeader, { color: colors.text, marginTop: 18 }]}>REWARDS & SUPPORT</Text>
+                    <Text style={[styles.sectionHeader, { marginTop: 18 }]}>REWARDS & SUPPORT</Text>
 
-                    <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]} onPress={() => navigation.navigate("LoyaltyPage")}>
+                    <TouchableOpacity style={[styles.menuItem, { backgroundColor: "#fff" }]} onPress={() => navigation.navigate("LoyaltyPage")}>
                         <View style={styles.iconCircle}>
                             <MaterialCommunityIcons name="trophy-outline" size={20} color="#157a4f" />
                         </View>
                         <View style={styles.menuText}>
-                            <Text style={[styles.menuTitle, { color: colors.text }]}>Loyalty Rewards</Text>
-                            <Text style={[styles.menuSub, { color: colors.subText || "#888" }]}>View your current program status</Text>
+                            <Text style={styles.menuTitle}>Loyalty Rewards</Text>
+                            <Text style={[styles.menuSub, { color: "#888" }]}>View your current program status</Text>
                         </View>
-                        <Feather name="chevron-right" size={20} color={colors.subText || "#aaa"} />
+                        <Feather name="chevron-right" size={20} color={"#aaa"} />
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]}
+                    <TouchableOpacity style={[styles.menuItem, { backgroundColor: "#fff" }]}
                         onPress={() => Linking.openURL("https://golo.co.in/merchant/help")}>
                         <View style={styles.iconCircle}>
                             <AntDesign name="question-circle" size={20} color="#157a4f" />
                         </View>
                         <View style={styles.menuText}>
-                            <Text style={[styles.menuTitle, { color: colors.text }]}>Help Center</Text>
-                            <Text style={[styles.menuSub, { color: colors.subText || "#888" }]}>FAQs and customer support</Text>
+                            <Text style={styles.menuTitle}>Help Center</Text>
+                            <Text style={[styles.menuSub, { color: "#888" }]}>FAQs and customer support</Text>
                         </View>
-                        <Feather name="chevron-right" size={20} color={colors.subText || "#aaa"} />
+                        <Feather name="chevron-right" size={20} color={"#aaa"} />
                     </TouchableOpacity>
 
                     {/* Divider before Sign Out */}
-                    <View style={[styles.divider, { backgroundColor: colors.divider || "#eee" }]} />
+                    <View style={[styles.divider, { backgroundColor: "#eee" }]} />
 
-                    <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.card || "#fff" }]} onPress={handleLogout} disabled={loadingLogout}>
+                    <TouchableOpacity style={[styles.menuItem, { backgroundColor: "#fff" }]} onPress={handleLogout} disabled={loadingLogout}>
                         <View style={[styles.iconCircle, { backgroundColor: "#fff0f0" }]}>
                             <MaterialIcons name="logout" size={20} color="#ff6b6b" />
                         </View>
@@ -294,12 +292,12 @@ export default function ProfilePage({ navigation }) {
                 statusBarTranslucent
             >
                 <View style={styles.modalOverlay}>
-                    <View style={[styles.modalCard, { backgroundColor: colors.background === "#383838" ? "#2d2d2d" : "#ffffff" }]}>
+                    <View style={[styles.modalCard, { backgroundColor: "#ffffff" }]}>
                         <View style={styles.modalIconContainer}>
                             <MaterialIcons name="logout" size={40} color="#e53935" />
                         </View>
-                        <Text style={[styles.modalTitleText, { color: colors.text }]}>Confirm Logout</Text>
-                        <Text style={[styles.modalMessageText, { color: colors.text === "#ffffff" ? "#cccccc" : "#555555" }]}>
+                        <Text style={styles.modalTitleText}>Confirm Logout</Text>
+                        <Text style={[styles.modalMessageText, { color: "#555555" }]}>
                             Are you sure you want to logout?
                         </Text>
                         <View style={styles.modalConfirmRow}>
@@ -397,7 +395,8 @@ const styles = StyleSheet.create({
     menuSub: {
         marginTop: 1,
         opacity: 0.7,
-        ...textPresets.label
+        ...textPresets.label,
+        color: "#888"
     },
     divider: {
         height: 1,

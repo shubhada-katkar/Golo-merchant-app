@@ -8,7 +8,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
 import { MaterialIcons, Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { ThemeContext } from "../theme/ThemeContext";
 import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL } from "../config";
@@ -161,7 +160,6 @@ function resolveProductVideoDetails(product) {
 }
 
 export default function NewProductPage({ navigation, route }) {
-  const { colors } = useContext(ThemeContext);
   const screenHeight = Dimensions.get("window").height;
   const bottomPadding = screenHeight * 0.10;
   const editProduct = route?.params?.product;
@@ -770,7 +768,7 @@ export default function NewProductPage({ navigation, route }) {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <SafeAreaView style={{ flex: 1 }}>
       {/* Detect taps outside */}
       <TouchableWithoutFeedback
         onPress={() => {
@@ -883,7 +881,7 @@ export default function NewProductPage({ navigation, route }) {
                 )}
               </TouchableOpacity>
 
-              <Text style={[styles.text, { color: colors.text }]}>
+              <Text style={styles.text}>
                 Product Name<Text style={styles.requiredStar}>*</Text>
               </Text>
               <TextInput
@@ -893,7 +891,7 @@ export default function NewProductPage({ navigation, route }) {
                 onChangeText={(text) => setForm({ ...form, productname: text })}
               />
 
-              <Text style={[styles.text, { color: colors.text }]}>Description</Text>
+              <Text style={styles.text}>Description</Text>
               <TextInput
                 style={[styles.input, { minHeight: 40, maxHeight: 150 }]}
                 placeholder="Enter Description"
@@ -904,7 +902,7 @@ export default function NewProductPage({ navigation, route }) {
                 onChangeText={(text) => setForm({ ...form, description: text })}
               />
 
-              <Text style={[styles.text, { color: colors.text }]}>Category</Text>
+              <Text style={styles.text}>Category</Text>
               <TouchableOpacity
                 style={[styles.input, { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingRight: 15 }]}
                 onPress={() => setCategoryModalOpen(true)}
@@ -960,7 +958,7 @@ export default function NewProductPage({ navigation, route }) {
 
               <View style={[styles.row, { marginTop: 16 }]}>
                 <View style={styles.halfField}>
-                  <Text style={[styles.text, { color: colors.text, paddingTop: 0 }]}>
+                  <Text style={[styles.text, { paddingTop: 0 }]}>
                     Price<Text style={styles.requiredStar}>*</Text>
                   </Text>
                   <TextInput
@@ -975,7 +973,7 @@ export default function NewProductPage({ navigation, route }) {
                 </View>
 
                 <View style={styles.halfField}>
-                  <Text style={[styles.text, { color: colors.text, paddingTop: 0 }]}>Stock Quantity</Text>
+                  <Text style={[styles.text, { paddingTop: 0 }]}>Stock Quantity</Text>
                   <TextInput
                     style={styles.input}
                     placeholder="Enter stock"

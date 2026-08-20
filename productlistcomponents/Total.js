@@ -2,7 +2,6 @@ import React, { useState, useContext } from "react";
 import {
   View, Text, TouchableOpacity, StyleSheet, FlatList, Image, Modal,
 } from "react-native";
-import { ThemeContext } from "../theme/ThemeContext";
 import { AntDesign, MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { BASE_URL } from "../config";
@@ -11,9 +10,6 @@ import { textPresets } from "../theme/typography";
 import CustomAlertModal from "../components/CustomAlertModal";
 
 export default function Total({ products, setProducts, searchText, }) {
-
-  const { colors } = useContext(ThemeContext);
-
   const [deletingId, setDeletingId] = useState(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const navigation = useNavigation();
@@ -133,7 +129,7 @@ export default function Total({ products, setProducts, searchText, }) {
           <View style={styles.infoContainer}>
             <View style={styles.titleRow}>
               <Text
-                style={[styles.productName, { color: colors.text }]}
+                style={styles.productName}
                 numberOfLines={1}
                 ellipsizeMode="tail"
               >
@@ -220,7 +216,7 @@ export default function Total({ products, setProducts, searchText, }) {
         renderItem={renderItem}
         contentContainerStyle={{ padding: 14, paddingBottom: 90 }}
         ListEmptyComponent={
-          <Text style={{ textAlign: "center", marginTop: 20, color: colors.text }}>
+          <Text style={{ textAlign: "center", marginTop: 20 }}>
             No products available
           </Text>
         }
@@ -242,12 +238,12 @@ export default function Total({ products, setProducts, searchText, }) {
         statusBarTranslucent
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: colors.background === "#383838" ? "#2d2d2d" : "#ffffff" }]}>
+          <View style={[styles.modalCard, { backgroundColor: "#ffffff" }]}>
             <View style={styles.modalIconContainer}>
               <MaterialCommunityIcons name="close-circle" size={40} color="#e53935" />
             </View>
-            <Text style={[styles.modalTitleText, { color: colors.text }]}>Delete Product</Text>
-            <Text style={[styles.modalMessageText, { color: colors.text === "#ffffff" ? "#cccccc" : "#555555" }]}>
+            <Text style={styles.modalTitleText}>Delete Product</Text>
+            <Text style={[styles.modalMessageText, { color: "#555555" }]}>
               Are you sure you want to delete this product?
             </Text>
             <View style={styles.modalConfirmRow}>

@@ -2,7 +2,6 @@ import React, { useContext, useState, useMemo } from "react";
 import { View, TouchableOpacity, Text, StyleSheet, ScrollView, Modal, Pressable, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
-import { ThemeContext } from "../theme/ThemeContext";
 import { BASE_URL } from "../config";
 import { LinearGradient } from "expo-linear-gradient";
 import Topbar from "../components/Topbar";
@@ -26,7 +25,6 @@ function PlanIcon({ icon, size = 22 }) {
 }
 
 export default function PaymentPage({ navigation, route }) {
-  const { colors } = useContext(ThemeContext);
   const [plan, setPlan] = useState(route.params?.plan);
   const plansList = route.params?.plans || PLANS;
   const [selectedMonths, setSelectedMonths] = useState(1);
@@ -348,14 +346,14 @@ export default function PaymentPage({ navigation, route }) {
 
   if (!plan) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, alignItems: "center", justifyContent: "center" }}>
+      <SafeAreaView style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
         <Text style={{ ...textPresets.body }}>No plan selected.</Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <SafeAreaView style={{ flex: 1 }}>
       <LinearGradient
         colors={["#f8a812", "#fad081", "#f8f6f265"]}
         start={{ x: 0, y: 0 }}
@@ -366,26 +364,26 @@ export default function PaymentPage({ navigation, route }) {
 
       <View style={styles.row1}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <MaterialIcons name="arrow-back-ios" size={22} color={colors.text} style={{ padding: 10 }} />
+          <MaterialIcons name="arrow-back-ios" size={22} style={{ padding: 10 }} />
         </TouchableOpacity>
         <Text style={{ paddingLeft: 5, flex: 1, ...textPresets.title }}>
           Payment
         </Text>
       </View>
-      <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1 }} />
+      <View style={{ flexDirection: "row", backgroundColor: "#000", height: 1 }} />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Selected plan summary */}
-        <View style={[styles.planCard, { backgroundColor: colors.card || "#fff" }]}>
+        <View style={[styles.planCard, { backgroundColor: "#fff" }]}>
           <View style={styles.planCardTopRow}>
             <View style={styles.iconCircle}>
               <PlanIcon icon={plan.icon} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.planName, { color: colors.text }]}>{plan.name}</Text>
+              <Text style={styles.planName}>{plan.name}</Text>
               <Text style={styles.planTagline}>{plan.tagline}</Text>
             </View>
-            <Text style={[styles.planPrice, { color: colors.text }]}>
+            <Text style={styles.planPrice}>
               ₹{plan.price}
               <Text style={styles.planPriceSuffix}>/mo</Text>
             </Text>
@@ -402,15 +400,15 @@ export default function PaymentPage({ navigation, route }) {
         </View>
 
         {/* Duration dropdown */}
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Select Duration</Text>
+        <Text style={styles.sectionTitle}>Select Duration</Text>
         <TouchableOpacity
-          style={[styles.dropdownTrigger, { backgroundColor: colors.card || "#fff" }]}
+          style={[styles.dropdownTrigger, { backgroundColor: "#fff" }]}
           onPress={() => setDurationModalVisible(true)}
           activeOpacity={0.8}
         >
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <Ionicons name="calendar-outline" size={18} color="#157a4f" />
-            <Text style={[styles.dropdownTriggerText, { color: colors.text }]}>
+            <Text style={styles.dropdownTriggerText}>
               {selectedDuration?.label}
             </Text>
           </View>
@@ -418,33 +416,33 @@ export default function PaymentPage({ navigation, route }) {
         </TouchableOpacity>
 
         {/* Price breakdown */}
-        <View style={[styles.summaryCard, { backgroundColor: colors.card || "#fff" }]}>
-          <Text style={[styles.summaryTitle, { color: colors.text }]}>Order Summary</Text>
+        <View style={[styles.summaryCard, { backgroundColor: "#fff" }]}>
+          <Text style={styles.summaryTitle}>Order Summary</Text>
 
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Plan</Text>
-            <Text style={[styles.summaryValue, { color: colors.text }]}>{plan.name}</Text>
+            <Text style={styles.summaryValue}>{plan.name}</Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Monthly Price</Text>
-            <Text style={[styles.summaryValue, { color: colors.text }]}>₹{plan.price}</Text>
+            <Text style={styles.summaryValue}>₹{plan.price}</Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Duration</Text>
-            <Text style={[styles.summaryValue, { color: colors.text }]}>{selectedDuration?.label}</Text>
+            <Text style={styles.summaryValue}>{selectedDuration?.label}</Text>
           </View>
 
           <View style={styles.divider} />
 
           <View style={styles.summaryRow}>
-            <Text style={[styles.totalLabel, { color: colors.text }]}>Total Amount</Text>
+            <Text style={styles.totalLabel}>Total Amount</Text>
             <Text style={styles.totalValue}>₹{formatCurrency(totalAmount)}</Text>
           </View>
         </View>
       </ScrollView>
 
       {/* Fixed pay buttons */}
-      <View style={[styles.footer, { backgroundColor: colors.background }]}>
+      <View style={styles.footer}>
         <TouchableOpacity
           style={[styles.payButton, (isProcessing || isRazorpayProcessing) && { opacity: 0.6 }]}
           onPress={handlePayNow}
@@ -480,8 +478,8 @@ export default function PaymentPage({ navigation, route }) {
         statusBarTranslucent
       >
         <Pressable style={styles.centeredOverlay} onPress={() => setDurationModalVisible(false)}>
-          <Pressable style={[styles.centeredModal, { backgroundColor: colors.card || "#fff" }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Select Duration</Text>
+          <Pressable style={[styles.centeredModal, { backgroundColor: "#fff" }]}>
+            <Text style={styles.modalTitle}>Select Duration</Text>
             {DURATIONS.map((d) => {
               const active = d.months === selectedMonths;
               return (
@@ -494,7 +492,7 @@ export default function PaymentPage({ navigation, route }) {
                   <Text
                     style={[
                       styles.modalOptionText,
-                      { color: active ? "#157a4f" : colors.text },
+                      { color: active ? "#157a4f" : "#000" },
                     ]}
                   >
                     {d.label}
@@ -508,7 +506,7 @@ export default function PaymentPage({ navigation, route }) {
               onPress={() => setDurationModalVisible(false)}
               activeOpacity={0.7}
             >
-              <Text style={[styles.centeredCancelText, { color: colors.text }]}>Cancel</Text>
+              <Text style={styles.centeredCancelText}>Cancel</Text>
             </TouchableOpacity>
           </Pressable>
         </Pressable>
@@ -523,9 +521,9 @@ export default function PaymentPage({ navigation, route }) {
         statusBarTranslucent
       >
         <Pressable style={styles.modalOverlay} onPress={() => setPlanModalVisible(false)}>
-          <Pressable style={[styles.modalSheet, { backgroundColor: colors.card || "#fff" }]}>
+          <Pressable style={[styles.modalSheet, { backgroundColor: "#fff" }]}>
             <View style={styles.modalHandle} />
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Choose a Plan</Text>
+            <Text style={styles.modalTitle}>Choose a Plan</Text>
             {plansList.map((p) => {
               const active = p.id === plan.id;
               return (
@@ -539,7 +537,7 @@ export default function PaymentPage({ navigation, route }) {
                     <PlanIcon icon={p.icon} size={18} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.planOptionName, { color: colors.text }]}>{p.name}</Text>
+                    <Text style={styles.planOptionName}>{p.name}</Text>
                     <Text style={styles.planOptionPrice}>₹{p.price}/month</Text>
                   </View>
                   {active && <Ionicons name="checkmark-circle" size={20} color="#157a4f" />}

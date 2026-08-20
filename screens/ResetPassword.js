@@ -1,15 +1,12 @@
 import React, { useState, useContext } from "react";
 import { View, TouchableOpacity, Text, TextInput, StyleSheet, Alert, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ThemeContext } from "../theme/ThemeContext";
 import { Dimensions } from "react-native";
 import { Entypo, Feather } from "@expo/vector-icons";
 import { BASE_URL } from "../config";
 import { textPresets } from "../theme/typography";
 
 export default function ResetPassword({ navigation, route }) {
-  const { colors } = useContext(ThemeContext);
-
   const initialEmail = route?.params?.email || "";
   const initialOtp = route?.params?.otp || "";
 

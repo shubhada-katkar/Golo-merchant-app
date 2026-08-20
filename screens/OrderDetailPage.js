@@ -9,7 +9,6 @@ import { BASE_URL } from "../config";
 import { enrichOrderDetails, fetchVoucherDetails } from "../services/orderService";
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
-import { ThemeContext } from "../theme/ThemeContext";
 import { MaterialCommunityIcons, MaterialIcons, AntDesign, Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { getValidToken, handleAuthError } from "../services/authService";
@@ -24,7 +23,6 @@ const formatDateTime = (value) => {
 
 export default function OrderDetailPage() {
   const scrollViewRef = useRef(null);
-  const { colors } = useContext(ThemeContext);
   const navigation = useNavigation();
   const route = useRoute();
   const [orderData, setOrderData] = useState(route.params?.order || {});
@@ -343,7 +341,7 @@ export default function OrderDetailPage() {
   }, [navigation, redeemVoucher]);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <SafeAreaView style={{ flex: 1 }}>
       <LinearGradient
         colors={["#f8a812", "#fad081", "#f8f6f265"]}
         start={{ x: 0, y: 0 }}
@@ -358,7 +356,6 @@ export default function OrderDetailPage() {
             <MaterialIcons
               name="arrow-back-ios"
               size={22}
-              color={colors.text}
               style={{ padding: 10 }}
             />
           </View>
@@ -369,7 +366,7 @@ export default function OrderDetailPage() {
         }}>Order Details</Text>
       </View>
 
-      <View style={{ height: 1, backgroundColor: colors.divider, marginBottom: 10 }} />
+      <View style={{ height: 1, backgroundColor: "#000", marginBottom: 10 }} />
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"} >
         <ScrollView ref={scrollViewRef}

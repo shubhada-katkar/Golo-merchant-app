@@ -29,8 +29,6 @@ export default function ActiveProductsModal({
   onSkip,
   saving = false,
 }) {
-  const { colors } = useContext(ThemeContext);
-  const isDark = colors.background === "#383838";
 
   const [selectedIds, setSelectedIds] = useState([]);
   const [searchText, setSearchText] = useState("");
@@ -124,11 +122,11 @@ export default function ActiveProductsModal({
                 <Text style={styles.badgeText}>Active Plan: {planName}</Text>
               </View>
               <TouchableOpacity onPress={onSkip} style={styles.closeBtn}>
-                <Feather name="x" size={20} color={colors.text || "#333"} />
+                <Feather name="x" size={20} color={"#333"} />
               </TouchableOpacity>
             </View>
 
-            <Text style={[styles.title, { color: colors.text || "#000" }]}>
+            <Text style={[styles.title, { color: "#000" }]}>
               Select Active Products
             </Text>
             <Text
@@ -165,7 +163,7 @@ export default function ActiveProductsModal({
               placeholderTextColor="#888888"
               value={searchText}
               onChangeText={setSearchText}
-              style={[styles.searchInput, { color: colors.text || "#000" }]}
+              style={[styles.searchInput, { color: "#000" }]}
             />
             {!!searchText && (
               <TouchableOpacity onPress={() => setSearchText("")}>
@@ -208,7 +206,7 @@ export default function ActiveProductsModal({
                   )}
 
                   <View style={styles.itemDetails}>
-                    <Text style={[styles.itemName, { color: colors.text || "#000" }]} numberOfLines={1}>
+                    <Text style={[styles.itemName, { color: "#000" }]} numberOfLines={1}>
                       {item.productname || item.name}
                     </Text>
                     <Text style={styles.itemCategory} numberOfLines={1}>
@@ -230,7 +228,7 @@ export default function ActiveProductsModal({
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
                 <MaterialIcons name="inventory" size={40} color="#888888" />
-                <Text style={[styles.emptyText, { color: colors.text || "#888888" }]}>
+                <Text style={[styles.emptyText, { color: "#888888" }]}>
                   No matching products found
                 </Text>
               </View>
@@ -244,7 +242,7 @@ export default function ActiveProductsModal({
               onPress={onSkip}
               disabled={saving}
             >
-              <Text style={[styles.skipBtnText, { color: colors.text || "#555" }]}>
+              <Text style={[styles.skipBtnText, { color: "#555" }]}>
                 Skip for now
               </Text>
             </TouchableOpacity>

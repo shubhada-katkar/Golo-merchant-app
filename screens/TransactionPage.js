@@ -4,7 +4,6 @@ import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons, FontAwesome5 } from "@expo/vector-icons";
-import { ThemeContext } from "../theme/ThemeContext";
 import { LinearGradient } from "expo-linear-gradient";
 import { textPresets } from "../theme/typography";
 
@@ -39,7 +38,6 @@ const METHOD_ICON = {
 };
 
 export default function TransactionPage({ navigation }) {
-    const { colors } = useContext(ThemeContext);
     const [activeTab, setActiveTab] = useState("All Transactions");
 
     const filtered = TRANSACTIONS.filter((t) => {
@@ -48,7 +46,7 @@ export default function TransactionPage({ navigation }) {
     });
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView style={{ flex: 1 }}>
             <LinearGradient
                 colors={["#f8a812", "#fad081", "#f8f6f265"]}
                 start={{ x: 0, y: 0 }}
@@ -59,12 +57,12 @@ export default function TransactionPage({ navigation }) {
 
             <View style={styles.row1}>
                 <TouchableOpacity onPress={() => navigation.goBack()}>
-                    <MaterialIcons name="arrow-back-ios" size={22} color={colors.text} style={{ padding: 10 }} />
+                    <MaterialIcons name="arrow-back-ios" size={22} style={{ padding: 10 }} />
                 </TouchableOpacity>
                 <Text style={{ ...textPresets.title, flex: 1 }}>Transactions</Text>
             </View>
 
-            <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1 }} />
+            <View style={{ flexDirection: "row", backgroundColor: "#000", height: 1 }} />
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
                 {/* Summary cards */}

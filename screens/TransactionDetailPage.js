@@ -43,10 +43,9 @@ const DETAIL = {
 };
 
 export default function TransactionDetailPage({ navigation }) {
-    const { colors } = useContext(ThemeContext);
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView style={{ flex: 1 }}>
             <LinearGradient
                 colors={["#f8a812", "#fad081", "#f8f6f265"]}
                 start={{ x: 0, y: 0 }}
@@ -57,12 +56,12 @@ export default function TransactionDetailPage({ navigation }) {
 
             <View style={styles.row1}>
                 <TouchableOpacity onPress={() => navigation.goBack()}>
-                    <MaterialIcons name="arrow-back-ios" size={22} color={colors.text} style={{ padding: 10 }} />
+                    <MaterialIcons name="arrow-back-ios" size={22} style={{ padding: 10 }} />
                 </TouchableOpacity>
                 <Text style={{ ...textPresets.title, flex: 1 }}>Transaction Details</Text>
             </View>
 
-            <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1 }} />
+            <View style={{ flexDirection: "row", backgroundColor: "#000", height: 1 }} />
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 14, paddingBottom: 110 }}>
 

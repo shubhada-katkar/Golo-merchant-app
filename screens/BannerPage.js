@@ -1,10 +1,9 @@
-import React, { useState, useContext, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { View, TouchableOpacity, Text, StyleSheet, Image, ScrollView, Alert, TextInput, Platform, ActivityIndicator } from "react-native";
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons, Feather } from "@expo/vector-icons";
-import { ThemeContext } from "../theme/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL } from "../config";
 import { LinearGradient } from "expo-linear-gradient";
@@ -146,8 +145,6 @@ const toDateKey = (value) => {
 };
 
 export default function BannerPage({ navigation, route }) {
-    const { colors } = useContext(ThemeContext);
-
     // ── Edit mode ──────────────────────────────────────────────
     const editData = route?.params?.editData || null;
     const isEditMode = Boolean(editData);
@@ -942,24 +939,23 @@ export default function BannerPage({ navigation, route }) {
 
             <View style={styles.row1}>
                 <TouchableOpacity onPress={() => navigation.goBack()}>
-                    <MaterialIcons name="arrow-back-ios" size={22} color={colors.text} style={{ padding: 10 }} />
+                    <MaterialIcons name="arrow-back-ios" size={22} style={{ padding: 10 }} />
                 </TouchableOpacity>
                 <Text style={{
                     flex: 1, ...textPresets.title
                 }}>{isEditMode ? "Edit Banner" : "Promote Banner"}</Text>
             </View>
 
-            <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1 }} />
+            <View style={{ flexDirection: "row", backgroundColor: "#000", height: 1 }} />
             <ScrollView contentContainerStyle={{ paddingBottom: 110 }} showsVerticalScrollIndicator={false}>
 
                 {/* Form card */}
                 <View style={styles.card}>
 
-                    <Text style={[styles.label, { color: colors.subtext }]}>BANNER TITLE</Text>
+                    <Text style={styles.label}>BANNER TITLE</Text>
                     <TextInput
-                        style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.inputBackground }]}
+                        style={[styles.input, { borderColor: "#000" }]}
                         placeholder="Enter banner title"
-                        placeholderTextColor={colors.subtext}
                         value={bannerTitle}
                         onChangeText={setBannerTitle}
                     />
@@ -970,10 +966,10 @@ export default function BannerPage({ navigation, route }) {
                         onPress={() => setCategoryOpen((prev) => !prev)}
                     >
                         <Text style={{ ...textPresets.body }}>{category}</Text>
-                        <Feather name={categoryOpen ? "chevron-up" : "chevron-down"} size={20} color={colors.subtext} />
+                        <Feather name={categoryOpen ? "chevron-up" : "chevron-down"} size={20} />
                     </TouchableOpacity>
                     {categoryOpen && (
-                        <View style={[styles.dropdownList, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}>
+                        <View style={styles.dropdownList}>
                             {BANNER_CATEGORIES.map((item) => (
                                 <TouchableOpacity
                                     key={item}
@@ -990,7 +986,7 @@ export default function BannerPage({ navigation, route }) {
                     )}
 
                     {/* COVERAGE AREA (SELECT ONE) */}
-                    <Text style={[styles.label, { color: colors.subtext, marginTop: 18 }]}>COVERAGE AREA (SELECT ONE)</Text>
+                    <Text style={[styles.label, { marginTop: 18 }]}>COVERAGE AREA (SELECT ONE)</Text>
                     <View style={styles.coverageToggleContainer}>
                         {["Town", "City", "District"].map((type) => {
                             const active = coverageType === type;
@@ -1000,8 +996,8 @@ export default function BannerPage({ navigation, route }) {
                                     style={[
                                         styles.coverageButton,
                                         {
-                                            backgroundColor: active ? (colors.success || "#157a4f") : colors.inputBackground,
-                                            borderColor: active ? (colors.success || "#157a4f") : colors.border,
+                                            backgroundColor: active ? "#157a4f" : "#fff",
+                                            borderColor: active ? "#157a4f" : "#000",
                                         },
                                     ]}
                                     onPress={() => {
@@ -1016,7 +1012,7 @@ export default function BannerPage({ navigation, route }) {
                                     <Text
                                         style={[
                                             styles.coverageButtonText,
-                                            { color: active ? "#ffffff" : colors.text },
+                                            { color: active ? "#ffffff" : "#000" },
                                         ]}
                                     >
                                         {type === "Town" ? "Town" : type === "City" ? "City" : "District"}
@@ -1027,7 +1023,7 @@ export default function BannerPage({ navigation, route }) {
                     </View>
 
                     {/* BANNER LOCATIONS (MAX 7) */}
-                    <Text style={[styles.label, { color: colors.subtext, marginTop: 18 }]}>BANNER LOCATIONS (MAX 7)</Text>
+                    <Text style={[styles.label, { marginTop: 18 }]}>BANNER LOCATIONS (MAX 7)</Text>
                     {!isEditMode ? (
                         <View style={{ position: "relative" }}>
                             <View style={styles.locationInputRow}>
@@ -1036,15 +1032,13 @@ export default function BannerPage({ navigation, route }) {
                                         styles.input,
                                         {
                                             flex: 1,
-                                            color: colors.text,
-                                            borderColor: locationSuggestions.length > 0 ? (colors.success || "#157a4f") : colors.border,
-                                            backgroundColor: colors.inputBackground,
+                                            borderColor: locationSuggestions.length > 0 ? "#157a4f" : "#000",
                                             marginRight: 8,
                                             marginBottom: 0,
                                         }
                                     ]}
                                     placeholder={`Search ${coverageType.toLowerCase()}`}
-                                    placeholderTextColor={colors.subtext}
+                                    placeholderTextColor={"#7e7e7eff"}
                                     value={locationInputText}
                                     onChangeText={handleLocationInputChange}
                                     onSubmitEditing={handleAddLocation}
@@ -1053,7 +1047,7 @@ export default function BannerPage({ navigation, route }) {
                                 <TouchableOpacity
                                     style={[
                                         styles.addLocationBtn,
-                                        { backgroundColor: colors.success || "#157a4f" }
+                                        { backgroundColor: "#157a4f" }
                                     ]}
                                     onPress={handleAddLocation}
                                 >
@@ -1065,24 +1059,24 @@ export default function BannerPage({ navigation, route }) {
 
                             {/* Autocomplete dropdown with per-day rates */}
                             {locationSuggestions.length > 0 && (
-                                <View style={[styles.suggestionsDropdown, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}>
+                                <View style={styles.suggestionsDropdown}>
                                     {locationSuggestions.map((s) => (
                                         <TouchableOpacity
                                             key={s.id}
                                             style={styles.suggestionItem}
                                             onPress={() => handleSelectSuggestion(s)}
                                         >
-                                            <Feather name="map-pin" size={15} color={colors.success || "#157a4f"} style={{ marginRight: 8, marginTop: 2 }} />
+                                            <Feather name="map-pin" size={15} color={"#157a4f"} style={{ marginRight: 8, marginTop: 2 }} />
                                             <View style={{ flex: 1, marginRight: 8 }}>
-                                                <Text style={[styles.suggestionTitle, { color: colors.text }]} numberOfLines={1}>
+                                                <Text style={styles.suggestionTitle} numberOfLines={1}>
                                                     {s.firstName}
                                                 </Text>
-                                                <Text style={[styles.suggestionSubtitle, { color: colors.subtext }]} numberOfLines={1}>
+                                                <Text style={styles.suggestionSubtitle} numberOfLines={1}>
                                                     {s.fullName}
                                                 </Text>
                                             </View>
-                                            <View style={[styles.suggestionRateBadge, { backgroundColor: colors.successLight || "#e3f3ea" }]}>
-                                                <Text style={[styles.suggestionRateText, { color: colors.success || "#157a4f" }]}>
+                                            <View style={[styles.suggestionRateBadge, { backgroundColor: "#e3f3ea" }]}>
+                                                <Text style={[styles.suggestionRateText, { color: "#157a4f" }]}>
                                                     Rs. {s.rate}/day
                                                 </Text>
                                             </View>
@@ -1100,13 +1094,13 @@ export default function BannerPage({ navigation, route }) {
                                 const name = typeof loc === "string" ? loc : loc.name;
                                 const rate = getLocationRate(loc, coverageType);
                                 return (
-                                    <View key={idx} style={[styles.chip, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}>
-                                        <Feather name="map-pin" size={12} color={colors.success || "#157a4f"} style={{ marginRight: 4 }} />
-                                        <Text style={{ ...textPresets.label, color: colors.text }}>{name}</Text>
-                                        <Text style={[styles.chipRateText, { color: colors.success || "#157a4f" }]}> (Rs. {rate}/d)</Text>
+                                    <View key={idx} style={styles.chip}>
+                                        <Feather name="map-pin" size={12} color={"#157a4f"} style={{ marginRight: 4 }} />
+                                        <Text style={{ ...textPresets.label }}>{name}</Text>
+                                        <Text style={[styles.chipRateText, { color: "#157a4f" }]}> (Rs. {rate}/d)</Text>
                                         {!isEditMode && (
                                             <TouchableOpacity onPress={() => handleRemoveLocation(loc)} style={{ marginLeft: 6 }}>
-                                                <Feather name="x" size={14} color={colors.subtext} />
+                                                <Feather name="x" size={14} />
                                             </TouchableOpacity>
                                         )}
                                     </View>
@@ -1114,19 +1108,19 @@ export default function BannerPage({ navigation, route }) {
                             })}
                         </View>
                     ) : (
-                        <Text style={[styles.noDatesText, { color: colors.subtext, marginTop: 6 }]}>
+                        <Text style={[styles.noDatesText, { marginTop: 6 }]}>
                             No target locations added yet. (Min 1, max 7)
                         </Text>
                     )}
                     {isEditMode && (
-                        <Text style={{ color: colors.subtext, marginTop: 8, ...textPresets.caption }}>
+                        <Text style={{ marginTop: 8, ...textPresets.caption }}>
                             * Locations cannot be modified for an active promotion.
                         </Text>
                     )}
 
-                    <Text style={[styles.label, { color: colors.subtext, marginTop: 18 }]}>UPLOAD BANNER</Text>
+                    <Text style={[styles.label, { marginTop: 18 }]}>UPLOAD BANNER</Text>
                     <TouchableOpacity
-                        style={[styles.uploadBox, { borderColor: colors.border }, bannerImage && { paddingVertical: 0, paddingHorizontal: 0 }]}
+                        style={[styles.uploadBox, bannerImage && { paddingVertical: 0, paddingHorizontal: 0 }]}
                         onPress={handlePickImage}
                         activeOpacity={0.7} >
                         {bannerImage ? (
@@ -1139,8 +1133,8 @@ export default function BannerPage({ navigation, route }) {
                             </View>
                         ) : (
                             <>
-                                <View style={[styles.uploadIconCircle, { backgroundColor: colors.successLight || "#e3f3ea" }]}>
-                                    <Feather name="upload" size={20} color={colors.success || "#157a4f"} />
+                                <View style={[styles.uploadIconCircle, { backgroundColor: "#e3f3ea" }]}>
+                                    <Feather name="upload" size={20} color={"#157a4f"} />
                                 </View>
                                 <Text style={styles.uploadTitle}>Click to upload banner image</Text>
                                 <Text style={styles.uploadSubtitle}>
@@ -1154,10 +1148,10 @@ export default function BannerPage({ navigation, route }) {
                 {/* Promotion dates card */}
                 <View style={styles.card}>
                     <View style={styles.datesHeaderRow}>
-                        <Text style={[styles.cardTitle, { color: colors.text }]}>Promotion Dates</Text>
+                        <Text style={styles.cardTitle}>Promotion Dates</Text>
                         {!isEditMode && (
                             <TouchableOpacity
-                                style={[styles.addDateBtn, { backgroundColor: colors.success || "#157a4f" }]}
+                                style={[styles.addDateBtn, { backgroundColor: "#157a4f" }]}
                                 onPress={() => setShowDatePicker(true)}
                             >
                                 <Feather name="plus" size={16} color="#fff" />
@@ -1167,17 +1161,17 @@ export default function BannerPage({ navigation, route }) {
                     </View>
 
                     {selectedDaysCount === 0 ? (
-                        <Text style={[styles.noDatesText, { color: colors.subtext }]}>
+                        <Text style={styles.noDatesText}>
                             Tap "Add date" to choose visibility dates.
                         </Text>
                     ) : (
                         <View style={styles.chipsWrap}>
                             {selectedDates.map((key) => (
-                                <View key={key} style={[styles.chip, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}>
+                                <View key={key} style={[styles.chip]}>
                                     <Text style={{ ...textPresets.label }}>{formatDateLabel(key)}</Text>
                                     {!isEditMode && (
                                         <TouchableOpacity onPress={() => removeDate(key)} style={{ marginLeft: 6 }}>
-                                            <Feather name="x" size={14} color={colors.subtext} />
+                                            <Feather name="x" size={14} />
                                         </TouchableOpacity>
                                     )}
                                 </View>
@@ -1186,12 +1180,12 @@ export default function BannerPage({ navigation, route }) {
                     )}
 
                     {isEditMode && (
-                        <Text style={{ color: colors.subtext, marginTop: 8, ...textPresets.caption }}>
+                        <Text style={{ marginTop: 8, ...textPresets.caption }}>
                             * Dates cannot be modified for an active promotion.
                         </Text>
                     )}
 
-                    <Text style={[styles.selectedDaysSummary, { color: colors.text }]}>
+                    <Text style={styles.selectedDaysSummary}>
                         Total selected dates: <Text style={{ ...textPresets.body }}>{selectedDaysCount}</Text>
                     </Text>
 
@@ -1203,21 +1197,21 @@ export default function BannerPage({ navigation, route }) {
                         statusBarTranslucent
                     >
                         <View style={styles.modalOverlay}>
-                            <View style={[styles.modalCard, { backgroundColor: colors.inputBackground }]}>
+                            <View style={styles.modalCard}>
                                 <Calendar
                                     minDate={formatDateKey(new Date())}
                                     markedDates={selectedDates.reduce((acc, key) => {
-                                        acc[key] = { selected: true, selectedColor: colors.success || "#157a4f" };
+                                        acc[key] = { selected: true, selectedColor: "#157a4f" };
                                         return acc;
                                     }, {})}
                                     onDayPress={(day) => toggleDate(day.dateString)}
                                     theme={{
-                                        todayTextColor: colors.success || "#157a4f",
-                                        arrowColor: colors.success || "#157a4f",
+                                        todayTextColor: "#157a4f",
+                                        arrowColor: "#157a4f",
                                     }}
                                 />
                                 <TouchableOpacity
-                                    style={[styles.submitBtn, { backgroundColor: colors.success || "#f5b849", marginTop: 12 }]}
+                                    style={[styles.submitBtn, { backgroundColor: "#f5b849", marginTop: 12 }]}
                                     onPress={() => setShowDatePicker(false)}
                                 >
                                     <Text style={styles.submitBtnText}>Done ({selectedDaysCount} selected)</Text>
@@ -1229,17 +1223,17 @@ export default function BannerPage({ navigation, route }) {
 
                 {/* Pricing summary card & Bill breakdown */}
                 <View style={styles.card}>
-                    <Text style={[styles.cardTitle, { color: colors.text }]}>Pricing Summary & Bill</Text>
+                    <Text style={styles.cardTitle}>Pricing Summary & Bill</Text>
 
                     <View style={styles.priceRow}>
-                        <Text style={[styles.priceLabel, { color: colors.subtext }]}>Coverage Area</Text>
-                        <Text style={[styles.priceValue, { color: colors.text }]}>{coverageType}</Text>
+                        <Text style={styles.priceLabel}>Coverage Area</Text>
+                        <Text style={styles.priceValue}>{coverageType}</Text>
                     </View>
 
                     {/* Per location rates list */}
                     {locations.length > 0 && (
                         <View style={{ marginVertical: 4 }}>
-                            <Text style={[styles.priceLabel, { color: colors.subtext, marginBottom: 4 }]}>
+                            <Text style={[styles.priceLabel, { marginBottom: 4 }]}>
                                 Locations Rate Breakdown ({locations.length}):
                             </Text>
                             {locations.map((loc, index) => {
@@ -1256,31 +1250,31 @@ export default function BannerPage({ navigation, route }) {
                     )}
 
                     <View style={styles.priceRow}>
-                        <Text style={[styles.priceLabel, { color: colors.subtext }]}>Total daily rate</Text>
-                        <Text style={[styles.priceValue, { color: colors.text }]}>Rs. {totalDailyRate} / day</Text>
+                        <Text style={styles.priceLabel}>Total daily rate</Text>
+                        <Text style={styles.priceValue}>Rs. {totalDailyRate} / day</Text>
                     </View>
                     <View style={styles.priceRow}>
-                        <Text style={[styles.priceLabel, { color: colors.subtext }]}>Selected days</Text>
-                        <Text style={[styles.priceValue, { color: colors.text }]}>{selectedDaysCount} {selectedDaysCount === 1 ? "day" : "days"}</Text>
+                        <Text style={styles.priceLabel}>Selected days</Text>
+                        <Text style={styles.priceValue}>{selectedDaysCount} {selectedDaysCount === 1 ? "day" : "days"}</Text>
                     </View>
                     <View style={styles.priceRow}>
-                        <Text style={[styles.priceLabel, { color: colors.subtext }]}>Subtotal (Daily Rate × Days)</Text>
-                        <Text style={[styles.priceValue, { color: colors.text }]}>Rs. {subtotal}</Text>
+                        <Text style={styles.priceLabel}>Subtotal (Daily Rate × Days)</Text>
+                        <Text style={styles.priceValue}>Rs. {subtotal}</Text>
                     </View>
                     <View style={styles.priceRow}>
-                        <Text style={[styles.priceLabel, { color: colors.subtext }]}>Platform fee</Text>
-                        <Text style={[styles.priceValue, { color: colors.text }]}>Rs. {PLATFORM_FEE}</Text>
+                        <Text style={styles.priceLabel}>Platform fee</Text>
+                        <Text style={styles.priceValue}>Rs. {PLATFORM_FEE}</Text>
                     </View>
 
-                    <View style={[styles.divider, { backgroundColor: colors.divider, marginTop: 6 }]} />
+                    <View style={[styles.divider, { backgroundColor: "#000", marginTop: 6 }]} />
 
                     <View style={[styles.priceRow, { marginTop: 10 }]}>
-                        <Text style={[styles.totalLabel, { color: colors.text }]}>Total Payable</Text>
-                        <Text style={[styles.totalValue, { color: colors.success || "#157a4f" }]}>Rs. {totalPayable}</Text>
+                        <Text style={styles.totalLabel}>Total Payable</Text>
+                        <Text style={[styles.totalValue, { color: "#157a4f" }]}>Rs. {totalPayable}</Text>
                     </View>
 
                     <TouchableOpacity
-                        style={[styles.submitBtn, { backgroundColor: colors.success || "#f5b849", opacity: isSubmitting || isUploadingImage ? 0.7 : 1 }]}
+                        style={[styles.submitBtn, { backgroundColor: "#f5b849", opacity: isSubmitting || isUploadingImage ? 0.7 : 1 }]}
                         onPress={handleSubmit}
                         disabled={isSubmitting || isUploadingImage}
                     >

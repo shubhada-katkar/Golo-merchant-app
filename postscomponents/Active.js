@@ -17,7 +17,6 @@ import { textPresets } from "../theme/typography";
 import CustomAlertModal from "../components/CustomAlertModal";
 
 export default function Active({ searchText = "" }) {
-    const { colors } = useContext(ThemeContext);
     const navigation = useNavigation();
     const [offers, setOffers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -280,7 +279,7 @@ export default function Active({ searchText = "" }) {
                 onRefresh={fetchOffers}
                 ListEmptyComponent={
                     <Text style={{
-                        textAlign: 'center', marginTop: 20, color: colors.text,
+                        textAlign: 'center', marginTop: 20,
                         ...textPresets.body
                     }}>
                         No active offers available
@@ -297,12 +296,12 @@ export default function Active({ searchText = "" }) {
                 statusBarTranslucent
             >
                 <View style={styles.modalOverlay}>
-                    <View style={[styles.modalCard, { backgroundColor: colors.background === "#383838" ? "#2d2d2d" : "#ffffff" }]}>
+                    <View style={[styles.modalCard, { backgroundColor: "#ffffff" }]}>
                         <View style={styles.modalIconContainer}>
                             <MaterialCommunityIcons name="close-circle" size={40} color="#e53935" />
                         </View>
-                        <Text style={[styles.modalTitleText, { color: colors.text }]}>Delete Offer</Text>
-                        <Text style={[styles.modalMessageText, { color: colors.text === "#ffffff" ? "#cccccc" : "#555555" }]}>
+                        <Text style={styles.modalTitleText}>Delete Offer</Text>
+                        <Text style={[styles.modalMessageText, { color: "#555555" }]}>
                             Are you sure you want to delete this offer?
                         </Text>
                         <View style={styles.modalConfirmRow}>

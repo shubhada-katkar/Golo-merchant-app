@@ -9,7 +9,6 @@ import {
     RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ThemeContext } from "../theme/ThemeContext";
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -35,7 +34,6 @@ function formatRelativeTime(value) {
 }
 
 export default function Notifications({ navigation }) {
-    const { colors } = useContext(ThemeContext);
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -169,7 +167,7 @@ export default function Notifications({ navigation }) {
                     />
                 </View>
                 <View style={styles.cardBody}>
-                    <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={2}>
+                    <Text style={styles.cardTitle} numberOfLines={2}>
                         {title}
                     </Text>
                     <Text style={styles.cardMessage} numberOfLines={3}>
@@ -183,7 +181,7 @@ export default function Notifications({ navigation }) {
     };
 
     return (
-        <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+        <SafeAreaView style={styles.safeArea}>
             <LinearGradient
                 colors={["#f8a812", "#fad081", "#f8f6f265"]}
                 start={{ x: 0, y: 0 }}
@@ -196,13 +194,13 @@ export default function Notifications({ navigation }) {
             <View style={styles.header}>
                 <View style={styles.headerRow}>
                     <TouchableOpacity onPress={() => navigation.goBack()}>
-                        <MaterialIcons name="arrow-back-ios" size={22} color={colors.text} style={styles.backButton} />
+                        <MaterialIcons name="arrow-back-ios" size={22} style={styles.backButton} />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Notifications</Text>
                 </View>
             </View>
 
-            <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1 }} />
+            <View style={{ flexDirection: "row", backgroundColor: "#000", height: 1 }} />
 
             {loading ? (
                 <View style={styles.centerState}>

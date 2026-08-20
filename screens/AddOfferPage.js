@@ -10,7 +10,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
 import OfferScroll from "../components/OfferScroll";
-import { ThemeContext } from "../theme/ThemeContext";
 import Dropdown from "../components/Dropdown";
 import { fetchMerchantProducts } from "../services/merchantProducts";
 import { MaterialIcons, Ionicons, Feather, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -198,9 +197,6 @@ const normalizeSelectedProduct = (product, offerType = "") => {
 
 export default function AddOfferPage({ navigation, route }) {
     const { template, offerData } = route.params || {};
-
-    const { colors } = useContext(ThemeContext);
-
     const [showOffers, setShowOffers] = useState(false);
     const [offerType, setOfferType] = useState("");
     const [offerTypeModalOpen, setOfferTypeModalOpen] = useState(false);
@@ -1221,7 +1217,7 @@ export default function AddOfferPage({ navigation, route }) {
     };
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView style={{ flex: 1 }}>
             <LinearGradient
                 colors={["#f8a812", "#fad081", "#f8f6f265"]}
                 start={{ x: 0, y: 0 }}
@@ -1236,7 +1232,7 @@ export default function AddOfferPage({ navigation, route }) {
                     <Topbar />
                     <View style={styles.row1}>
                         <TouchableOpacity onPress={() => navigation.goBack()}>
-                            <MaterialIcons name="arrow-back-ios" size={22} color={colors.text} style={{ padding: 10 }} />
+                            <MaterialIcons name="arrow-back-ios" size={22} style={{ padding: 10 }} />
                         </TouchableOpacity>
                         <Text style={{
                             ...textPresets.title
@@ -1244,7 +1240,7 @@ export default function AddOfferPage({ navigation, route }) {
                             {offerData ? "Edit Offer" : "Add Offer"}
                         </Text>
                     </View>
-                    <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1 }} />
+                    <View style={{ flexDirection: "row", backgroundColor: "#000", height: 1 }} />
 
                     {!!authToken && (
                         <View style={{ paddingHorizontal: 12, paddingTop: 10 }}>
@@ -1252,7 +1248,7 @@ export default function AddOfferPage({ navigation, route }) {
                                 <View style={{ padding: 20, justifyContent: "center", alignItems: "center" }}>
                                     <ActivityIndicator size="small" color="#157a4f" />
                                     <Text style={{
-                                        color: colors.text, marginTop: 8, ...textPresets.label
+                                        marginTop: 8, ...textPresets.label
                                     }}>Loading products...</Text>
                                 </View>
                             ) : (
@@ -1377,7 +1373,7 @@ export default function AddOfferPage({ navigation, route }) {
                             )}
                         </TouchableOpacity>
 
-                        <Text style={[styles.text, { color: colors.text }]}>Offer Title</Text>
+                        <Text style={styles.text}>Offer Title</Text>
                         <TextInput
                             placeholder="Enter Offer Title"
                             style={styles.input}
@@ -1430,7 +1426,7 @@ export default function AddOfferPage({ navigation, route }) {
                                                         setOfferTypeModalOpen(false);
                                                     }}
                                                 >
-                                                    <Text style={{ ...textPresets.body, color: offerType === item.value ? "#157a4f" : colors.text }}>
+                                                    <Text style={{ ...textPresets.body, color: offerType === item.value ? "#157a4f" : "#000" }}>
                                                         {item.label}
                                                     </Text>
                                                 </TouchableOpacity>
@@ -1441,7 +1437,7 @@ export default function AddOfferPage({ navigation, route }) {
                             </TouchableWithoutFeedback>
                         </Modal>
 
-                        <Text style={[styles.text, { color: colors.text }]}>Offer Validity</Text>
+                        <Text style={styles.text}>Offer Validity</Text>
                         <View style={{ flexDirection: "row", gap: 10 }}>
                             <TouchableOpacity
                                 style={[styles.dateCard, offerData && { opacity: 0.6, backgroundColor: "#f2f2f2" }]}
@@ -1451,7 +1447,7 @@ export default function AddOfferPage({ navigation, route }) {
                                 <Ionicons name="calendar-outline" size={20} color={offerData ? "#888" : "#157a4f"} />
                                 <View style={{ marginLeft: 8 }}>
                                     <Text style={styles.dateLabel}>STARTS</Text>
-                                    <Text style={[styles.dateValue, offerData && { color: colors.subtext || "#888" }]}>
+                                    <Text style={[styles.dateValue, offerData && { color: "#888" }]}>
                                         {fromDate ? fromDate.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "Select date"}
                                     </Text>
                                 </View>
@@ -1464,7 +1460,7 @@ export default function AddOfferPage({ navigation, route }) {
                                 <Ionicons name="calendar-outline" size={20} color={offerData ? "#888" : "#157a4f"} />
                                 <View style={{ marginLeft: 8 }}>
                                     <Text style={styles.dateLabel}>ENDS</Text>
-                                    <Text style={[styles.dateValue, offerData && { color: colors.subtext || "#888" }]}>
+                                    <Text style={[styles.dateValue, offerData && { color: "#888" }]}>
                                         {toDate ? toDate.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "Select date"}
                                     </Text>
                                 </View>
@@ -1477,7 +1473,7 @@ export default function AddOfferPage({ navigation, route }) {
                             </Text>
                         </View>
                         {offerData && (
-                            <Text style={{ color: colors.subtext || "#6b7280", marginTop: 4, ...textPresets.caption }}>
+                            <Text style={{ color: "#6b7280", marginTop: 4, ...textPresets.caption }}>
                                 * Validity dates cannot be modified after offer creation.
                             </Text>
                         )}
@@ -1523,9 +1519,7 @@ export default function AddOfferPage({ navigation, route }) {
                         )}
 
                         <View style={{ flexDirection: "row", alignItems: "center", paddingTop: 10 }}>
-                            <Text style={{
-                                color: colors.text, ...textPresets.body,
-                            }}>Loyalty Reward</Text>
+                            <Text style={{ ...textPresets.body }}>Loyalty Reward</Text>
                             <Switch
                                 value={isDarkMode}
                                 onValueChange={(value) => {
@@ -1548,7 +1542,7 @@ export default function AddOfferPage({ navigation, route }) {
 
                         {isDarkMode && (
                             <>
-                                <Text style={[styles.text, { color: colors.text }]}>Loyalty Points (1-50)</Text>
+                                <Text style={styles.text}>Loyalty Points (1-50)</Text>
                                 <TextInput
                                     placeholder="Enter loyalty points"
                                     keyboardType="numeric"
@@ -1569,7 +1563,7 @@ export default function AddOfferPage({ navigation, route }) {
                             </>
                         )}
 
-                        <Text style={[styles.text, { color: colors.text }]}>Terms and Conditions</Text>
+                        <Text style={styles.text}>Terms and Conditions</Text>
                         <TextInput
                             style={[styles.input, { minHeight: 40, maxHeight: 150 }]}
                             placeholder="Enter T & C"

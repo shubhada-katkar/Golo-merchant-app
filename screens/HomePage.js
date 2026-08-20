@@ -6,7 +6,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Overview from "../components/Overview";
 import Orders from "../components/Orders";
 import Customers from "../components/Customers.js";
-import { ThemeContext } from "../theme/ThemeContext";
 import { LinearGradient } from "expo-linear-gradient";
 import { textPresets } from '../theme/typography';
 
@@ -18,7 +17,6 @@ const UNDERLINE_WIDTH_RATIO = 0.85; // matches the old "width: 85%" of the tab
 
 export default function HomePage() {
     const [activeTab, setactiveTab] = useState("Overview");
-    const { colors } = useContext(ThemeContext);
 
     // Keep a ref in sync with activeTab so the PanResponder (created once) always
     // sees the latest value without needing to be recreated on every render.
@@ -108,7 +106,7 @@ export default function HomePage() {
     ).current;
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView style={{ flex: 1 }}>
             <LinearGradient
                 colors={["#f8a812", "#fad081", "#fffbf4"]}
                 start={{ x: 0, y: 0 }}
@@ -140,7 +138,7 @@ export default function HomePage() {
                     />
                 </View>
 
-                <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1 }} />
+                <View style={{ flexDirection: "row", backgroundColor: "#000", height: 1 }} />
             </View>
 
             <View style={{ flex: 1 }} {...panResponder.panHandlers}>

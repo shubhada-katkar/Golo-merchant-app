@@ -4,11 +4,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Camera, CameraView } from "expo-camera";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { ThemeContext } from "../theme/ThemeContext";
 import { textPresets } from "../theme/typography";
 
 export default function ScanQRCodePage() {
-  const { colors } = useContext(ThemeContext);
   const navigation = useNavigation();
   const route = useRoute();
   const { onScanned } = route.params || {};
@@ -88,10 +86,10 @@ export default function ScanQRCodePage() {
 
   if (hasPermission === null) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#157a4f" />
-          <Text style={[styles.statusText, { color: colors.text }]}>Requesting camera access...</Text>
+          <Text style={styles.statusText}>Requesting camera access...</Text>
         </View>
       </SafeAreaView>
     );
@@ -99,9 +97,9 @@ export default function ScanQRCodePage() {
 
   if (hasPermission === false) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <Text style={[styles.statusText, { color: colors.text }]}>Camera access is required to scan QR codes.</Text>
+          <Text style={styles.statusText}>Camera access is required to scan QR codes.</Text>
           <TouchableOpacity style={styles.permissionButton} onPress={() => Camera.requestCameraPermissionsAsync().then(({ status }) => setHasPermission(status === "granted"))}>
             <Text style={styles.permissionButtonText}>Allow Camera</Text>
           </TouchableOpacity>
@@ -111,12 +109,12 @@ export default function ScanQRCodePage() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <MaterialCommunityIcons name="arrow-left" size={30} color="#157a4f" />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.text }]}>Scan QR Code</Text>
+        <Text style={styles.title}>Scan QR Code</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -149,7 +147,7 @@ export default function ScanQRCodePage() {
         statusBarTranslucent
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: colors.background === "#383838" ? "#2d2d2d" : "#ffffff" }]}>
+          <View style={[styles.modalCard, { backgroundColor: "#ffffff" }]}>
             {/* Centered Top Icon */}
             <View style={styles.modalIconContainer}>
               {modalConfig.type === "success" ? (
@@ -161,12 +159,12 @@ export default function ScanQRCodePage() {
 
             {/* Title & Message */}
             {!!modalConfig.title && (
-              <Text style={[styles.modalTitle, { color: colors.text }]}>
+              <Text style={[styles.modalTitle, { color: "#333333" }]}>
                 {modalConfig.title}
               </Text>
             )}
             {!!modalConfig.message && (
-              <Text style={[styles.modalMessage, { color: colors.text === "#ffffff" ? "#cccccc" : "#555555" }]}>
+              <Text style={[styles.modalMessage, { color: "#555555" }]}>
                 {modalConfig.message}
               </Text>
             )}

@@ -7,7 +7,6 @@ import Expire from "../postscomponents/Expire";
 import Active from "../postscomponents/Active";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons, Feather } from "@expo/vector-icons";
-import { ThemeContext } from "../theme/ThemeContext";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
 import { BASE_URL } from "../config";
@@ -16,7 +15,6 @@ import { textPresets } from "../theme/typography";
 
 export default function ProfilePage({ navigation }) {
     const [activeTab, setactiveTab] = useState("Recent");
-    const { colors } = useContext(ThemeContext);
     const [searchText, setSearchText] = useState("");
     const [totalOffers, setTotalOffers] = useState(0);
     const [activeOffers, setActiveOffers] = useState(0);
@@ -95,7 +93,7 @@ export default function ProfilePage({ navigation }) {
 
                 <View style={styles.row1}>
                     <TouchableOpacity onPress={() => navigation.navigate("HomePage")}>
-                        <MaterialIcons name="arrow-back-ios" size={22} color={colors.text} style={{ padding: 10 }} />
+                        <MaterialIcons name="arrow-back-ios" size={22} style={{ padding: 10 }} />
                     </TouchableOpacity>
                     <Text style={{
                         ...textPresets.title
@@ -103,7 +101,7 @@ export default function ProfilePage({ navigation }) {
                 </View>
 
 
-                <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1, marginBottom: 10 }} />
+                <View style={{ flexDirection: "row", backgroundColor: "#000", height: 1, marginBottom: 10 }} />
 
                 <View style={styles.searchBar}>
                     <Feather name="search" size={18} color="#919191" />

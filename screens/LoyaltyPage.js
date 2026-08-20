@@ -1,17 +1,15 @@
-import React, { useContext, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
 import { View, ScrollView, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, TextInput } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
-import { ThemeContext } from "../theme/ThemeContext";
 import { BASE_URL } from "../config";
 import { LinearGradient } from "expo-linear-gradient";
 import { getValidToken, handleAuthError } from "../services/authService";
 import { textPresets } from "../theme/typography";
 
 export default function ({ navigation }) {
-    const { colors } = useContext(ThemeContext);
     const [customers, setCustomers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -172,12 +170,12 @@ export default function ({ navigation }) {
 
             <View style={styles.row1}>
                 <TouchableOpacity style={{ padding: 10 }} onPress={() => navigation.goBack()}>
-                    <MaterialIcons name="arrow-back-ios" size={26} color={colors.text} />
+                    <MaterialIcons name="arrow-back-ios" size={26} />
                 </TouchableOpacity>
-                <Text style={[styles.pageTitle, { color: colors.text }]}>Loyalty Rewards</Text>
+                <Text style={styles.pageTitle}>Loyalty Rewards</Text>
             </View>
 
-            <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1 }} />
+            <View style={{ flexDirection: "row", backgroundColor: "#000", height: 1 }} />
 
             <ScrollView contentContainerStyle={{ paddingBottom: 90 }} style={styles.container}>
                 <View style={styles.searchBox}>
@@ -194,16 +192,16 @@ export default function ({ navigation }) {
                 <View style={styles.row2}>
                     {loading ? (
                         <View style={styles.loaderWrapper}>
-                            <ActivityIndicator size="large" color={colors.primary || "#000"} />
-                            <Text style={[styles.statusText, { color: colors.text }]}>Loading loyalty rewards...</Text>
+                            <ActivityIndicator size="large" color={"#000"} />
+                            <Text style={styles.statusText}>Loading loyalty rewards...</Text>
                         </View>
                     ) : error ? (
                         <View style={styles.loaderWrapper}>
-                            <Text style={[styles.statusText, { color: colors.error || "#b00020" }]}>{error}</Text>
+                            <Text style={[styles.statusText, { color: "#b00020" }]}>{error}</Text>
                         </View>
                     ) : customers.length === 0 ? (
                         <View style={styles.loaderWrapper}>
-                            <Text style={[styles.statusText, { color: colors.text }]}>No loyalty customer records found yet.</Text>
+                            <Text style={styles.statusText}>No loyalty customer records found yet.</Text>
                         </View>
                     ) : (
                         filteredCustomers.map((customer, index) => {
@@ -217,7 +215,7 @@ export default function ({ navigation }) {
                                     key={`${customer.customerId || index}-${index}`}
                                     style={[
                                         styles.card1,
-                                        !isLast && { borderBottomWidth: 1, borderBottomColor: colors.divider || "#e5e7eb" },
+                                        !isLast && { borderBottomWidth: 1, borderBottomColor: "#e5e7eb" },
                                     ]}
                                 >
                                     <View style={styles.cardLeft}>
@@ -228,7 +226,7 @@ export default function ({ navigation }) {
                                             <Text
                                                 style={[
                                                     styles.customerName,
-                                                    { color: isTopCustomer ? "#105c3b" : colors.text || "#111827" },
+                                                    { color: isTopCustomer ? "#105c3b" : "#111827" },
                                                 ]}
                                                 numberOfLines={1}
                                             >
@@ -236,7 +234,7 @@ export default function ({ navigation }) {
                                             </Text>
                                             {customer.userEmail ? (
                                                 <Text
-                                                    style={[styles.customerEmail, { color: colors.subText || "#6b7280" }]}
+                                                    style={[styles.customerEmail, { color: "#6b7280" }]}
                                                     numberOfLines={1}
                                                 >
                                                     {customer.userEmail}

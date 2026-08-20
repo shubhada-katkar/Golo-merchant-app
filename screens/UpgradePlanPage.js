@@ -1,7 +1,6 @@
 import React, { useContext } from "react";
 import { View, TouchableOpacity, Text, StyleSheet, ScrollView, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ThemeContext } from "../theme/ThemeContext";
 import { BASE_URL } from "../config";
 import { LinearGradient } from "expo-linear-gradient";
 import Topbar from "../components/Topbar";
@@ -15,7 +14,6 @@ function PlanIcon({ icon, size = 22 }) {
 }
 
 export default function UpgradePlanPage({ navigation, route }) {
-  const { colors } = useContext(ThemeContext);
   const [plans, setPlans] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
@@ -88,7 +86,7 @@ export default function UpgradePlanPage({ navigation, route }) {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <SafeAreaView style={{ flex: 1 }}>
       <LinearGradient
         colors={["#f8a812", "#fad081", "#f8f6f265"]}
         start={{ x: 0, y: 0 }}
@@ -99,11 +97,10 @@ export default function UpgradePlanPage({ navigation, route }) {
 
       <View style={styles.row1}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <MaterialIcons name="arrow-back-ios" size={22} color={colors.text} style={{ padding: 10 }} />
+          <MaterialIcons name="arrow-back-ios" size={22} style={{ padding: 10 }} />
         </TouchableOpacity>
         <Text
           style={{
-            color: colors.text,
             flex: 1,
             ...textPresets.title,
           }}
@@ -111,7 +108,7 @@ export default function UpgradePlanPage({ navigation, route }) {
           Upgrade Plan
         </Text>
       </View>
-      <View style={{ flexDirection: "row", backgroundColor: colors.divider, height: 1 }} />
+      <View style={{ flexDirection: "row", backgroundColor: "#000", height: 1 }} />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -123,7 +120,7 @@ export default function UpgradePlanPage({ navigation, route }) {
             <FontAwesome5 name="crown" size={12} color="#157a4f" />
             <Text style={styles.headerBadgeText}>UPGRADE YOUR PLAN</Text>
           </View>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>
+          <Text style={styles.headerTitle}>
             Choose the right plan for your business
           </Text>
           <Text style={styles.headerSubtitle}>
@@ -135,12 +132,12 @@ export default function UpgradePlanPage({ navigation, route }) {
         {loading ? (
           <View style={{ paddingVertical: 40, justifyContent: "center", alignItems: "center" }}>
             <ActivityIndicator size="large" color="#157a4f" />
-            <Text style={{ marginTop: 10, color: colors.text, ...textPresets.body }}>Loading plans...</Text>
+            <Text style={{ marginTop: 10, ...textPresets.body }}>Loading plans...</Text>
           </View>
         ) : error ? (
           <View style={{ paddingVertical: 40, justifyContent: "center", alignItems: "center" }}>
             <Ionicons name="alert-circle-outline" size={32} color="#c0392b" />
-            <Text style={{ marginTop: 10, marginBottom: 16, color: colors.text, ...textPresets.body, textAlign: "center" }}>
+            <Text style={{ marginTop: 10, marginBottom: 16, ...textPresets.body, textAlign: "center" }}>
               {error}
             </Text>
             <TouchableOpacity
@@ -157,7 +154,7 @@ export default function UpgradePlanPage({ navigation, route }) {
               key={plan.id}
               style={[
                 styles.card,
-                { backgroundColor: colors.card || "#fff" },
+                { backgroundColor: "#fff" },
                 plan.popular && styles.cardPopular,
               ]}
             >
@@ -172,13 +169,13 @@ export default function UpgradePlanPage({ navigation, route }) {
                   <PlanIcon icon={plan.icon} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.planName, { color: colors.text }]}>{plan.name}</Text>
+                  <Text style={styles.planName}>{plan.name}</Text>
                   <Text style={styles.planTagline}>{plan.tagline}</Text>
                 </View>
               </View>
 
               <View style={styles.priceRow}>
-                <Text style={[styles.priceText, { color: colors.text }]}>
+                <Text style={styles.priceText}>
                   ₹{plan.price}
                   <Text style={styles.priceSuffix}>/month</Text>
                 </Text>
@@ -188,7 +185,7 @@ export default function UpgradePlanPage({ navigation, route }) {
                 {plan.features.map((feature, idx) => (
                   <View key={idx} style={styles.featureRow}>
                     <Ionicons name="checkmark" size={18} color="#157a4f" />
-                    <Text style={[styles.featureText, { color: colors.text }]}>{feature}</Text>
+                    <Text style={styles.featureText}>{feature}</Text>
                   </View>
                 ))}
               </View>
@@ -205,12 +202,12 @@ export default function UpgradePlanPage({ navigation, route }) {
         )}
 
         {/* Need help choosing card */}
-        <View style={[styles.helpCard, { backgroundColor: colors.card || "#fff" }]}>
+        <View style={[styles.helpCard, { backgroundColor: "#fff" }]}>
           <View style={styles.helpIconCircle}>
             <Ionicons name="headset-outline" size={22} color="#f9a641" />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.helpTitle, { color: colors.text }]}>Need help choosing?</Text>
+            <Text style={styles.helpTitle}>Need help choosing?</Text>
             <Text style={styles.helpSubtitle}>
               Our team is ready to help you pick the perfect plan.
             </Text>

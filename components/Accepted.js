@@ -55,7 +55,7 @@ const AcceptedCard = memo(function AcceptedCard({ order, onComplete, colors }) {
       </View>
 
       <View style={{
-        flexDirection: "row", backgroundColor: colors.divider, height: 1,
+        flexDirection: "row", backgroundColor: "#000", height: 1,
         marginVertical: 4
       }} />
 

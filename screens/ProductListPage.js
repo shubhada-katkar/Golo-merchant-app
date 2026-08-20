@@ -4,7 +4,6 @@ import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons, Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { ThemeContext } from "../theme/ThemeContext";
 import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL } from "../config";
@@ -17,7 +16,6 @@ import ActiveProductsModal from "../productlistcomponents/ActiveProductsModal";
 import CustomAlertModal from "../components/CustomAlertModal";
 
 export default function ProductListPage({ navigation }) {
-  const { colors } = useContext(ThemeContext);
   const isFocused = useIsFocused();
 
   const [searchText, setSearchText] = useState("");
@@ -417,7 +415,7 @@ export default function ProductListPage({ navigation }) {
   const isConfigureDisabled = subscriptionInfo.maxProducts !== -1 && hasConfiguredActiveProducts && isLimitReached;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <SafeAreaView style={{ flex: 1 }}>
       <LinearGradient
         colors={["#f8a812", "#fad081", "#f8f6f265"]}
         start={{ x: 0, y: 0 }}
@@ -433,7 +431,7 @@ export default function ProductListPage({ navigation }) {
           <MaterialIcons
             name="arrow-back-ios"
             size={22}
-            color={colors.text}
+            color={"#000"}
             style={{ padding: 10 }}
           />
         </TouchableOpacity>
@@ -441,7 +439,7 @@ export default function ProductListPage({ navigation }) {
           Product List
         </Text>
       </View>
-      <View style={{ height: 1, backgroundColor: colors.divider }} />
+      <View style={{ height: 1, backgroundColor: "#000" }} />
 
       <View style={styles.statsRow}>
         <View style={styles.statCard}>

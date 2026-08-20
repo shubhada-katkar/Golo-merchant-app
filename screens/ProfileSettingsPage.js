@@ -17,7 +17,6 @@ import { textPresets } from "../theme/typography";
 
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
-import { ThemeContext } from "../theme/ThemeContext";
 import { BASE_URL } from "../config";
 import { uploadImageToCloudinary } from "../services/cloudinaryService";
 import CustomAlertModal from "../components/CustomAlertModal";
@@ -60,7 +59,6 @@ const STORE_SUBCATEGORIES = {
 
 export default function ProfileSettingsPage({ navigation }) {
 
-  const { colors } = useContext(ThemeContext);
   const [name, setName] = useState("");
   const [number, setNumber] = useState("");
   const [email, setEmail] = useState("");
@@ -825,7 +823,7 @@ export default function ProfileSettingsPage({ navigation }) {
 
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <SafeAreaView style={{ flex: 1 }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"} >
@@ -840,8 +838,7 @@ export default function ProfileSettingsPage({ navigation }) {
         {/* HEADER */}
         <View style={styles.row1}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <MaterialIcons name="arrow-back-ios" size={22}
-              color={colors.text} style={{ padding: 10 }}
+            <MaterialIcons name="arrow-back-ios" size={22} style={{ padding: 10 }}
             />
           </TouchableOpacity>
           <Text style={styles.title}>Profile Settings</Text>
@@ -1045,14 +1042,14 @@ export default function ProfileSettingsPage({ navigation }) {
               </Picker>
             </View>
             {loadingProfile ? (
-              <Text style={{ marginTop: 8, color: colors.text }}>Refreshing profile...</Text>
+              <Text style={{ marginTop: 8 }}>Refreshing profile...</Text>
             ) : null}
           </View>
 
           {/* STORE LOCATION */}
           <View style={{ paddingHorizontal: 14, marginTop: 8 }}>
-            <Text style={[styles.sectionLabel, { color: colors.text }]}>Store Location</Text>
-            <View style={[styles.locationCard, { borderColor: colors.divider }]}>
+            <Text style={styles.sectionLabel}>Store Location</Text>
+            <View style={styles.locationCard}>
               <View style={styles.locationPreviewMapContainer}>
                 <WebView
                   originWhitelist={['*']}
@@ -1070,10 +1067,10 @@ export default function ProfileSettingsPage({ navigation }) {
             </View>
 
             <TouchableOpacity style={styles.locationeditbox} onPress={openLocationModal}>
-              <Text style={[styles.locationPreviewText, { color: colors.text }]} numberOfLines={2}>
+              <Text style={styles.locationPreviewText} numberOfLines={2}>
                 {storeAddress || "Tap to set your store location on map"}
               </Text>
-              <Text style={[styles.locationPreviewAction, { color: colors.text }]}>Tap to edit location</Text>
+              <Text style={styles.locationPreviewAction}>Tap to edit location</Text>
             </TouchableOpacity>
           </View>
 
@@ -1090,17 +1087,17 @@ export default function ProfileSettingsPage({ navigation }) {
           </View>
 
           <Modal visible={locationModalVisible} animationType="slide">
-            <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+            <SafeAreaView style={styles.modalContainer}>
               <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Store Location</Text>
+                <Text style={styles.modalTitle}>Edit Store Location</Text>
                 <TouchableOpacity onPress={closeLocationModal} style={styles.modalCloseButton}>
                   <Text style={{ ...textPresets.label, color: "#d32b2b" }}>Cancel</Text>
                 </TouchableOpacity>
               </View>
 
-              <View style={[styles.searchContainer, { borderColor: colors.divider, backgroundColor: colors.background }]}>
+              <View style={styles.searchContainer}>
                 <TextInput
-                  style={[styles.searchInput, { color: colors.text, borderColor: colors.divider }]}
+                  style={styles.searchInput}
                   value={locationSearchQuery}
                   placeholder="Search for location"
                   placeholderTextColor="#888"
@@ -1115,13 +1112,13 @@ export default function ProfileSettingsPage({ navigation }) {
                   keyExtractor={(item) => item.id?.toString() || item.displayName || item.name || Math.random().toString()}
                   style={styles.searchResults}
                   renderItem={({ item }) => (
-                    <TouchableOpacity style={[styles.searchResultItem, { borderColor: colors.divider }]} onPress={() => selectSearchResult(item)}>
-                      <Text style={[styles.searchResultText, { color: colors.text }]}>{item.displayName || item.address || item.name}</Text>
+                    <TouchableOpacity style={styles.searchResultItem} onPress={() => selectSearchResult(item)}>
+                      <Text style={styles.searchResultText}>{item.displayName || item.address || item.name}</Text>
                     </TouchableOpacity>
                   )} />
               )}
 
-              <View style={[styles.modalMapContainer, { borderColor: colors.divider }]}>
+              <View style={styles.modalMapContainer}>
                 <WebView
                   ref={webviewRef}
                   originWhitelist={['*']}
@@ -1135,7 +1132,7 @@ export default function ProfileSettingsPage({ navigation }) {
                   onMessage={handleWebViewMessage} />
               </View>
 
-              <Text style={[styles.modalNote, { color: colors.text }]} numberOfLines={2}>
+              <Text style={styles.modalNote} numberOfLines={2}>
                 {tempLocation.address || "Tap the map or search to set the store location."}
               </Text>
 
