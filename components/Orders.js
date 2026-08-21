@@ -295,17 +295,7 @@ export default function Orders() {
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row1Scroll}>
                     <TouchableOpacity onPress={() => setactiveTab("All")}
                         style={[styles.row1button, activeTab == "All" && styles.ActiveTab]}>
-                        <Text style={[styles.row1text, activeTab == "All" && styles.ActiveTabText]}>All</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity onPress={() => setactiveTab("Pending")}
-                        style={[styles.row1button, activeTab == "Pending" && styles.ActiveTab]}>
-                        <Text style={[styles.row1text, activeTab == "Pending" && styles.ActiveTabText]}>Pending</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity onPress={() => setactiveTab("Accepted")}
-                        style={[styles.row1button, activeTab == "Accepted" && styles.ActiveTab]}>
-                        <Text style={[styles.row1text, activeTab == "Accepted" && styles.ActiveTabText]}>Accepted</Text>
+                        <Text style={[styles.row1text, activeTab == "All" && styles.ActiveTabText]}>All Orders</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity onPress={() => setactiveTab("Completed")}
@@ -313,10 +303,20 @@ export default function Orders() {
                         <Text style={[styles.row1text, activeTab == "Completed" && styles.ActiveTabText]}>Completed</Text>
                     </TouchableOpacity>
 
+                    <TouchableOpacity onPress={() => setactiveTab("Pending")}
+                        style={[styles.row1button, activeTab == "Pending" && styles.ActiveTab]}>
+                        <Text style={[styles.row1text, activeTab == "Pending" && styles.ActiveTabText]}>Pending</Text>
+                    </TouchableOpacity>
+
                     <TouchableOpacity onPress={() => setactiveTab("Rejected")}
                         style={[styles.row1button, activeTab == "Rejected" && styles.ActiveTab]}>
                         <Text style={[styles.row1text, activeTab == "Rejected" && styles.ActiveTabText]}>Rejected</Text>
                     </TouchableOpacity>
+
+                    {/* <TouchableOpacity onPress={() => setactiveTab("Accepted")}
+                        style={[styles.row1button, activeTab == "Accepted" && styles.ActiveTab]}>
+                        <Text style={[styles.row1text, activeTab == "Accepted" && styles.ActiveTabText]}>Accepted</Text>
+                    </TouchableOpacity> */}
                 </ScrollView>
             </View>
 
@@ -368,11 +368,11 @@ const styles = StyleSheet.create({
     },
     row1button: {
         borderRadius: 20,
-        backgroundColor: "#bebebe",
-        paddingVertical: 6,
+        backgroundColor: "#cacacaff",
+        paddingVertical: 8,
         alignItems: "center",
         justifyContent: "center",
-        width: 100
+        width: 120,
     },
     ActiveTab: {
         backgroundColor: "#ffffff",
