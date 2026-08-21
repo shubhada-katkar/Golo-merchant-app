@@ -63,11 +63,12 @@ export default function App() {
 
     const responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
       const data = response?.notification?.request?.content?.data;
+      if (data?.isLocalPoll) {
+        return;
+      }
       if (navigationRef.isReady()) {
         if (data?.orderId) {
           navigationRef.navigate("OrderDetailPage", { orderId: data.orderId });
-        } else {
-          navigationRef.navigate("NotificationsPage");
         }
       }
     });

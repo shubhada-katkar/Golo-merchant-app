@@ -1,7 +1,9 @@
-import React, { useState, useRef, useContext } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, PanResponder, Animated } from "react-native";
+import React, { useState, useRef, useContext, useCallback } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, PanResponder, Animated, BackHandler } from "react-native";
+import { useFocusEffect, useRoute } from "@react-navigation/native";
 import Topbar from "../components/Topbar";
 import Bottombar from "../components/Bottombar";
+import CustomAlertModal from "../components/CustomAlertModal";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Overview from "../components/Overview";
 import Orders from "../components/Orders";
@@ -16,7 +18,44 @@ const SWIPE_VELOCITY_THRESHOLD = 0.3;
 const UNDERLINE_WIDTH_RATIO = 0.85; // matches the old "width: 85%" of the tab
 
 export default function HomePage() {
+    const route = useRoute();
     const [activeTab, setactiveTab] = useState("Overview");
+
+    const [showExitModal, setShowExitModal] = useState(false);
+    const backPressCountRef = useRef(0);
+    const backPressTimerRef = useRef(null);
+
+    useFocusEffect(
+        useCallback(() => {
+            const onBackPress = () => {
+                if (showExitModal) {
+                    setShowExitModal(false);
+                    backPressCountRef.current = 0;
+                    return true;
+                }
+
+                if (backPressCountRef.current === 0) {
+                    backPressCountRef.current = 1;
+                    if (backPressTimerRef.current) clearTimeout(backPressTimerRef.current);
+                    backPressTimerRef.current = setTimeout(() => {
+                        backPressCountRef.current = 0;
+                    }, 2000);
+                    return true;
+                } else {
+                    if (backPressTimerRef.current) clearTimeout(backPressTimerRef.current);
+                    backPressCountRef.current = 0;
+                    setShowExitModal(true);
+                    return true;
+                }
+            };
+
+            const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+            return () => {
+                if (backPressTimerRef.current) clearTimeout(backPressTimerRef.current);
+                subscription.remove();
+            };
+        }, [showExitModal])
+    );
 
     // Keep a ref in sync with activeTab so the PanResponder (created once) always
     // sees the latest value without needing to be recreated on every render.
@@ -73,6 +112,16 @@ export default function HomePage() {
         setactiveTab(tabName);
         animateUnderlineTo(tabName, true);
     };
+
+    useFocusEffect(
+        useCallback(() => {
+            const targetTab = route.params?.initialTab || "Overview";
+            setactiveTab(targetTab);
+            if (hasMeasuredAll.current) {
+                animateUnderlineTo(targetTab, true);
+            }
+        }, [route.params?.initialTab, route.params?.resetKey])
+    );
 
     const goToTab = (direction) => {
         const currentIndex = TABS.indexOf(activeTabRef.current);
@@ -148,6 +197,24 @@ export default function HomePage() {
             </View>
 
             <Bottombar />
+
+            <CustomAlertModal
+                visible={showExitModal}
+                type="warning"
+                title="Exit App"
+                message="Do you really want to exit the app?"
+                showCancelButton={true}
+                cancelText="Cancel"
+                buttonText="Yes"
+                onCancel={() => {
+                    setShowExitModal(false);
+                    backPressCountRef.current = 0;
+                }}
+                onConfirm={() => {
+                    setShowExitModal(false);
+                    BackHandler.exitApp();
+                }}
+            />
         </SafeAreaView>
     );
 }

@@ -188,7 +188,7 @@ async function scheduleNewNotifications(notifications) {
         title,
         body,
         sound: true,
-        data: { screen: "NotificationsPage", notificationId: id },
+        data: { screen: "NotificationsPage", notificationId: id, isLocalPoll: true },
         android: {
           channelId: "merchant-notifications",
           priority: Notifications.AndroidNotificationPriority.HIGH,

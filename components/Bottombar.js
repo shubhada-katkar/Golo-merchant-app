@@ -16,7 +16,7 @@ export default function Bottombar() {
   return (
     <View style={[styles.top, { backgroundColor: colors.bottombar }]}>
 
-      <TouchableOpacity style={[styles.bar]} onPress={() => navigation.navigate("HomePage")}>
+      <TouchableOpacity style={[styles.bar]} onPress={() => navigation.navigate("HomePage", { initialTab: "Overview", resetKey: Date.now() })}>
         <MaterialCommunityIcons name="view-dashboard-outline" size={24}
           color={currentRoute === "HomePage" ? "#f9a641" : "black"} />
         <Text style={{
