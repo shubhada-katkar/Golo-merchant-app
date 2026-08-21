@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import {
   Text,
   View,
@@ -25,6 +25,7 @@ const PLOT_HEIGHT = CHART_HEIGHT - CHART_PADDING_TOP - CHART_PADDING_BOTTOM;
 
 export default function Customers() {
   const navigation = useNavigation();
+  const chartScrollViewRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [demographics, setDemographics] = useState([]);
@@ -148,13 +149,16 @@ export default function Customers() {
     return null;
   };
 
-  // ─── SVG line graph for retention trend ───
+  // ─── SVG line graph for retention trend (Weekly Report - Last 7 Days) ───
   const renderLineGraph = () => {
     if (!trendData || !trendData.values.length) {
       return <Text style={styles.emptyText}>No trend data available.</Text>;
     }
 
-    const { labels, values } = trendData;
+    // Show only weekly report (last 7 days)
+    const labels = trendData.labels.slice(-7);
+    const values = trendData.values.slice(-7);
+
     const maxVal = Math.max(...values, 1);
     const points = values.map((v, i) => {
       const x = CHART_PADDING_LEFT + (i / Math.max(values.length - 1, 1)) * PLOT_WIDTH;
@@ -202,8 +206,6 @@ export default function Customers() {
         {/* X-axis labels */}
         {labels.map((label, i) => {
           const x = CHART_PADDING_LEFT + (i / Math.max(labels.length - 1, 1)) * PLOT_WIDTH;
-          // Show every label if <=7, else every other
-          if (labels.length > 7 && i % 2 !== 0 && i !== labels.length - 1) return null;
           return (
             <SvgText key={`x-${i}`} x={x} y={CHART_HEIGHT - 4} textAnchor="middle" fontSize={9} fill="#9ca3af">{label}</SvgText>
           );
@@ -380,7 +382,9 @@ export default function Customers() {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Customer Retention</Text>
-            <Text style={styles.cardSubtitle}>Weekly order trend (last 7 days)</Text>
+            {/* <Text style={styles.cardSubtitle}>
+              {trendData?.labels?.length ? `Order trend (${trendData.labels.length} days)` : "Order trend"}
+            </Text> */}
           </View>
           {loading ? (
             <ActivityIndicator style={styles.loading} size="small" color="#157a4f" />
@@ -401,7 +405,7 @@ export default function Customers() {
                   </View>
                   <View style={[styles.retentionStatItem, styles.retentionStatDivider]}>
                     <Text style={styles.retentionStatValue}>{retentionData.newSignups}</Text>
-                    <Text style={styles.retentionStatLabel}>New (7d)</Text>
+                    <Text style={styles.retentionStatLabel}>New (7ds)</Text>
                   </View>
                   <View style={styles.retentionStatItem}>
                     <Text style={styles.retentionStatValue}>{retentionData.totalOrders}</Text>

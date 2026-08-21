@@ -352,7 +352,8 @@ const styles = StyleSheet.create({
         paddingHorizontal: 24,
     },
     shopName: {
-        ...textPresets.title
+        ...textPresets.title,
+        width: "90%"
     },
     menuContainer: {
         paddingHorizontal: 16,

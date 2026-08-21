@@ -29,6 +29,8 @@ export default function ActiveProductsModal({
   onSkip,
   saving = false,
 }) {
+  const themeContext = useContext(ThemeContext);
+  const isDark = themeContext?.isDarkMode || false;
 
   const [selectedIds, setSelectedIds] = useState([]);
   const [searchText, setSearchText] = useState("");
