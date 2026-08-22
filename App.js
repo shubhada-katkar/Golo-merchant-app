@@ -27,6 +27,8 @@ import UpgradePlanPage from "./screens/UpgradePlanPage";
 import PaymentPage from "./screens/PaymentPage";
 import TransactionDetailPage from "./screens/TransactionDetailPage";
 import TransactionPage from "./screens/TransactionPage";
+import NoNetPage from "./screens/NoNetPage";
+import NetInfo from "@react-native-community/netinfo";
 import {
   Poppins_400Regular,
   Poppins_500Medium,
@@ -58,6 +60,16 @@ export default function App() {
   }, [fontsLoaded]);
 
   useEffect(() => {
+    const unsubscribeNetInfo = NetInfo.addEventListener((state) => {
+      const isOffline = state.isConnected === false || (state.isConnected === true && state.isInternetReachable === false);
+      if (isOffline && navigationRef.isReady()) {
+        const currentRoute = navigationRef.getCurrentRoute()?.name;
+        if (currentRoute && currentRoute !== "NoNetPage") {
+          navigationRef.navigate("NoNetPage");
+        }
+      }
+    });
+
     startMerchantNotificationPolling();
     void registerMerchantPushToken();
 
@@ -74,6 +86,7 @@ export default function App() {
     });
 
     return () => {
+      unsubscribeNetInfo();
       stopMerchantNotificationPolling();
       responseSubscription.remove();
     };
@@ -117,6 +130,7 @@ export default function App() {
           <Stack.Screen name="PaymentPage" component={PaymentPage} />
           <Stack.Screen name="TransactionPage" component={TransactionPage} />
           <Stack.Screen name="TransactionDetailPage" component={TransactionDetailPage} />
+          <Stack.Screen name="NoNetPage" component={NoNetPage} />
         </Stack.Navigator>
       </NavigationContainer>
     </ThemeProvider>

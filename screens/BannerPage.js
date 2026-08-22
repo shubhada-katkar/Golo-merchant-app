@@ -1197,7 +1197,7 @@ export default function BannerPage({ navigation, route }) {
                     )}
 
                     <Text style={styles.selectedDaysSummary}>
-                        Total selected dates: <Text style={{ ...textPresets.body }}>{selectedDaysCount} / 7 max</Text>
+                        Total selected dates: <Text style={{ ...textPresets.label }}>{selectedDaysCount} / 7 max</Text>
                     </Text>
 
                     <Modal
