@@ -823,8 +823,29 @@ export default function AddOfferPage({ navigation, route }) {
     const handleSubmit = async () => {
         if (isSaving || isDeleting) return;
         const merchantId = await AsyncStorage.getItem("merchantId") || "default";
-        if (!title || !offerType || selectedIds.length === 0 || !fromDate || !toDate) {
-            showAlert("error", "Missing Fields", "Please fill all required fields");
+
+        if (selectedIds.length === 0) {
+            showAlert("error", "Missing Fields", "Please select at least one product");
+            return;
+        }
+        if (!bannerImage) {
+            showAlert("error", "Missing Fields", "Please upload an offer photo");
+            return;
+        }
+        if (!title || !title.trim()) {
+            showAlert("error", "Missing Fields", "Please enter offer title");
+            return;
+        }
+        if (!offerType || !offerType.trim()) {
+            showAlert("error", "Missing Fields", "Please select offer type");
+            return;
+        }
+        if (!fromDate || !toDate) {
+            showAlert("error", "Missing Fields", "Please select valid start and end dates");
+            return;
+        }
+        if (!terms || !terms.trim()) {
+            showAlert("error", "Missing Fields", "Please enter terms and conditions");
             return;
         }
 
@@ -1284,7 +1305,7 @@ export default function AddOfferPage({ navigation, route }) {
                             </View>
                         )}
 
-                        <Text style={styles.text}>Offer Photo</Text>
+                        <Text style={styles.text}>Offer Photo<Text style={styles.requiredStar}>*</Text></Text>
 
                         <TouchableOpacity
                             style={styles.card1}
@@ -1373,7 +1394,7 @@ export default function AddOfferPage({ navigation, route }) {
                             )}
                         </TouchableOpacity>
 
-                        <Text style={styles.text}>Offer Title</Text>
+                        <Text style={styles.text}>Offer Title<Text style={styles.requiredStar}>*</Text></Text>
                         <TextInput
                             placeholder="Enter Offer Title"
                             style={styles.input}
@@ -1381,7 +1402,7 @@ export default function AddOfferPage({ navigation, route }) {
                             onChangeText={setTitle}
                         />
 
-                        <Text style={styles.text}>Offer Type</Text>
+                        <Text style={styles.text}>Offer Type<Text style={styles.requiredStar}>*</Text></Text>
                         <TouchableOpacity
                             style={[styles.input, { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingRight: 15 }]}
                             onPress={() => setOfferTypeModalOpen(true)}
@@ -1437,7 +1458,7 @@ export default function AddOfferPage({ navigation, route }) {
                             </TouchableWithoutFeedback>
                         </Modal>
 
-                        <Text style={styles.text}>Offer Validity</Text>
+                        <Text style={styles.text}>Offer Validity<Text style={styles.requiredStar}>*</Text></Text>
                         <View style={{ flexDirection: "row", gap: 10 }}>
                             <TouchableOpacity
                                 style={[styles.dateCard, offerData && { opacity: 0.6, backgroundColor: "#f2f2f2" }]}
@@ -1542,7 +1563,7 @@ export default function AddOfferPage({ navigation, route }) {
 
                         {isDarkMode && (
                             <>
-                                <Text style={styles.text}>Loyalty Points (1-50)</Text>
+                                <Text style={styles.text}>Loyalty Points (1-50)<Text style={styles.requiredStar}>*</Text></Text>
                                 <TextInput
                                     placeholder="Enter loyalty points"
                                     keyboardType="numeric"
@@ -1563,7 +1584,7 @@ export default function AddOfferPage({ navigation, route }) {
                             </>
                         )}
 
-                        <Text style={styles.text}>Terms and Conditions</Text>
+                        <Text style={styles.text}>Terms and Conditions<Text style={styles.requiredStar}>*</Text></Text>
                         <TextInput
                             style={[styles.input, { minHeight: 40, maxHeight: 150 }]}
                             placeholder="Enter T & C"
@@ -2187,5 +2208,9 @@ const styles = StyleSheet.create({
     upgradeModalPrimaryButtonText: {
         color: "#ffffff",
         ...textPresets.label
+    },
+    requiredStar: {
+        color: "#ef4444",
+        marginLeft: 2,
     },
 });

@@ -104,11 +104,16 @@ export default function OrderDetailPage() {
   const orderRecordId = order?._id || order?.id || null;
   const orderStatus = String(order?.status || order?.orderStatus || "").toLowerCase();
   const voucherStatus = String(order?.voucher?.status || "").toLowerCase();
+  const offerStatus = String(order?.offerStatus || order?.offer?.status || "").toLowerCase();
   const isOrderRedeemed =
     orderStatus === "completed" ||
     orderStatus === "redeemed" ||
     voucherStatus === "redeemed" ||
     Boolean(order?.redeemedAt || order?.voucher?.redeemedAt);
+  const isOrderRejected =
+    orderStatus === "rejected" ||
+    voucherStatus === "rejected" ||
+    offerStatus === "rejected";
 
   const resolveVoucherIdFromOrder = (orderObj) => {
     const candidate = orderObj?.voucherId || orderObj?.voucher?.voucherId || orderObj?.voucher?.id || orderObj?.voucher?._id;
@@ -119,11 +124,11 @@ export default function OrderDetailPage() {
   const orderVoucherId = resolveVoucherIdFromOrder(order);
 
   useEffect(() => {
-    if (isOrderRedeemed) {
+    if (isOrderRedeemed || isOrderRejected) {
       setShowCodeInput(false);
       setCodeValue("");
     }
-  }, [isOrderRedeemed]);
+  }, [isOrderRedeemed, isOrderRejected]);
 
   const parseVoucherIdFromQrString = (qrString) => {
     if (!qrString) return null;
@@ -408,7 +413,7 @@ export default function OrderDetailPage() {
             </View>
           </View>
 
-          {!isOrderRedeemed && (
+          {!isOrderRedeemed && !isOrderRejected && (
             <View style={{ flexDirection: "row", marginTop: 8, alignItems: "center", justifyContent: "space-between" }}>
 
               <TouchableOpacity style={styles.actionButton} onPress={() => {
@@ -432,7 +437,7 @@ export default function OrderDetailPage() {
           )}
 
           {/* Inline Code Input Section */}
-          {showCodeInput && !isOrderRedeemed && (
+          {showCodeInput && !isOrderRedeemed && !isOrderRejected && (
             <View style={styles.codeInputSection}>
               <Text style={styles.codeInputLabel}>Enter verification code</Text>
               <TextInput

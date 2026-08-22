@@ -574,8 +574,33 @@ export default function NewProductPage({ navigation, route }) {
     }
 
     try {
-      if (!form.productname || form.price === "") {
-        showAlert("error", "Missing Fields", "Please fill all required fields");
+      if (!selectedImages || selectedImages.length === 0) {
+        showAlert("error", "Missing Fields", "Please upload at least one product image");
+        return;
+      }
+
+      if (!form.productname || !form.productname.trim()) {
+        showAlert("error", "Missing Fields", "Please enter product name");
+        return;
+      }
+
+      if (!form.description || !form.description.trim()) {
+        showAlert("error", "Missing Fields", "Please enter product description");
+        return;
+      }
+
+      if (!form.category || !form.category.trim()) {
+        showAlert("error", "Missing Fields", "Please select category");
+        return;
+      }
+
+      if (form.price === "" || form.price === undefined || form.price === null || Number.isNaN(Number(form.price))) {
+        showAlert("error", "Missing Fields", "Please enter valid price");
+        return;
+      }
+
+      if (form.stockQuantity === "" || form.stockQuantity === undefined || form.stockQuantity === null || Number.isNaN(Number(form.stockQuantity))) {
+        showAlert("error", "Missing Fields", "Please enter valid stock quantity");
         return;
       }
 
@@ -836,7 +861,7 @@ export default function NewProductPage({ navigation, route }) {
                 <TouchableOpacity style={styles.imageDropZone} onPress={pickImage}>
                   <View style={styles.imagePlaceholder}>
                     <Feather name="upload" size={28} color="#157a4f" />
-                    <Text style={styles.imagePlaceholderText}>Upload Image</Text>
+                    <Text style={styles.imagePlaceholderText}>Upload Image<Text style={styles.requiredStar}>*</Text></Text>
                   </View>
                 </TouchableOpacity>
               </View>
@@ -891,7 +916,9 @@ export default function NewProductPage({ navigation, route }) {
                 onChangeText={(text) => setForm({ ...form, productname: text })}
               />
 
-              <Text style={styles.text}>Description</Text>
+              <Text style={styles.text}>
+                Description<Text style={styles.requiredStar}>*</Text>
+              </Text>
               <TextInput
                 style={[styles.input, { minHeight: 40, maxHeight: 150 }]}
                 placeholder="Enter Description"
@@ -902,7 +929,9 @@ export default function NewProductPage({ navigation, route }) {
                 onChangeText={(text) => setForm({ ...form, description: text })}
               />
 
-              <Text style={styles.text}>Category</Text>
+              <Text style={styles.text}>
+                Category<Text style={styles.requiredStar}>*</Text>
+              </Text>
               <TouchableOpacity
                 style={[styles.input, { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingRight: 15 }]}
                 onPress={() => setCategoryModalOpen(true)}
@@ -973,7 +1002,9 @@ export default function NewProductPage({ navigation, route }) {
                 </View>
 
                 <View style={styles.halfField}>
-                  <Text style={[styles.text, { paddingTop: 0 }]}>Stock Quantity</Text>
+                  <Text style={[styles.text, { paddingTop: 0 }]}>
+                    Stock Quantity<Text style={styles.requiredStar}>*</Text>
+                  </Text>
                   <TextInput
                     style={styles.input}
                     placeholder="Enter stock"
