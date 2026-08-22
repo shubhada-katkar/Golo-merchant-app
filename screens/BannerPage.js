@@ -660,9 +660,16 @@ export default function BannerPage({ navigation, route }) {
     }, [isEditMode, restrictionUntil]);
 
     const toggleDate = useCallback((key) => {
-        setSelectedDates((prev) =>
-            prev.includes(key) ? prev.filter((d) => d !== key) : [...prev, key].sort()
-        );
+        setSelectedDates((prev) => {
+            if (prev.includes(key)) {
+                return prev.filter((d) => d !== key);
+            }
+            if (prev.length >= 7) {
+                showAlert("error", "Limit Reached", "You can select up to 7 days only.");
+                return prev;
+            }
+            return [...prev, key].sort();
+        });
     }, []);
 
     const removeDate = useCallback((key) => {
@@ -704,6 +711,10 @@ export default function BannerPage({ navigation, route }) {
         }
         if (selectedDaysCount === 0) {
             showAlert("error", "No Dates Selected", "Please select at least one visibility date.");
+            return;
+        }
+        if (selectedDaysCount > 7) {
+            showAlert("error", "Too Many Dates", "You can select up to 7 days only.");
             return;
         }
         if (!isEditMode && locations.length === 0) {
@@ -1162,7 +1173,7 @@ export default function BannerPage({ navigation, route }) {
 
                     {selectedDaysCount === 0 ? (
                         <Text style={styles.noDatesText}>
-                            Tap "Add date" to choose visibility dates.
+                            Tap "Add date" to choose visibility dates (Max 7 days).
                         </Text>
                     ) : (
                         <View style={styles.chipsWrap}>
@@ -1186,7 +1197,7 @@ export default function BannerPage({ navigation, route }) {
                     )}
 
                     <Text style={styles.selectedDaysSummary}>
-                        Total selected dates: <Text style={{ ...textPresets.body }}>{selectedDaysCount}</Text>
+                        Total selected dates: <Text style={{ ...textPresets.body }}>{selectedDaysCount} / 7 max</Text>
                     </Text>
 
                     <Modal
