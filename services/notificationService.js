@@ -64,8 +64,18 @@ export async function registerMerchantPushToken(force = false) {
     const permissionGranted = await ensureNotificationPermission();
     if (!permissionGranted) return;
 
-    const token = await Notifications.getExpoPushTokenAsync();
-    const expoToken = token?.data;
+    let expoToken = "";
+    try {
+      expoToken = (await Notifications.getExpoPushTokenAsync()).data;
+    } catch {
+      try {
+        const Constants = require("expo-constants").default || require("expo-constants");
+        const projectId = Constants?.expoConfig?.extra?.eas?.projectId || Constants?.easConfig?.projectId;
+        expoToken = (await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined)).data;
+      } catch (tokenErr) {
+        console.log("Failed to fetch Expo push token:", tokenErr);
+      }
+    }
 
     if (!expoToken) {
       return;
@@ -83,7 +93,7 @@ export async function registerMerchantPushToken(force = false) {
       return;
     }
 
-    await fetch(`${baseUrl}/users/notifications/push-token`, {
+    const response = await fetch(`${baseUrl}/users/notifications/push-token`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -92,7 +102,10 @@ export async function registerMerchantPushToken(force = false) {
       body: JSON.stringify({ pushToken: expoToken }),
     });
 
-    pushTokenRegistered = true;
+    if (response.ok) {
+      pushTokenRegistered = true;
+      console.log("Merchant push token registered successfully");
+    }
   } catch (error) {
     console.log("Register push token error:", error);
   }
