@@ -152,7 +152,9 @@ export default function BannerPage({ navigation, route }) {
 
     const [bannerTitle, setBannerTitle] = useState("");
     const [category, setCategory] = useState(BANNER_CATEGORIES[0]);
-    const [categoryOpen, setCategoryOpen] = useState(false);
+    const [subCategory, setSubCategory] = useState("");
+    const [isPaused, setIsPaused] = useState(false);
+    const [isTogglingPause, setIsTogglingPause] = useState(false);
     const [bannerImage, setBannerImage] = useState(null);
     // Tracks whether the user picked a brand-new local image during edit mode.
     // Needed because the backend PUT route skips image moderation, so we must
@@ -299,6 +301,42 @@ export default function BannerPage({ navigation, route }) {
         return () => clearInterval(interval);
     }, [restrictionUntil]);
 
+    // ── Fetch Store Category from Merchant Profile ──────────────
+    useEffect(() => {
+        const fetchStoreCategory = async () => {
+            try {
+                let token;
+                try {
+                    token = await getValidToken();
+                } catch (e) {
+                    return;
+                }
+                if (!token) return;
+                const headers = { Authorization: `Bearer ${token}` };
+                let response = await fetch(`${BASE_URL}/users/merchant/profile`, { headers });
+                if (!response.ok && response.status === 404) {
+                    response = await fetch(`${BASE_URL}/merchant/profile`, { headers });
+                }
+                if (response.ok) {
+                    const data = await response.json();
+                    const merchantData = data?.data || data || {};
+                    const storeCat =
+                        merchantData?.storeCategory ||
+                        data?.data?.user?.merchantProfile?.storeCategory ||
+                        data?.user?.merchantProfile?.storeCategory ||
+                        "";
+
+                    if (storeCat && !isEditMode) {
+                        setCategory(storeCat);
+                    }
+                }
+            } catch (err) {
+                console.warn("Failed to fetch store category from profile:", err);
+            }
+        };
+        fetchStoreCategory();
+    }, [isEditMode]);
+
     useEffect(() => {
         if (!isEditMode || !editData) return;
 
@@ -306,9 +344,21 @@ export default function BannerPage({ navigation, route }) {
         if (editData.bannerTitle) setBannerTitle(editData.bannerTitle);
 
         // Category
-        if (editData.bannerCategory && BANNER_CATEGORIES.includes(editData.bannerCategory)) {
+        if (editData.bannerCategory) {
             setCategory(editData.bannerCategory);
         }
+
+        // Sub Category
+        if (editData.subCategory) {
+            setSubCategory(editData.subCategory);
+        }
+
+        // Pause status
+        const paused = Boolean(
+            editData.pausedAt ||
+            (!editData.isHomepageVisible && (editData.status === "approved" || editData.status === "active"))
+        );
+        setIsPaused(paused);
 
         // Coverage Type
         if (editData.coverageType) {
@@ -621,6 +671,50 @@ export default function BannerPage({ navigation, route }) {
         );
     };
 
+    // ── Toggle Pause / Resume Banner ────────────────────────────
+    const handleTogglePauseBanner = async () => {
+        if (!isEditMode || !editRequestId) return;
+        try {
+            setIsTogglingPause(true);
+            let token;
+            try {
+                token = await getValidToken();
+            } catch (authErr) {
+                await handleAuthError(navigation);
+                return;
+            }
+
+            const nextAction = isPaused ? "resume" : "pause";
+            const response = await fetch(`${BASE_URL}/banners/promotions/${editRequestId}`, {
+                method: "PUT",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ action: nextAction }),
+            });
+
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(payload?.message || `Could not ${nextAction} banner.`);
+            }
+
+            const newPausedState = !isPaused;
+            setIsPaused(newPausedState);
+            showAlert(
+                "success",
+                newPausedState ? "Banner Paused" : "Banner Resumed",
+                newPausedState
+                    ? "Your banner appearance has been paused."
+                    : "Your banner promotion has been resumed."
+            );
+        } catch (error) {
+            showAlert("error", "Action Failed", error?.message || "Please try again.");
+        } finally {
+            setIsTogglingPause(false);
+        }
+    };
+
     const formatDateKey = (date) => {
         const y = date.getFullYear();
         const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -776,6 +870,7 @@ export default function BannerPage({ navigation, route }) {
                 const probePayload = {
                     bannerTitle: bannerTitle.trim() || "Moderation Check",
                     bannerCategory: category,
+                    subCategory: subCategory.trim(),
                     imageUrl,
                     selectedDates: selectedDates.length ? selectedDates : [new Date().toISOString().slice(0, 10)],
                     totalPrice: 0,
@@ -855,6 +950,7 @@ export default function BannerPage({ navigation, route }) {
                 ? {
                     bannerTitle: bannerTitle.trim(),
                     bannerCategory: category,
+                    subCategory: subCategory.trim(),
                     imageUrl,
                     selectedDates,
                     recommendedSize: "1920 x 520 px",
@@ -862,6 +958,7 @@ export default function BannerPage({ navigation, route }) {
                 : {
                     bannerTitle: bannerTitle.trim(),
                     bannerCategory: category,
+                    subCategory: subCategory.trim(),
                     imageUrl,
                     selectedDates,
                     totalPrice: totalPayable,
@@ -972,29 +1069,19 @@ export default function BannerPage({ navigation, route }) {
                     />
 
                     <Text style={[styles.label, { marginTop: 18 }]}>BANNER CATEGORY</Text>
-                    <TouchableOpacity
-                        style={[styles.input, styles.dropdown]}
-                        onPress={() => setCategoryOpen((prev) => !prev)}
-                    >
-                        <Text style={{ ...textPresets.body }}>{category}</Text>
-                        <Feather name={categoryOpen ? "chevron-up" : "chevron-down"} size={20} />
-                    </TouchableOpacity>
-                    {categoryOpen && (
-                        <View style={styles.dropdownList}>
-                            {BANNER_CATEGORIES.map((item) => (
-                                <TouchableOpacity
-                                    key={item}
-                                    style={styles.dropdownItem}
-                                    onPress={() => {
-                                        setCategory(item);
-                                        setCategoryOpen(false);
-                                    }}
-                                >
-                                    <Text style={{ ...textPresets.body }}>{item}</Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    )}
+                    <View style={[styles.input, styles.disabledInput]}>
+                        <Text style={{ ...textPresets.body, color: "#444" }}>{category || "Store Category"}</Text>
+                        <Feather name="lock" size={16} color="#777" />
+                    </View>
+
+                    <Text style={[styles.label, { marginTop: 18 }]}>SUB CATEGORY (OPTIONAL)</Text>
+                    <TextInput
+                        style={[styles.input, { borderColor: "#000" }]}
+                        placeholder="Enter sub category (optional)"
+                        placeholderTextColor={"#8f8f8fff"}
+                        value={subCategory}
+                        onChangeText={setSubCategory}
+                    />
 
                     {/* COVERAGE AREA (SELECT ONE) */}
                     <Text style={[styles.label, { marginTop: 18 }]}>COVERAGE AREA (SELECT ONE)</Text>
@@ -1295,6 +1382,38 @@ export default function BannerPage({ navigation, route }) {
                             <Text style={styles.submitBtnText}>{isEditMode ? "Update Banner" : "Post Banner"}</Text>
                         )}
                     </TouchableOpacity>
+
+                    {/* Pause / Resume banner button — only shown in edit mode */}
+                    {isEditMode && (
+                        <TouchableOpacity
+                            style={[
+                                styles.pauseBtn,
+                                {
+                                    backgroundColor: isPaused ? "#e3f3ea" : "#fff7ed",
+                                    borderColor: isPaused ? "#157a4f" : "#c2410c",
+                                    opacity: isTogglingPause ? 0.7 : 1,
+                                },
+                            ]}
+                            onPress={handleTogglePauseBanner}
+                            disabled={isTogglingPause}
+                        >
+                            {isTogglingPause ? (
+                                <ActivityIndicator color={isPaused ? "#157a4f" : "#c2410c"} />
+                            ) : (
+                                <>
+                                    <Feather
+                                        name={isPaused ? "play-circle" : "pause-circle"}
+                                        size={16}
+                                        color={isPaused ? "#157a4f" : "#c2410c"}
+                                        style={{ marginRight: 6 }}
+                                    />
+                                    <Text style={[styles.pauseBtnText, { color: isPaused ? "#157a4f" : "#c2410c" }]}>
+                                        {isPaused ? "Resume Banner" : "Pause Banner"}
+                                    </Text>
+                                </>
+                            )}
+                        </TouchableOpacity>
+                    )}
 
                     {/* Delete button — only shown in edit mode */}
                     {isEditMode && (
@@ -1753,6 +1872,26 @@ const styles = StyleSheet.create({
     },
     chipRateText: {
         ...textPresets.caption,
+    },
+    disabledInput: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        backgroundColor: "#f3f4f6",
+        borderColor: "#d1d5db",
+    },
+    pauseBtn: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        borderWidth: 1.5,
+        borderRadius: 14,
+        paddingVertical: 12,
+        marginTop: 14,
+    },
+    pauseBtnText: {
+        lineHeight: Math.round(14 * 1.5),
+        ...textPresets.body,
     },
     deleteBtn: {
         flexDirection: "row",
