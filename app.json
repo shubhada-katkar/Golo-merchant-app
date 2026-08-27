@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "GOLO",
-    "slug": "myJSApp",
+    "slug": "merchant-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/newlogo2.png",
@@ -17,7 +17,7 @@
     },
     "android": {
       "edgeToEdgeEnabled": true,
-      "package": "com.shubhadakatkar.myJSApp"
+      "package": "com.snigvekar.merchant-app"
     },
     "plugins": [
       "@react-native-community/datetimepicker",
