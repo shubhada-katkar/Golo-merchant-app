@@ -17,7 +17,7 @@
     },
     "android": {
       "edgeToEdgeEnabled": true,
-      "package": "com.snigvekar.merchant-app"
+      "package": "com.snigvekar.merchant_app"
     },
     "plugins": [
       "@react-native-community/datetimepicker",
