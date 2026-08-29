@@ -161,8 +161,28 @@ export default function BannerList({ navigation }) {
                 return;
             }
 
-            let orderData = null;
             const price = Number(item?.totalPrice || 0);
+            if (!price || price < 1) {
+                showAlert("error", "Invalid Amount", "Payment amount must be at least ₹1.");
+                return;
+            }
+
+            // Prefill user details from stored merchant session
+            let prefill = {};
+            try {
+                const storedMerchant = await AsyncStorage.getItem("merchantData");
+                if (storedMerchant) {
+                    const parsed = JSON.parse(storedMerchant);
+                    if (parsed?.name) prefill.name = parsed.name;
+                    if (parsed?.email) prefill.email = parsed.email;
+                    if (parsed?.phone || parsed?.contactNumber) prefill.contact = parsed.phone || parsed.contactNumber;
+                }
+            } catch (e) { }
+
+            let orderData = null;
+            let errorMessage = "";
+            const idempotencyKey = `pay_banner_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+            const receipt = `rcpt_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
 
             try {
                 const response = await fetch(`${BASE_URL}/payments/create-order`, {
@@ -174,32 +194,37 @@ export default function BannerList({ navigation }) {
                     body: JSON.stringify({
                         amount: price,
                         currency: "INR",
+                        idempotencyKey,
+                        receipt,
                         description: `Banner Promotion - ${item?.bannerTitle || 'Banner'}`,
                         notes: {
                             bannerRequestId: reqId,
-                            bannerTitle: item?.bannerTitle
+                            bannerTitle: item?.bannerTitle || ""
                         }
                     })
                 });
 
                 const resData = await response.json();
-                if (response.ok && resData.success && resData.data?.keyId) {
-                    orderData = resData.data;
+                if (response.ok && resData?.success && resData?.data?.keyId) {
+                    orderData = {
+                        keyId: resData.data.keyId,
+                        order: resData.data.order,
+                        prefill
+                    };
+                } else {
+                    errorMessage = resData?.message || resData?.error || `Server error (${response.status})`;
+                    if (Array.isArray(errorMessage)) {
+                        errorMessage = errorMessage.join(", ");
+                    }
                 }
             } catch (apiErr) {
-                console.warn("Backend Razorpay order endpoint unavailable, using test mode:", apiErr);
+                console.warn("Backend Razorpay order endpoint error:", apiErr);
+                errorMessage = apiErr?.message || "Unable to reach payment server. Please check your connection.";
             }
 
-            // Fallback for test mode if backend payment gateway endpoint is unconfigured on remote server
             if (!orderData) {
-                orderData = {
-                    keyId: "rzp_test_S0GsFh4dYJBDOG",
-                    order: {
-                        id: `order_test_${Date.now()}`,
-                        amount: price * 100,
-                        currency: "INR"
-                    }
-                };
+                showAlert("error", "Payment Initialization Failed", errorMessage || "Could not initialize Razorpay order.");
+                return;
             }
 
             setRazorpayOrderData(orderData);
@@ -232,7 +257,7 @@ export default function BannerList({ navigation }) {
                     method: "POST",
                     headers,
                     body: JSON.stringify({
-                        paymentReference: `razorpay:${data.razorpay_payment_id || 'test'}`
+                        paymentReference: `razorpay:${data.razorpay_payment_id || 'success'}`
                     }),
                 });
 
@@ -249,13 +274,13 @@ export default function BannerList({ navigation }) {
             } else if (data.event === "FAILED") {
                 setRazorpayModalVisible(false);
                 setRazorpayOrderData(null);
-                showAlert("error", "Payment Failed", data.error?.description || "Razorpay payment failed.");
+                showAlert("error", "Payment Failed", data.error?.description || data.error?.reason || "Razorpay payment failed.");
             }
         } catch (err) {
             console.error("Razorpay webview message error:", err);
             setRazorpayModalVisible(false);
             setRazorpayOrderData(null);
-            showAlert("error", "Payment Error", err.message || "An unexpected error occurred.");
+            showAlert("error", "Payment Error", err.message || "An unexpected error occurred during payment.");
         } finally {
             setIsRazorpayProcessing(false);
         }
@@ -263,9 +288,27 @@ export default function BannerList({ navigation }) {
 
     const getRazorpayCheckoutHtml = () => {
         if (!razorpayOrderData) return "";
-        const { keyId, order } = razorpayOrderData;
-        const isRealOrder = order && order.id && !String(order.id).startsWith("order_test_");
+        const { keyId, order, prefill } = razorpayOrderData;
         const title = activeRazorpayItem?.bannerTitle || "Banner Promotion";
+
+        const optionsObj = {
+            key: keyId,
+            amount: order?.amount ? Number(order.amount) : Math.round(Number(activeRazorpayItem?.totalPrice || 0) * 100),
+            currency: order?.currency || "INR",
+            name: "Golo Banners",
+            description: title,
+            ...(order?.id ? { order_id: order.id } : {}),
+            prefill: {
+                name: prefill?.name || "",
+                email: prefill?.email || "",
+                contact: prefill?.contact || ""
+            },
+            theme: {
+                color: "#157a4f"
+            }
+        };
+
+        const jsonOptions = JSON.stringify(optionsObj);
 
         return `
           <!DOCTYPE html>
@@ -273,8 +316,10 @@ export default function BannerList({ navigation }) {
             <head>
               <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
               <style>
+                * { box-sizing: border-box; }
                 body {
                   display: flex;
+                  flex-direction: column;
                   justify-content: center;
                   align-items: center;
                   height: 100vh;
@@ -285,50 +330,78 @@ export default function BannerList({ navigation }) {
                 .loading {
                   font-size: 16px;
                   color: #157a4f;
-                  font-weight: bold;
+                  font-weight: 600;
+                  margin-bottom: 8px;
+                }
+                .subtext {
+                  font-size: 13px;
+                  color: #666666;
                 }
               </style>
               <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
             </head>
             <body>
-              <div class="loading">Loading Razorpay Gateway...</div>
+              <div class="loading">Opening Razorpay Checkout...</div>
+              <div class="subtext">Please complete your payment to proceed</div>
               <script>
-                var options = {
-                  "key": "${keyId}",
-                  "amount": "${order.amount}",
-                  "currency": "${order.currency || 'INR'}",
-                  "name": "Golo Banners",
-                  "description": "${title}",
-                  ${isRealOrder ? `"order_id": "${order.id}",` : ''}
-                  "handler": function (response) {
-                    window.ReactNativeWebView.postMessage(JSON.stringify({
+                function sendToApp(msg) {
+                  if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+                    window.ReactNativeWebView.postMessage(JSON.stringify(msg));
+                  }
+                }
+
+                window.onerror = function(message, source, lineno, colno, error) {
+                  sendToApp({
+                    event: "FAILED",
+                    error: { description: message || "Script error loading checkout." }
+                  });
+                  return true;
+                };
+
+                try {
+                  var options = ${jsonOptions};
+                  options.handler = function (response) {
+                    sendToApp({
                       event: "SUCCESS",
                       razorpay_payment_id: response.razorpay_payment_id,
                       razorpay_order_id: response.razorpay_order_id || "",
                       razorpay_signature: response.razorpay_signature || ""
-                    }));
-                  },
-                  "modal": {
-                    "ondismiss": function() {
-                      window.ReactNativeWebView.postMessage(JSON.stringify({
+                    });
+                  };
+                  options.modal = {
+                    ondismiss: function() {
+                      sendToApp({
                         event: "CANCELLED"
-                      }));
+                      });
+                    },
+                    escape: false,
+                    backdropclose: false
+                  };
+
+                  var rzp = new Razorpay(options);
+                  rzp.on('payment.failed', function (response) {
+                    sendToApp({
+                      event: "FAILED",
+                      error: response.error
+                    });
+                  });
+
+                  window.onload = function() {
+                    try {
+                      rzp.open();
+                    } catch (openErr) {
+                      sendToApp({
+                        event: "FAILED",
+                        error: { description: openErr.message || "Failed to open Razorpay modal." }
+                      });
                     }
-                  },
-                  "theme": {
-                    "color": "#157a4f"
-                  }
-                };
-                var rzp = new Razorpay(options);
-                rzp.on('payment.failed', function (response) {
-                  window.ReactNativeWebView.postMessage(JSON.stringify({
+                  };
+                } catch (err) {
+                  sendToApp({
                     event: "FAILED",
-                    error: response.error
-                  }));
-                });
-                window.onload = function() {
-                  rzp.open();
-                };
+                    error: { description: err.message || "Initialization error" }
+                  });
+                }
               </script>
             </body>
           </html>
@@ -507,7 +580,7 @@ export default function BannerList({ navigation }) {
             >
                 <SafeAreaView style={{ flex: 1, backgroundColor: "#ffffff" }}>
                     <View style={styles.razorpayHeader}>
-                        <Text style={styles.razorpayHeaderTitle}>Razorpay Gateway (Test Mode)</Text>
+                        <Text style={styles.razorpayHeaderTitle}>Razorpay Gateway</Text>
                         <TouchableOpacity
                             onPress={() => {
                                 setRazorpayModalVisible(false);
@@ -522,11 +595,17 @@ export default function BannerList({ navigation }) {
                     {razorpayOrderData && (
                         <WebView
                             originWhitelist={["*"]}
-                            source={{ html: getRazorpayCheckoutHtml() }}
+                            source={{ html: getRazorpayCheckoutHtml(), baseUrl: "https://razorpay.com" }}
                             onMessage={handleWebViewMessage}
                             javaScriptEnabled={true}
                             domStorageEnabled={true}
                             startInLoadingState={true}
+                            mixedContentMode="always"
+                            allowsInlineMediaPlayback={true}
+                            onError={(syntheticEvent) => {
+                                const { nativeEvent } = syntheticEvent;
+                                console.warn("Razorpay WebView error: ", nativeEvent);
+                            }}
                             renderLoading={() => (
                                 <View style={styles.webViewLoading}>
                                     <ActivityIndicator size="large" color="#157a4f" />
