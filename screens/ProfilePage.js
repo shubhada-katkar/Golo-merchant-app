@@ -12,10 +12,12 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Linking } from "react-native";
 import { textPresets } from "../theme/typography";
 import CustomAlertModal from "../components/CustomAlertModal";
+import DeleteAccountModal from "../components/DeleteAccountModal";
 
 export default function ProfilePage({ navigation }) {
     const [loadingLogout, setLoadingLogout] = useState(false);
     const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+    const [deleteModalVisible, setDeleteModalVisible] = useState(false);
 
     const [alertConfig, setAlertConfig] = useState({
         visible: false,
@@ -276,6 +278,18 @@ export default function ProfilePage({ navigation }) {
                         <Feather name="chevron-right" size={20} color="#ff6b6b" />
                     </TouchableOpacity>
 
+                    <TouchableOpacity style={[styles.menuItem, { backgroundColor: "#fff" }]} onPress={() => setDeleteModalVisible(true)} disabled={loadingLogout}>
+                        <View style={[styles.iconCircle, { backgroundColor: "#fff0f0" }]}>
+                            <MaterialIcons name="delete" size={20} color="#ff6b6b" />
+                        </View>
+                        <View style={styles.menuText}>
+                            <Text style={[styles.menuTitle, { color: "#ff6b6b" }]}>
+                                Delete Account
+                            </Text>
+                        </View>
+                        <Feather name="chevron-right" size={20} color="#ff6b6b" />
+                    </TouchableOpacity>
+
                 </View>
             </ScrollView>
 
@@ -318,6 +332,14 @@ export default function ProfilePage({ navigation }) {
                 </View>
             </Modal>
 
+            {/* Delete Account Multi-Step Modal */}
+            <DeleteAccountModal
+                visible={deleteModalVisible}
+                onClose={() => setDeleteModalVisible(false)}
+                navigation={navigation}
+                onShowAlert={showAlert}
+            />
+
             <CustomAlertModal
                 visible={alertConfig.visible}
                 type={alertConfig.type}
@@ -353,7 +375,7 @@ const styles = StyleSheet.create({
     },
     shopName: {
         ...textPresets.title,
-        width: "90%"
+        width: 200
     },
     menuContainer: {
         paddingHorizontal: 16,
@@ -400,7 +422,7 @@ const styles = StyleSheet.create({
         color: "#888"
     },
     divider: {
-        height: 1,
+        height: 1.5,
         marginVertical: 8,
         marginHorizontal: 4,
     },

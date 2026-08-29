@@ -306,8 +306,8 @@ export default function Overview() {
             <View style={[styles.profileCard, { marginTop: 16 }]}>
                 <Image source={profileImage} style={{ height: 90, width: 90, borderRadius: 46 }} />
 
-                <View style={{ flexDirection: "column", paddingHorizontal: 14 }}>
-                    <Text style={{ ...textPresets.title }}>
+                <View style={{ flexDirection: "column", paddingHorizontal: 14, maxWidth: "75%" }}>
+                    <Text style={{ ...textPresets.title }} numberOfLines={1} ellipsizeMode="tail">
                         {shopName}
                     </Text>
 
