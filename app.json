@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "GOLO",
-    "slug": "merchant-app",
+    "slug": "sukrutnigaveakr",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/newlogo2.png",
@@ -25,9 +25,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "11f1fccc-b78c-4751-b0d6-40ca16a6182b"
+        "projectId": "e92cdaba-478e-4d3c-9785-8c1e7943a823"
       }
     },
-    "owner": "katkar-shubhada"
+    "owner": "snigavekars-team"
   }
 }
